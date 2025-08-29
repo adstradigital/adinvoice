@@ -1,0 +1,157 @@
+/* Container */
+.otp-container {
+  max-width: 480px;
+  margin: 60px auto;
+  padding: 40px;
+  background: #f9faff;
+  border-radius: 20px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+  font-family: "Segoe UI", sans-serif;
+  transition: all 0.3s ease;
+}
+
+.otp-container:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* Title */
+.otp-title {
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f1f1f;
+  margin-bottom: 30px;
+  letter-spacing: 0.5px;
+}
+
+/* Form */
+.otp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+/* Input Rows */
+.otp-row label {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #555;
+  margin-bottom: 8px;
+}
+
+.otp-input-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.inputField {
+  flex: 1;
+  padding: 14px;
+  border: 2px solid #ddd;
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  background: #fff;
+}
+
+.inputField:focus {
+  border-color: #2575fc;
+  box-shadow: 0 0 12px rgba(37, 117, 252, 0.25);
+  outline: none;
+}
+
+/* Verify Button */
+.verify-btn {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #eee;
+}
+
+.verify-btn:hover {
+  background: #ddd;
+}
+
+.verify-btn.success {
+  background: #28a745;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+}
+
+.verify-btn.error {
+  background: #dc3545;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+}
+
+/* Timer */
+.otp-timer {
+  text-align: center;
+  font-size: 0.95rem;
+  color: #777;
+  margin-top: 5px;
+  font-weight: 500;
+}
+
+/* Resend Button */
+.otp-resend-btn-container {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.resend-btn {
+  padding: 12px 25px;
+  border: 2px solid #2575fc;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: #2575fc;
+  transition: all 0.3s ease;
+}
+
+.resend-btn:disabled {
+  border-color: #aaa;
+  color: #aaa;
+  cursor: not-allowed;
+}
+
+.resend-btn:hover:enabled {
+  background: #2575fc;
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+/* Submit Button */
+.otp-submit {
+  margin-top: 25px;
+  text-align: center;
+}
+
+.next-btn {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 15px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, #6a11cb, #2575fc);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 5px 20px rgba(37, 117, 252, 0.35);
+}
+
+.next-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  background: linear-gradient(135deg, #5a0eb2, #1d5ad7);
+  box-shadow: 0 6px 25px rgba(37, 117, 252, 0.45);
+}
