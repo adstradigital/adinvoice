@@ -5,6 +5,12 @@ import "./client-admin-dashboard.css";
 import UserManagement from "../user-management/user-management";
 import Invoices from "../invoices/invoices";
 import CreateInvoicePage from "../create-invoice/create-invoices";
+import InvoiceProposal from "@/components/proposel/page";
+import Accounts from "@/components/accounting/page";
+import Banking from "@/components/Banking/page";
+import Payroll from "@/components/payroll/page";
+import Help from "@/components/help/page";
+
 
 export default function ClientAdminDashboard() {
   const [activePage, setActivePage] = useState("Invoices");
@@ -53,8 +59,16 @@ export default function ClientAdminDashboard() {
             setActivePage={setActivePage}
           />
         );
-      case "Invoice Proposal":
-        return <h3 className="fw-bold">Invoice Proposal</h3>;
+      case "Proposal":
+        return  <InvoiceProposal />;
+      case "Banking":
+        return <Banking />;
+      case "Accounting":
+        return <Accounts />
+      case "Payroll":
+        return <Payroll />
+      case "Help":
+        return <Help />
       case "Settings":
         return <h3 className="fw-bold">⚙️ Settings</h3>;
       default:
@@ -74,7 +88,7 @@ export default function ClientAdminDashboard() {
             "User management",
             "Invoices",
             "Receipts",
-            "Invoice Proposal",
+            "Proposal",
             "Accounting",
             "Banking",
             "Payroll",
