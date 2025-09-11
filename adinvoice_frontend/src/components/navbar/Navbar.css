@@ -1,18 +1,160 @@
-.navbar-brand {
-  font-weight: bold;
-  font-size: 1.3rem;
+/* Navbar Styles */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: saturate(180%) blur(10px);
+  background: linear-gradient(
+    180deg,
+    rgba(11, 16, 32, 0.95),
+    rgba(11, 16, 32, 0.995)
+  );
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.navbar {
-    position: fixed;
-    top: 0;
+/* Navigation Bar */
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 80px; /* slightly taller navbar */
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Brand Section */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 20px;
+  color: #fff;
+}
+
+.logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #7c5cff, #4dd0e1);
+}
+
+.brand small {
+   display:block; 
+   font-weight: 400; 
+   font-size: 0.8rem;
+   color: var(--subtext); 
+   line-height: 1; 
+   margin-top: -4px; }
+
+/* Navigation Links */
+.navlinks {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-left: auto; /* push links to right side */
+}
+
+.navlinks a {
+  color: #a9b2c7;
+  font-weight: 500;
+  padding: 8px 10px;
+  border-radius: 10px;
+  transition: 0.3s;
+  text-decoration: none;
+}
+
+.navlinks a:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* CTA button inside nav */
+.navlinks .cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #7c5cff, #4dd0e1);
+  color: #0b1020;
+  font-weight: 700;
+  padding: 12px 20px;
+  border-radius: 999px;
+  transition: 0.3s;
+  white-space: nowrap;
+}
+
+.navlinks .cta:hover {
+  opacity: 0.9;
+  transform: scale(1.05); /* slight zoom effect */
+  box-shadow: 0 8px 20px rgba(124, 92, 255, 0.5); /* glowing shadow */
+  opacity: 1; /* maintain full opacity */
+}
+
+/* Price pill inside CTA */
+.navlinks .price {
+  background: #0b1020;
+  color: #eaeaff;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+/* Burger Menu */
+.burger {
+  display: none;
+  font-size: 28px;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+}
+
+/* Sign In button */
+.signin-btn {
+  border: 1px solid #4dd0e1;
+  color: #4dd0e1;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-weight: 600;
+  transition: 0.3s;
+  text-decoration: none;
+}
+
+.signin-btn:hover {
+  background: #4dd0e1;
+  color: #0b1020;
+  box-shadow: 0 6px 16px rgba(77, 208, 225, 0.4);
+}
+
+
+/* Responsive Styles */
+@media (max-width: 900px) {
+  .navlinks {
+    display: none;
+    position: absolute;
+    top: 80px; /* match navbar height */
+    right: 0;
+    left: 0;
+    background: rgba(11, 16, 32, 0.95);
+    flex-direction: column;
+    padding: 20px;
+    gap: 16px;
+    text-align: center;
+    margin-left: 0;
+  }
+
+  .navlinks.open {
+    display: flex;
+  }
+
+  .burger {
+    display: inline-flex;
+  }
+
+  .navlinks .cta {
     width: 100%;
-}
-
-.nav-link {
-  margin-left: 15px;
-}
-
-.nav-link:hover {
-  color: #ffc107 !important; /* Bootstrap warning yellow */
+    justify-content: center;
+  }
 }

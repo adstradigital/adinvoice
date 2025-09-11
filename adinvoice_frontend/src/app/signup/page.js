@@ -1,4 +1,4 @@
-import SignUp from "@/components/adminconsole/Signup";
+import SignUp from "@/components/signup/Signup";
 
 
 export default function signuppage () {

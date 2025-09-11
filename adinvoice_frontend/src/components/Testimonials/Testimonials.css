@@ -1,0 +1,122 @@
+.testimonials {
+  padding: 5rem 1.5rem;
+  background: linear-gradient(135deg, #0b1020, #1a1f35);
+  color: #f3f4f6;
+  text-align: center;
+  opacity: 0;
+  animation: fadeInSection 1s ease forwards;
+}
+
+.section-title {
+  font-size: 2.4rem;
+  font-weight: 800;
+  margin-bottom: 3.5rem;
+  background: linear-gradient(135deg, #7c5cff, #4dd0e1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 1px;
+  opacity: 0;
+  animation: fadeInDown 1s ease forwards;
+  animation-delay: 0.3s;
+}
+
+.grid {
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.testimonial {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid transparent;
+  border-radius: 1.5rem;
+  padding: 2.5rem;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border 0.3s ease;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.8s ease forwards;
+}
+
+.testimonial:nth-child(1) {
+  animation-delay: 0.6s;
+}
+.testimonial:nth-child(2) {
+  animation-delay: 0.9s;
+}
+
+.testimonial:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+  border: 2px solid;
+  border-image: linear-gradient(135deg, #7c5cff, #4dd0e1) 1;
+}
+
+.quote {
+  font-size: 1.2rem;
+  line-height: 1.7;
+  color: #e5e7eb;
+  margin-bottom: 1.2rem;
+  font-style: italic;
+}
+
+.author {
+  display: block;
+  font-weight: 700;
+  color: #4dd0e1;
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+}
+
+/* Animations */
+@keyframes fadeInSection {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Start hidden */
+.animate-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+/* When in view */
+.animate-on-scroll.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}

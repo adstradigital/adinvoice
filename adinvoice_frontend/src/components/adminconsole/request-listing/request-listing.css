@@ -1,0 +1,91 @@
+/* Company Header */
+.company-header {
+  border-bottom: 2px solid #e5eaf2;
+  padding-bottom: 12px;
+}
+
+.company-logo {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+}
+
+.company-name {
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+/* Page Styling */
+.container-fluid {
+  background: #f7f9fc;
+  min-height: 100vh;
+}
+
+h3 {
+  font-weight: 600;
+  color: #34495e;
+}
+
+/* Card */
+.card {
+  border-radius: 12px;
+  border: none;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Table */
+.table {
+  font-size: 0.95rem;
+  margin-bottom: 0;
+}
+
+.table thead {
+  background: #eef2f7;
+  font-weight: 600;
+  color: #34495e;
+}
+
+.table tbody tr:hover {
+  background: #f9fcff;
+}
+
+/* Status Badges */
+.badge {
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.badge.bg-warning {
+  background: #ffe08a !important;
+  color: #856404 !important;
+}
+
+.badge.bg-success {
+  background: #27ae60 !important;
+  color: #fff !important;
+}
+
+.badge.bg-danger {
+  background: #e74c3c !important;
+  color: #fff !important;
+}
+
+/* Action Buttons */
+.btn-sm {
+  border-radius: 6px;
+  font-size: 0.85rem;
+  padding: 5px 12px;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-success:hover {
+  background: #219150 !important;
+}
+
+.btn-danger:hover {
+  background: #c0392b !important;
+}

@@ -1,52 +1,53 @@
 "use client";
-import React from "react";
-import Link from "next/link";
-import "bootstrap/dist/css/bootstrap.min.css";
-import "./Navbar.css"; 
+
+import { useState } from "react";
+import "./Navbar.css";
 
 export default function Navbar() {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-dark">
-      <div className="container">
+    <header>
+      <nav className="nav container">
         {/* Brand */}
-        <Link href="/" className="navbar-brand">
-          MyWebsite
-        </Link>
-
-        {/* Toggle button for mobile */}
-        <button
-          className="navbar-toggler"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#navbarNav"
-          aria-controls="navbarNav"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
-        >
-          <span className="navbar-toggler-icon"></span>
-        </button>
-
-        {/* Links */}
-        <div className="collapse navbar-collapse" id="navbarNav">
-          <ul className="navbar-nav ms-auto">
-            <li className="nav-item">
-              <Link href="/" className="nav-link">
-                Home
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link href="/gallery" className="nav-link">
-                Gallery
-              </Link>
-            </li>
-            <li className="nav-item">
-              <Link href="/enquiry" className="nav-link">
-                Enquiry
-              </Link>
-            </li>
-          </ul>
+        <div className="brand">
+          <div className="logo"></div>
+          <div className="brand-text">
+            <div className="brand-title">Adinvoice</div>
+            <small className="brand-subtitle">Online Billing Platform</small>
+          </div>
         </div>
-      </div>
-    </nav>
+
+        {/* Nav Links + CTA */}
+        <div className={`navlinks ${isOpen ? "open" : ""}`}>
+          <a href="#top">Home</a>
+          <a href="#why">Why Us</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#contact">Contact</a>
+
+          {/* Sign In Button */}
+          <a href="/signin" className="signin-btn">
+            Sign In
+          </a>
+
+          {/* CTA Button */}
+          <a href="#pricing" className="cta">
+            <span>Start Billing Smarter</span>
+            <span className="price">
+              ₹4,500<span>/year</span>
+            </span>
+          </a>
+        </div>
+
+        {/* Burger Menu */}
+        <button
+          className="burger"
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label="Toggle menu"
+        >
+          ☰
+        </button>
+      </nav>
+    </header>
   );
 }

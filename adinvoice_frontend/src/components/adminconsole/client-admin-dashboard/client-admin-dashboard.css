@@ -1,0 +1,83 @@
+.dashboard {
+  background: #f5f7fa;
+  min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 260px;
+  background: #fff;
+  border-right: 1px solid #e0e6ed;
+  min-height: 100vh;
+}
+
+.sidebar .logo {
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: #0d6efd;
+}
+
+.sidebar .user-info p {
+  color: #212529;
+  font-size: 0.95rem;
+}
+
+.sidebar .nav-link {
+  color: #495057;
+  font-weight: 500;
+  padding: 10px 15px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+/* Hover */
+.sidebar .nav-link:hover {
+  background: #676769;
+  color: #d5d7db;
+  font-weight: 600;
+}
+
+
+/* Content */
+.content {
+  background: #f9fbfd;
+}
+
+.stat-card {
+  border: none;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.stat-card h6 {
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.stat-card h4 {
+  font-weight: 600;
+  color: #212529;
+}
+
+/* Table */
+.table {
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.table thead th {
+  font-size: 0.9rem;
+  color: #6c757d;
+  font-weight: 600;
+  background: #f8f9fb;
+  border-bottom: 2px solid #e0e6ed;
+}
+
+.table tbody tr {
+  background: #fff;
+  transition: 0.2s;
+}
+
+.table tbody tr:hover {
+  background: #f5f7fa;
+}

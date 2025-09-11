@@ -1,0 +1,112 @@
+/* Background styling */
+.signin-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0b1020, #151a30);
+  padding: 20px;
+}
+
+/* Card box */
+.signin-card {
+  background: #1c2337;
+  padding: 40px 30px;
+  border-radius: 16px;
+  box-shadow: 0px 8px 25px rgba(0, 0, 0, 0.5);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  animation: fadeIn 0.7s ease-in-out;
+  color: #eaeaff;
+}
+
+/* Titles */
+.signin-title {
+  font-size: 26px;
+  margin-bottom: 10px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.signin-subtitle {
+  font-size: 14px;
+  color: #a0a0a0;
+  margin-bottom: 25px;
+}
+
+/* Form inputs */
+.signin-form input {
+  width: 100%;
+  padding: 14px;
+  margin: 10px 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  outline: none;
+  font-size: 14px;
+  background: #2a3148;
+  color: #fff;
+  transition: 0.3s;
+}
+
+.signin-form input::placeholder {
+  color: #999;
+}
+
+.signin-form input:focus {
+  border-color: #4dd0e1;
+  box-shadow: 0 0 6px rgba(77, 208, 225, 0.4);
+}
+
+/* Button */
+.signin-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #7c5cff, #4dd0e1);
+  color: #0b1020;
+  font-size: 16px;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  margin-top: 15px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.signin-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(124, 92, 255, 0.4);
+}
+
+/* Footer */
+.signin-footer {
+  margin-top: 20px;
+  font-size: 14px;
+  color: #a0a0a0;
+}
+
+.signin-footer a {
+  color: #4dd0e1;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.signin-footer a:hover {
+  text-decoration: underline;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .signin-card {
+    padding: 30px 20px;
+  }
+  .signin-title {
+    font-size: 22px;
+  }
+}

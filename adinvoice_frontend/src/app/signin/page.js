@@ -1,4 +1,4 @@
-import SignIn from "@/components/adminconsole/Signin";
+import SignIn from "@/components/signin/Signin";
 
 
 
