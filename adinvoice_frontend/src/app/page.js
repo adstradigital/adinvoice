@@ -7,6 +7,9 @@ import Pricing from "@/components/pricing/pricing";
 import TestimonialsPricing from "@/components/Testimonials/Testimonials";
 import ContactPage from "@/components/contactpage/Contact";
 import Footer from "@/components/footer/footer";
+import Image from "next/image";
+
+
 
 export default function Page() {
   return (
@@ -23,22 +26,24 @@ export default function Page() {
           width: "100%",
           height: "100vh",
           display: "flex",
-          flexDirection: "column", // stack image + text
+          flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
-          background: "rgba(122, 164, 232, 0.9)", // light blue transparent overlay
+          background: "rgba(122, 164, 232, 0.9)",
           textAlign: "center",
           color: "#fff",
         }}
       >
-        <img
+        <Image
           src="/assets/comingsoon.png"
           alt="Coming Soon"
+          width={400}
+          height={400}
           style={{
-            maxWidth: "400px",
             width: "80%",
+            height: "auto",
             objectFit: "contain",
-            marginBottom: "20px", // space between image and text
+            marginBottom: "20px",
           }}
         />
         <h1

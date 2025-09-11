@@ -1,3 +1,5 @@
+"use client";
+
 import "./Pricing.css";
 import { useEffect } from "react";
 import AOS from "aos";

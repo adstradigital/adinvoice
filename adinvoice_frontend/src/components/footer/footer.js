@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";  // ✅ Import Link
 import "./Footer.css";
 
 export default function Footer() {
@@ -18,11 +19,11 @@ export default function Footer() {
         <div className="footer-col" data-aos="fade-up" data-aos-delay="200">
           <h4>Quick Links</h4>
           <ul>
-            <li><a href="/">Home</a></li>
-            <li><a href="/features">Features</a></li>
-            <li><a href="/pricing">Pricing</a></li>
-            <li><a href="/faq">FAQs</a></li>
-            <li><a href="/contact">Contact</a></li>
+            <li><Link href="/">Home</Link></li>
+            <li><Link href="/features">Features</Link></li>
+            <li><Link href="/pricing">Pricing</Link></li>
+            <li><Link href="/faq">FAQs</Link></li>
+            <li><Link href="/contact">Contact</Link></li>
           </ul>
         </div>
 
@@ -30,11 +31,11 @@ export default function Footer() {
         <div className="footer-col" data-aos="fade-up" data-aos-delay="300">
           <h4>Resources</h4>
           <ul>
-            <li><a href="/blog">Blog</a></li>
-            <li><a href="/guides">Guides</a></li>
-            <li><a href="/support">Help Center</a></li>
-            <li><a href="/privacy">Privacy Policy</a></li>
-            <li><a href="/terms">Terms & Conditions</a></li>
+            <li><Link href="/blog">Blog</Link></li>
+            <li><Link href="/guides">Guides</Link></li>
+            <li><Link href="/support">Help Center</Link></li>
+            <li><Link href="/privacy">Privacy Policy</Link></li>
+            <li><Link href="/terms">Terms & Conditions</Link></li>
           </ul>
         </div>
 
@@ -46,6 +47,7 @@ export default function Footer() {
           </p>
           <p>Phone: +91 98765 43210</p>
           <div className="footer-socials" data-aos="zoom-in" data-aos-delay="500">
+            {/* External links can still use <a> */}
             <a href="#"><i className="fab fa-facebook-f"></i></a>
             <a href="#"><i className="fab fa-twitter"></i></a>
             <a href="#"><i className="fab fa-linkedin-in"></i></a>

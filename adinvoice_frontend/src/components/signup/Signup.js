@@ -1,11 +1,14 @@
 "use client";
 import React, { useState } from "react";
+import Image from "next/image";  // ✅ Import Image
+import Link from "next/link";    // ✅ Use Link for internal navigation
 import "./Signup.css";
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    mobile: "",
     password: "",
   });
 
@@ -27,19 +30,25 @@ export default function SignUp() {
         <div className="shape shape3"></div>
       </div>
 
-      
       <div className="signup-content">
         {/* Left Content */}
         <div className="signup-left">
           <h1>Welcome to AdInvoice 🚀</h1>
           <p>
-            Simplify your invoicing process and manage your clients
-            effortlessly.
+            Simplify your invoicing process and manage your clients effortlessly.
             <br />
-            Sign up today and take the first step towards smarter business
-            management.
+            Sign up today and take the first step towards smarter business management.
           </p>
-          <img src="/assets/invoice.jpg" alt="Illustration" />
+
+          {/* ✅ Optimized Image */}
+          <Image
+            src="/assets/invoice.jpg"
+            alt="Illustration"
+            width={400}
+            height={300}
+            priority
+            style={{ maxWidth: "100%", height: "auto" }}
+          />
         </div>
 
         {/* Right Form */}
@@ -70,7 +79,7 @@ export default function SignUp() {
                 required
               />
             </div>
-           
+
             {/* ✅ Mobile Number Field */}
             <div className="form-group">
               <label>Mobile Number</label>
@@ -100,7 +109,8 @@ export default function SignUp() {
               Sign Up
             </button>
             <p className="login-link">
-              Already have an account? <a href="/signin">Sign In</a>
+              Already have an account?{" "}
+              <Link href="/signin">Sign In</Link>  {/* ✅ Use Link instead of <a> */}
             </p>
           </form>
         </div>

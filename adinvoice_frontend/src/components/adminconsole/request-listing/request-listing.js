@@ -1,12 +1,19 @@
 "use client";
+
 import { useState } from "react";
+import Image from "next/image";
 import "./request-listing.css";
 
 export default function RequestListing() {
   const [requests, setRequests] = useState([
     { id: 1, name: "John Doe", company: "Tech Corp", status: "Pending" },
     { id: 2, name: "Jane Smith", company: "Biz Solutions", status: "Approved" },
-    { id: 3, name: "David Miller", company: "Adinvoice Pvt Ltd", status: "Rejected" },
+    {
+      id: 3,
+      name: "David Miller",
+      company: "Adinvoice Pvt Ltd",
+      status: "Rejected",
+    },
   ]);
 
   const handleApprove = (id) => {
@@ -29,11 +36,14 @@ export default function RequestListing() {
     <div className="container-fluid p-4">
       {/* Company Header */}
       <div className="company-header d-flex align-items-center mb-4">
-        <img
+        <Image
           src="/logo.png"
           alt="Company Logo"
+          width={50}
+          height={50}
           className="company-logo me-3"
         />
+
         <h2 className="company-name">Adinvoice Admin Dashboard</h2>
       </div>
 
