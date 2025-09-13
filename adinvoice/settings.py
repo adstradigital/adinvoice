@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-@r%)s37bylt7r3^rk^-y8$ck8!+_&mrz%a6qc=z0j^gby^2ra*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -41,7 +41,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'accounts',
+    "rest_framework",
+    "rest_framework_simplejwt",
+    # 'accounts',
+
+    'tenants',
+    'users',
+    'invoices',
+    'clients'
 ]
 
 MIDDLEWARE = [
@@ -73,22 +80,35 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'adinvoice.wsgi.application'
 
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+}
+
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
 
 
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'adinvoice',      # Your DB name
-        'USER': 'root',              # Your MySQL username
-        'PASSWORD': 'root@123', # Your MySQL password
-        'HOST': '127.0.0.1',         # Usually localhost
-        'PORT': '3306',              # Default MySQL port
+        'NAME': 'adinvoice',
+        'USER': 'root',
+        'PASSWORD': 'root@123',
+        'HOST': '127.0.0.1',
+        'PORT': '3306',
     }
 }
+
+
+DATABASE_ROUTERS = ["tenants.db_router.TenantRouter"]
 
 
 
@@ -124,8 +144,7 @@ USE_TZ = True
 
 
 
-AUTH_USER_MODEL = "accounts.User"
-
+AUTH_USER_MODEL = "users.User"
 
 
 # Static files (CSS, JavaScript, Images)
