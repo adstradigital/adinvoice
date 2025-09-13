@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "aos": "^2.3.4",
+    "axios": "^1.12.1",
     "bootstrap": "^5.3.8",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.2",
@@ -17,8 +18,10 @@
     "next": "15.5.2",
     "pdf-lib": "^1.17.1",
     "react": "19.1.0",
+    "react-bootstrap": "^2.10.10",
     "react-dom": "19.1.0",
-    "react-rnd": "^10.5.2"
+    "react-rnd": "^10.5.2",
+    "recharts": "^3.2.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

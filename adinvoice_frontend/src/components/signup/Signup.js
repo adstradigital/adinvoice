@@ -6,16 +6,70 @@ export default function SignUp() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    mobile: "",
     password: "",
   });
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const [errors, setErrors] = useState({});
+
+  // Live validation function
+  const validateField = (name, value) => {
+    let error = "";
+
+    switch (name) {
+      case "name":
+        if (!value.trim()) error = "Full name is required";
+        else if (value.trim().length < 3) error = "Name must be at least 3 characters";
+        break;
+      case "email":
+        if (!value) error = "Email is required";
+        else if (!/^\S+@\S+\.\S+$/.test(value)) error = "Email is invalid";
+        break;
+      case "mobile":
+        if (!value) error = "Mobile number is required";
+        else if (!/^\d{10}$/.test(value)) error = "Mobile must be 10 digits";
+        break;
+      case "password":
+        if (!value) error = "Password is required";
+        else if (value.length < 6) error = "Password must be at least 6 characters";
+        else if (!/(?=.*[A-Za-z])(?=.*\d)/.test(value))
+          error = "Password must contain letters and numbers";
+        break;
+      default:
+        break;
+    }
+
+    setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
+  // Handle input changes
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+
+    // Live validation
+    validateField(name, value);
+  };
+
+  // Handle form submit
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
+
+    // Validate all fields on submit
+    const formErrors = {};
+    Object.keys(formData).forEach((field) => {
+      validateField(field, formData[field]);
+      if (errors[field]) formErrors[field] = errors[field];
+    });
+
+    if (Object.values(errors).every((err) => err === "")) {
+      console.log("Form submitted:", formData);
+      alert("SignUp Successful!");
+      setFormData({ name: "", email: "", mobile: "", password: "" });
+      setErrors({});
+    } else {
+      console.log("Fix errors before submitting:", errors);
+    }
   };
 
   return (
@@ -27,17 +81,14 @@ export default function SignUp() {
         <div className="shape shape3"></div>
       </div>
 
-      
       <div className="signup-content">
         {/* Left Content */}
         <div className="signup-left">
           <h1>Welcome to AdInvoice 🚀</h1>
           <p>
-            Simplify your invoicing process and manage your clients
-            effortlessly.
+            Simplify your invoicing process and manage your clients effortlessly.
             <br />
-            Sign up today and take the first step towards smarter business
-            management.
+            Sign up today and take the first step towards smarter business management.
           </p>
           <img src="/assets/invoice.jpg" alt="Illustration" />
         </div>
@@ -47,6 +98,7 @@ export default function SignUp() {
           <form className="signup-form" onSubmit={handleSubmit}>
             <h2>Create an Account</h2>
 
+            {/* Name */}
             <div className="form-group">
               <label>Full Name</label>
               <input
@@ -55,10 +107,12 @@ export default function SignUp() {
                 placeholder="Enter your full name"
                 value={formData.name}
                 onChange={handleChange}
-                required
+                className={errors.name ? "input-error" : ""}
               />
+              {errors.name && <span className="error-text">{errors.name}</span>}
             </div>
 
+            {/* Email */}
             <div className="form-group">
               <label>Email Address</label>
               <input
@@ -67,11 +121,12 @@ export default function SignUp() {
                 placeholder="Enter your email"
                 value={formData.email}
                 onChange={handleChange}
-                required
+                className={errors.email ? "input-error" : ""}
               />
+              {errors.email && <span className="error-text">{errors.email}</span>}
             </div>
-           
-            {/* ✅ Mobile Number Field */}
+
+            {/* Mobile */}
             <div className="form-group">
               <label>Mobile Number</label>
               <input
@@ -80,10 +135,12 @@ export default function SignUp() {
                 placeholder="Enter your mobile number"
                 value={formData.mobile}
                 onChange={handleChange}
-                required
+                className={errors.mobile ? "input-error" : ""}
               />
+              {errors.mobile && <span className="error-text">{errors.mobile}</span>}
             </div>
 
+            {/* Password */}
             <div className="form-group">
               <label>Password</label>
               <input
@@ -92,13 +149,15 @@ export default function SignUp() {
                 placeholder="Enter your password"
                 value={formData.password}
                 onChange={handleChange}
-                required
+                className={errors.password ? "input-error" : ""}
               />
+              {errors.password && <span className="error-text">{errors.password}</span>}
             </div>
 
             <button type="submit" className="signup-btn">
               Sign Up
             </button>
+
             <p className="login-link">
               Already have an account? <a href="/signin">Sign In</a>
             </p>

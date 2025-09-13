@@ -1,29 +1,40 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 export default function UserManagement() {
-  const [users, setUsers] = useState([
-    { id: 1, name: "John Doe", email: "john@example.com", role: "Admin" },
-    { id: 2, name: "Jane Smith", email: "jane@example.com", role: "Editor" },
-  ]);
-
+  const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({ name: "", email: "", role: "User" });
 
+  // ✅ Use dummy data instead of Axios
+  useEffect(() => {
+    setTimeout(() => {
+      setUsers([
+        { id: 1, name: "John Doe", email: "john@example.com", role: "Admin" },
+        { id: 2, name: "Jane Smith", email: "jane@example.com", role: "Editor" },
+        { id: 3, name: "Bob Johnson", email: "bob@example.com", role: "User" },
+      ]);
+    }, 500); // simulate API delay
+  }, []);
+
+  // ✅ Handle input changes
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // ✅ Add user locally
   const handleAddUser = (e) => {
     e.preventDefault();
-    const newUser = {
-      id: users.length + 1,
-      ...formData,
-    };
+    const newUser = { ...formData, id: users.length + 1 };
     setUsers([...users, newUser]);
     setFormData({ name: "", email: "", role: "User" });
     setShowModal(false);
+  };
+
+  // ✅ Delete user locally
+  const handleDeleteUser = (id) => {
+    setUsers(users.filter((u) => u.id !== id));
   };
 
   return (
@@ -53,9 +64,9 @@ export default function UserManagement() {
               </thead>
               <tbody>
                 {users.length > 0 ? (
-                  users.map((user) => (
+                  users.map((user, index) => (
                     <tr key={user.id}>
-                      <td>{user.id}</td>
+                      <td>{index + 1}</td>
                       <td className="fw-semibold">{user.name}</td>
                       <td>{user.email}</td>
                       <td>
@@ -73,7 +84,12 @@ export default function UserManagement() {
                       </td>
                       <td className="text-center">
                         <button className="btn btn-sm btn-outline-secondary me-2">✏️ Edit</button>
-                        <button className="btn btn-sm btn-outline-danger">🗑 Delete</button>
+                        <button
+                          className="btn btn-sm btn-outline-danger"
+                          onClick={() => handleDeleteUser(user.id)}
+                        >
+                          🗑 Delete
+                        </button>
                       </td>
                     </tr>
                   ))

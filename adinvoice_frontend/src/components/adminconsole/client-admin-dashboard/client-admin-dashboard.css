@@ -1,20 +1,30 @@
 .dashboard {
   background: #f5f7fa;
   min-height: 100vh;
+  display: flex;
+  flex-direction: row;
 }
 
 /* Sidebar */
 .sidebar {
-  width: 260px;
+  width: 260px;         /* fixed width */
+  min-width: 260px;
+  max-width: 260px;
   background: #fff;
   border-right: 1px solid #e0e6ed;
   min-height: 100vh;
+  flex-shrink: 0;       /* prevents shrinking */
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  transition: all 0.3s ease;
 }
 
 .sidebar .logo {
   font-weight: 700;
   font-size: 1.2rem;
   color: #0d6efd;
+  padding-bottom: 1rem;
 }
 
 .sidebar .user-info p {
@@ -37,47 +47,77 @@
   font-weight: 600;
 }
 
-
-/* Content */
+/* Main Content */
 .content {
+  flex-grow: 1;
+  flex-shrink: 1;
   background: #f9fbfd;
+  padding: 20px;
+  overflow-x: auto;
 }
 
-.stat-card {
-  border: none;
-  border-radius: 12px;
-  background: #fff;
+.sidebar-footer {
+  font-size: 0.7rem;              /* smaller text */
+  color: #e0e0e0;                 /* slightly lighter text */
+  background: #495057;            /* lighter dark gray */
+  border-radius: 4px;             /* slightly smaller rounded corners */
+  padding: 6px 4px;               /* smaller padding */
+  margin-bottom: 10px;            /* spacing from bottom */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);  /* subtle shadow */
+  text-align: center;
 }
 
-.stat-card h6 {
-  font-size: 0.85rem;
-  color: #6c757d;
+.sidebar-footer:hover {
+  background: #5c6670;            /* slightly lighter on hover */
 }
 
-.stat-card h4 {
+.sidebar-footer p {
+  margin: 0;
+  font-size: 0.65rem;             /* smaller subtitle text */
+  font-weight: 500;
+  color: #d1d1d1;                 /* softer gray for subtitle */
+}
+
+.sidebar-footer h6 {
+  margin: 0;
+  font-size: 0.75rem;             /* slightly smaller heading */
   font-weight: 600;
-  color: #212529;
+  color: #ffffff;                  /* still readable in white */
 }
 
-/* Table */
-.table {
-  border-radius: 12px;
-  overflow: hidden;
+
+
+/* Responsive Layout */
+@media (max-width: 1024px) {
+  .dashboard {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    position: relative;
+    border-right: none;
+    border-bottom: 1px solid #e0e6ed;
+  }
+
+  .content {
+    padding: 15px;
+  }
 }
 
-.table thead th {
-  font-size: 0.9rem;
-  color: #6c757d;
-  font-weight: 600;
-  background: #f8f9fb;
-  border-bottom: 2px solid #e0e6ed;
-}
+@media (max-width: 768px) {
+  .sidebar .nav-link {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
 
-.table tbody tr {
-  background: #fff;
-  transition: 0.2s;
-}
+  .sidebar .logo {
+    font-size: 1rem;
+  }
 
-.table tbody tr:hover {
-  background: #f5f7fa;
+  .content {
+    padding: 10px;
+  }
 }

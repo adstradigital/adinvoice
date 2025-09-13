@@ -1,11 +1,26 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 
-export default function Invoices({ invoices, setInvoices, setActivePage }) {
-  const handleDeleteInvoice = (index) => {
-    const newInvoices = [...invoices];
-    newInvoices.splice(index, 1);
-    setInvoices(newInvoices);
+export default function Invoices({ setActivePage }) {
+  const [invoices, setInvoices] = useState([]);
+
+  // ✅ Fetch invoices from API
+  useEffect(() => {
+    axios
+      .get("http://127.0.0.1:8000/api/invoices/") // replace with your Django API
+      .then((res) => setInvoices(res.data))
+      .catch((err) => console.error("Error fetching invoices:", err));
+  }, []);
+
+  // ✅ Delete invoice API
+  const handleDeleteInvoice = (id) => {
+    axios
+      .delete(`http://127.0.0.1:8000/api/invoices/${id}/`)
+      .then(() => {
+        setInvoices(invoices.filter((invoice) => invoice.id !== id));
+      })
+      .catch((err) => console.error("Error deleting invoice:", err));
   };
 
   return (
@@ -38,8 +53,8 @@ export default function Invoices({ invoices, setInvoices, setActivePage }) {
             </thead>
             <tbody>
               {invoices.length > 0 ? (
-                invoices.map((invoice, index) => (
-                  <tr key={index}>
+                invoices.map((invoice) => (
+                  <tr key={invoice.id}>
                     <td>{invoice.number}</td>
                     <td>
                       <span
@@ -61,7 +76,7 @@ export default function Invoices({ invoices, setInvoices, setActivePage }) {
                     <td>
                       <button
                         className="btn btn-sm btn-outline-danger"
-                        onClick={() => handleDeleteInvoice(index)}
+                        onClick={() => handleDeleteInvoice(invoice.id)}
                       >
                         Delete
                       </button>

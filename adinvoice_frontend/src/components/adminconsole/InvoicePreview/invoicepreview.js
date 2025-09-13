@@ -1,143 +1,224 @@
 "use client";
 import React, { useState } from "react";
-import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 
-export default function InvoicePreview({ onBack }) {
-  const [invoiceData] = useState({
-    invoiceNumber: "INV-001",
-    clientName: "John Doe",
-    amount: 1500,
-    items: [
-      { name: "Design", description: "Logo design service", amount: 500 },
-      { name: "Development", description: "Website build", amount: 1000 },
-    ],
+export default function CreateProposalPage({ onBack }) {
+  const [formData, setFormData] = useState({
+    proposalNumber: "",
+    clientName: "",
+    title: "",
+    description: "",
+    amount: "",
+    validUntil: "",
   });
 
-  const downloadPDF = async () => {
-    try {
-      const existingPdfBytes = await fetch(
-        "/assets/templates/blanktemplate1.pdf"
-      ).then((res) => res.arrayBuffer());
+  const [errors, setErrors] = useState({});
+  const [viewProposal, setViewProposal] = useState(false);
 
-      const pdfDoc = await PDFDocument.load(existingPdfBytes);
-      const pages = pdfDoc.getPages();
-      const firstPage = pages[0];
-      const { height } = firstPage.getSize();
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  // ✅ Field-level validation
+  const validateField = (name, value) => {
+    let error = "";
 
-      firstPage.drawText(`Invoice #: ${invoiceData.invoiceNumber}`, {
-        x: 50,
-        y: height - 100,
-        size: 14,
-        font,
-        color: rgb(0, 0, 0),
-      });
-
-      firstPage.drawText(`Client: ${invoiceData.clientName}`, {
-        x: 50,
-        y: height - 130,
-        size: 12,
-        font,
-        color: rgb(0, 0, 0),
-      });
-
-      firstPage.drawText(`Amount: INR ${invoiceData.amount}`, {
-        x: 50,
-        y: height - 160,
-        size: 12,
-        font,
-        color: rgb(0, 0, 0),
-      });
-
-      invoiceData.items.forEach((item, index) => {
-        firstPage.drawText(
-          `${item.name} - ${item.description} - INR ${item.amount}`,
-          {
-            x: 50,
-            y: height - 200 - index * 20,
-            size: 10,
-            font,
-            color: rgb(0, 0, 0),
-          }
-        );
-      });
-
-      const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([pdfBytes], { type: "application/pdf" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `${invoiceData.invoiceNumber}.pdf`;
-      link.click();
-    } catch (err) {
-      console.error("❌ Error generating PDF:", err);
+    if (name === "proposalNumber" && !value.trim()) {
+      error = "Proposal number is required.";
     }
+
+    if (name === "clientName" && value.trim().length < 3) {
+      error = "Client name must be at least 3 characters.";
+    }
+
+    if (name === "title" && !value.trim()) {
+      error = "Proposal title is required.";
+    }
+
+    if (name === "description" && !value.trim()) {
+      error = "Proposal description is required.";
+    }
+
+    if (name === "amount") {
+      if (!value.trim()) error = "Amount is required.";
+      else if (isNaN(value) || parseFloat(value) <= 0) {
+        error = "Amount must be a valid number greater than 0.";
+      }
+    }
+
+    if (name === "validUntil" && !value) {
+      error = "Valid until date is required.";
+    }
+
+    return error;
+  };
+
+  // ✅ On change + live validation
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    setErrors((prev) => ({
+      ...prev,
+      [name]: validateField(name, value),
+    }));
+  };
+
+  // ✅ Final form validation
+  const validateForm = () => {
+    let newErrors = {};
+    for (let key in formData) {
+      const error = validateField(key, formData[key]);
+      if (error) newErrors[key] = error;
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // ✅ Save proposal (preview instead of API for now)
+  const handleSave = () => {
+    if (!validateForm()) return;
+    setViewProposal(true);
   };
 
   return (
-    <div className="d-flex flex-column vh-100 bg-light">
-      {/* PDF Preview */}
-      <div className="flex-grow-1 position-relative p-3">
-        <embed
-          src="/assets/templates/blanktemplate1.pdf#zoom=page-width"
-          type="application/pdf"
-          className="w-100 h-100 border shadow"
-          style={{ borderRadius: "6px" }}
-        />
+    <div className="container-fluid py-5 bg-light" style={{ minHeight: "100vh" }}>
+      {!viewProposal ? (
+        <div className="row">
+          <div className="col-md-8 mx-auto">
+            <div className="card shadow border-0 p-4">
+              <h3 className="mb-4 text-primary fw-bold">Create Proposal</h3>
+              <form>
+                {/* Proposal Number */}
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Proposal Number</label>
+                  <input
+                    type="text"
+                    name="proposalNumber"
+                    className={`form-control ${errors.proposalNumber ? "is-invalid" : ""}`}
+                    value={formData.proposalNumber}
+                    onChange={handleChange}
+                    placeholder="PRO-1001"
+                  />
+                  {errors.proposalNumber && (
+                    <div className="invalid-feedback">{errors.proposalNumber}</div>
+                  )}
+                </div>
 
-        {/* Overlay Card */}
-        <div
-          className="card shadow position-absolute p-3"
-          style={{
-            top: "190px",
-            left: "400px",
-            maxWidth: "400px",
-            opacity: 0.95,
-          }}
-        >
-          <div className="card-body p-3">
-            <h5 className="card-title mb-3">Invoice Preview</h5>
-            <p className="mb-1"><strong>Invoice #:</strong> {invoiceData.invoiceNumber}</p>
-            <p className="mb-1"><strong>Client:</strong> {invoiceData.clientName}</p>
-            <p className="mb-3"><strong>Amount:</strong> ₹{invoiceData.amount}</p>
+                {/* Client Name */}
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Client Name</label>
+                  <input
+                    type="text"
+                    name="clientName"
+                    className={`form-control ${errors.clientName ? "is-invalid" : ""}`}
+                    value={formData.clientName}
+                    onChange={handleChange}
+                    placeholder="Enter client name"
+                  />
+                  {errors.clientName && (
+                    <div className="invalid-feedback">{errors.clientName}</div>
+                  )}
+                </div>
 
-            {/* Items Table */}
-            <table className="table table-sm table-bordered mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th>Item</th>
-                  <th>Description</th>
-                  <th className="text-end">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoiceData.items.map((item, i) => (
-                  <tr key={i}>
-                    <td>{item.name}</td>
-                    <td>{item.description}</td>
-                    <td className="text-end">₹{item.amount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                {/* Proposal Title */}
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Proposal Title</label>
+                  <input
+                    type="text"
+                    name="title"
+                    className={`form-control ${errors.title ? "is-invalid" : ""}`}
+                    value={formData.title}
+                    onChange={handleChange}
+                    placeholder="e.g. Website Redesign Proposal"
+                  />
+                  {errors.title && (
+                    <div className="invalid-feedback">{errors.title}</div>
+                  )}
+                </div>
+
+                {/* Description */}
+                <div className="mb-3">
+                  <label className="form-label fw-semibold">Description</label>
+                  <textarea
+                    name="description"
+                    className={`form-control ${errors.description ? "is-invalid" : ""}`}
+                    rows="3"
+                    value={formData.description}
+                    onChange={handleChange}
+                    placeholder="Enter proposal details..."
+                  />
+                  {errors.description && (
+                    <div className="invalid-feedback">{errors.description}</div>
+                  )}
+                </div>
+
+                {/* Amount & Valid Until */}
+                <div className="row g-3 mb-3">
+                  <div className="col-md-6">
+                    <label className="form-label fw-semibold">Amount (₹)</label>
+                    <input
+                      type="number"
+                      name="amount"
+                      className={`form-control ${errors.amount ? "is-invalid" : ""}`}
+                      value={formData.amount}
+                      onChange={handleChange}
+                    />
+                    {errors.amount && (
+                      <div className="invalid-feedback">{errors.amount}</div>
+                    )}
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label fw-semibold">Valid Until</label>
+                    <input
+                      type="date"
+                      name="validUntil"
+                      className={`form-control ${errors.validUntil ? "is-invalid" : ""}`}
+                      value={formData.validUntil}
+                      onChange={handleChange}
+                    />
+                    {errors.validUntil && (
+                      <div className="invalid-feedback">{errors.validUntil}</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="d-flex justify-content-end">
+                  <button
+                    type="button"
+                    className="btn btn-success"
+                    onClick={handleSave}
+                  >
+                    💾 Save Proposal
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        // ✅ Preview Section
+        <div className="col-md-8 mx-auto">
+          <div className="card shadow border-0 p-4">
+            <h4 className="mb-3 text-primary fw-bold">Proposal Preview</h4>
+            <p><strong>Proposal #:</strong> {formData.proposalNumber}</p>
+            <p><strong>Client:</strong> {formData.clientName}</p>
+            <p><strong>Title:</strong> {formData.title}</p>
+            <p><strong>Description:</strong> {formData.description}</p>
+            <p><strong>Amount:</strong> ₹{formData.amount}</p>
+            <p><strong>Valid Until:</strong> {formData.validUntil}</p>
 
-      {/* Bottom Action Buttons */}
-      <div className="d-flex justify-content-end p-3 border-top bg-white shadow-sm">
-        <button
-          className="btn btn-secondary me-2"
-          onClick={onBack}
-        >
-          🔙 Back
-        </button>
-        <button
-          className="btn btn-primary"
-          onClick={downloadPDF}
-        >
-          📥 Download PDF
-        </button>
-      </div>
+            <div className="d-flex justify-content-end">
+              <button
+                className="btn btn-secondary me-2"
+                onClick={() => setViewProposal(false)}
+              >
+                🔙 Back
+              </button>
+              <button className="btn btn-primary">📥 Export as PDF</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
