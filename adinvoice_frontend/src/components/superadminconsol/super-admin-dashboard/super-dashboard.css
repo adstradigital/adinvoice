@@ -1,0 +1,126 @@
+/* General layout */
+.dashboard-container {
+  display: flex;
+  height: 100vh;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  overflow: hidden;
+  background: #f3f4f6;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 250px;
+  background: linear-gradient(180deg, #4f46e5, #6366f1);
+  color: white;
+  padding: 30px 20px;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease;
+  box-shadow: 5px 0 15px rgba(0,0,0,0.1);
+
+  /* FIX: enable scrolling */
+  overflow-y: auto;
+}
+
+/* Optional: hide ugly scrollbar */
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 10px;
+}
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+
+.sidebar:hover {
+  width: 270px;
+}
+
+/* Sidebar title */
+.sidebar-title {
+  font-size: 26px;
+  font-weight: bold;
+  margin-bottom: 40px;
+  text-align: center;
+  animation: fadeIn 1s ease forwards;
+}
+
+/* Menu items */
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 12px 20px;
+  margin-bottom: 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 16px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.menu-item .icon {
+  font-size: 20px;
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateX(10px);
+}
+
+.menu-item.active {
+  background: rgba(255, 255, 255, 0.3);
+  font-weight: bold;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+/* Badge */
+.badge {
+  background: #f87171;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: auto;
+  animation: bounce 1s infinite;
+}
+
+/* Content area */
+.content-area {
+  flex: 1;
+  padding: 40px;
+  overflow-y: auto;
+  transition: all 0.3s ease;
+}
+
+/* Cards for content */
+.content-card {
+  background: linear-gradient(135deg, #fef9c3, #fef08a);
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  font-size: 18px;
+  color: #1f2937;
+  transition: all 0.4s ease;
+  animation: fadeIn 0.8s ease forwards;
+}
+
+.content-card:hover {
+  transform: translateY(-10px) scale(1.02);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}

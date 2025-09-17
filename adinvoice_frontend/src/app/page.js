@@ -29,16 +29,16 @@ export default function Page() {
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
-          background: "rgba(122, 164, 232, 0.9)",
+          background: "rgba(34, 41, 52, 0.9)",
           textAlign: "center",
           color: "#fff",
         }}
       >
         <Image
-          src="/assets/comingsoon.png"
+          src="/assets/comingsoon5.png"
           alt="Coming Soon"
-          width={400}
-          height={400}
+          width={200}
+          height={200}
           style={{
             width: "80%",
             height: "auto",

@@ -137,11 +137,8 @@ export default function SignUp() {
               {errors.email && <span className="error-text">{errors.email}</span>}
             </div>
 
-<<<<<<< HEAD
             {/* ✅ Mobile Number Field */}
-=======
             {/* Mobile */}
->>>>>>> 61716fc1f4f5aa0f1f38654f2c90377621fa65f6
             <div className="form-group">
               <label>Mobile Number</label>
               <input

@@ -1,15 +1,21 @@
 "use client";
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation"; // for redirecting after login
+import { loginUser } from "../../../Api/index";
+
 import "./SignIn.css";
 
 export default function SignIn() {
+  const router = useRouter();
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
 
   const [errors, setErrors] = useState({});
+  const [serverError, setServerError] = useState("");
 
   // Handle input changes
   const handleChange = (e) => {
@@ -39,31 +45,34 @@ export default function SignIn() {
   };
 
   // Handle form submit
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const newErrors = {};
 
-    if (!formData.email) {
-      newErrors.email = "Email is required";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid";
-    }
+    if (!formData.email) newErrors.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Email is invalid";
 
-    if (!formData.password) {
-      newErrors.password = "Password is required";
-    } else if (formData.password.length < 6) {
-      newErrors.password = "Password must be at least 6 characters";
-    }
+    if (!formData.password) newErrors.password = "Password is required";
+    else if (formData.password.length < 6) newErrors.password = "Password must be at least 6 characters";
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
+      return;
+    }
+
+    setErrors({});
+    setServerError("");
+
+    // ===== Call API =====
+    const response = await loginUser(formData);
+
+    if (response && response.access) {
+      // Successful login, redirect to dashboard
+      router.push("/dashboard");
     } else {
-      setErrors({});
-      console.log("Sign In successful with:", formData);
-      alert("Sign In Successful!");
-      // Reset form
-      setFormData({ email: "", password: "" });
+      // Login failed
+      setServerError("Invalid email or password");
     }
   };
 
@@ -99,6 +108,8 @@ export default function SignIn() {
             />
             {errors.password && <span className="error-text">{errors.password}</span>}
           </div>
+
+          {serverError && <p className="error-text">{serverError}</p>}
 
           <p className="forgot-password">
             <Link href={"/forget-password"}>Forgot Password?</Link>
