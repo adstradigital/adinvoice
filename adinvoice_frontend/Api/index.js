@@ -117,3 +117,36 @@ export const getProductsServices = async () => {
     return [];
   }
 };
+
+// Get all client companies
+export const getClientsCompanies = async () => {
+  try {
+    const res = await API.get("/clients/companies/", { headers: getAuthHeaders() });
+    return res.data;
+  } catch (error) {
+    console.error("Error fetching client companies:", error.response?.data || error.message);
+    return [];
+  }
+};
+
+// Add new client company
+export const addClientCompany = async (companyData) => {
+  try {
+    const res = await API.post("/clients/create/", companyData, { headers: getAuthHeaders() });
+    return res.data;
+  } catch (error) {
+    console.error("Error adding client company:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to add client company" };
+  }
+};
+
+// Update client company
+export const updateClientCompany = async (clientId, companyData) => {
+  try {
+    const res = await API.put(`/clients/update/${clientId}/`, companyData, { headers: getAuthHeaders() });
+    return res.data;
+  } catch (error) {
+    console.error("Error updating client company:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to update client company" };
+  }
+};

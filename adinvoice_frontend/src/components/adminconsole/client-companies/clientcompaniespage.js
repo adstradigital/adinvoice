@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
+import { getClientsCompanies, addClientCompany, updateClientCompany } from "../../../../Api/index"; // ✅ Make sure to export these in api.js
 
 export default function ClientCompanies() {
   const [companies, setCompanies] = useState([]);
@@ -10,55 +11,112 @@ export default function ClientCompanies() {
     contact: "",
     email: "",
     phone: "",
+    industry: "",
+    website: "",
+    registration_number: "",
+    tax_id: "",
+    address_line1: "",
+    city: "",
+    state: "",
+    country: "",
+    postal_code: "",
+    support_email: "",
+    account_manager: null,
+    notes: "",
   });
   const [errors, setErrors] = useState({});
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
-  // ✅ Use dummy data instead of Axios
-  useEffect(() => {
-    setTimeout(() => {
-      setCompanies([
-        { id: 1, name: "ABC Corp", contact: "John Doe", email: "abc@example.com", phone: "9876543210" },
-        { id: 2, name: "XYZ Ltd", contact: "Jane Smith", email: "xyz@example.com", phone: "9123456780" },
-      ]);
+  // ✅ Fetch client companies from API
+  const fetchCompanies = async () => {
+    try {
+      const data = await getClientsCompanies();
+      setCompanies(data);
       setLoading(false);
-    }, 500); // simulate API delay
+    } catch (err) {
+      console.error("Failed to fetch client companies", err);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCompanies();
   }, []);
 
-  // ✅ Validate fields
+  // ✅ Validate form fields
   const validate = () => {
     let tempErrors = {};
     if (!newCompany.name.trim()) tempErrors.name = "Company name is required";
-    if (!newCompany.contact.trim()) tempErrors.contact = "Contact person is required";
+    if (!newCompany.contact?.trim()) tempErrors.contact = "Contact person is required";
 
     if (newCompany.email && !/\S+@\S+\.\S+/.test(newCompany.email)) {
       tempErrors.email = "Enter a valid email address";
     }
 
-    if (newCompany.phone && !/^\d{10}$/.test(newCompany.phone)) {
-      tempErrors.phone = "Phone must be 10 digits";
+    if (newCompany.phone && !/^\d{10,15}$/.test(newCompany.phone)) {
+      tempErrors.phone = "Phone must be 10-15 digits";
     }
 
     setErrors(tempErrors);
     return Object.keys(tempErrors).length === 0;
   };
 
-  // ✅ Handle form changes
+  // ✅ Handle input changes
   const handleChange = (e) => {
     setNewCompany({ ...newCompany, [e.target.name]: e.target.value });
-    setErrors({ ...errors, [e.target.name]: "" }); // live validation
+    setErrors({ ...errors, [e.target.name]: "" });
   };
 
-  // ✅ Add new company locally
-  const handleAddCompany = (e) => {
+  // ✅ Add or update company
+  const handleAddOrUpdateCompany = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
-    const newEntry = { ...newCompany, id: companies.length + 1 };
-    setCompanies([...companies, newEntry]);
-    setNewCompany({ name: "", contact: "", email: "", phone: "" });
-    setErrors({});
-    setShowModal(false);
+    try {
+      if (editingId) {
+        // Update existing company
+        await updateClientCompany(editingId, newCompany);
+        setCompanies((prev) =>
+          prev.map((c) => (c.id === editingId ? { ...c, ...newCompany } : c))
+        );
+      } else {
+        // Add new company
+        const savedCompany = await addClientCompany(newCompany);
+        setCompanies([...companies, savedCompany]);
+      }
+
+      setNewCompany({
+        name: "",
+        contact: "",
+        email: "",
+        phone: "",
+        industry: "",
+        website: "",
+        registration_number: "",
+        tax_id: "",
+        address_line1: "",
+        city: "",
+        state: "",
+        country: "",
+        postal_code: "",
+        support_email: "",
+        account_manager: null,
+        notes: "",
+      });
+      setErrors({});
+      setShowModal(false);
+      setEditingId(null);
+    } catch (err) {
+      console.error("Failed to save company", err);
+    }
+  };
+
+  // ✅ Edit company
+  const handleEdit = (company) => {
+    setNewCompany({ ...company });
+    setEditingId(company.id);
+    setShowModal(true);
   };
 
   return (
@@ -102,7 +160,12 @@ export default function ClientCompanies() {
                     <td>{c.email}</td>
                     <td>{c.phone}</td>
                     <td>
-                      <button className="btn btn-sm btn-outline-primary">Edit</button>
+                      <button
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={() => handleEdit(c)}
+                      >
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -124,12 +187,12 @@ export default function ClientCompanies() {
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
           style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050 }}
         >
-          <div className="card shadow" style={{ width: "400px" }}>
+          <div className="card shadow" style={{ width: "500px" }}>
             <div className="card-header d-flex justify-content-between align-items-center">
-              <h5 className="mb-0">Add New Company</h5>
+              <h5 className="mb-0">{editingId ? "Edit Company" : "Add New Company"}</h5>
               <button className="btn-close" onClick={() => setShowModal(false)}></button>
             </div>
-            <form onSubmit={handleAddCompany} noValidate>
+            <form onSubmit={handleAddOrUpdateCompany} noValidate>
               <div className="card-body">
                 <div className="mb-3">
                   <label className="form-label">Company Name</label>
@@ -185,7 +248,7 @@ export default function ClientCompanies() {
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  Add Company
+                  {editingId ? "Update Company" : "Add Company"}
                 </button>
               </div>
             </form>
