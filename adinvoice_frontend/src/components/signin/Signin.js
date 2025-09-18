@@ -1,78 +1,64 @@
 "use client";
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; // for redirecting after login
+import { useRouter } from "next/navigation";
 import { loginUser } from "../../../Api/index";
-
 import "./SignIn.css";
 
 export default function SignIn() {
   const router = useRouter();
 
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
-
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
 
-  // Handle input changes
+  // Handle input change with live validation
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
 
-    // Live validation
-    if (name === "email") {
-      if (!value) {
-        setErrors((prev) => ({ ...prev, email: "Email is required" }));
-      } else if (!/\S+@\S+\.\S+/.test(value)) {
-        setErrors((prev) => ({ ...prev, email: "Email is invalid" }));
-      } else {
-        setErrors((prev) => ({ ...prev, email: "" }));
-      }
-    }
-
-    if (name === "password") {
-      if (!value) {
-        setErrors((prev) => ({ ...prev, password: "Password is required" }));
-      } else if (value.length < 6) {
-        setErrors((prev) => ({ ...prev, password: "Password must be at least 6 characters" }));
-      } else {
-        setErrors((prev) => ({ ...prev, password: "" }));
-      }
+    if (!value) {
+      setErrors((prev) => ({
+        ...prev,
+        [name]: `${name.charAt(0).toUpperCase() + name.slice(1)} is required`,
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
-  // Handle form submit
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setServerError("");
 
-    const newErrors = {};
-
-    if (!formData.email) newErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Email is invalid";
-
-    if (!formData.password) newErrors.password = "Password is required";
-    else if (formData.password.length < 6) newErrors.password = "Password must be at least 6 characters";
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+    // Simple validation
+    if (!formData.email || !formData.password) {
+      setErrors({
+        email: !formData.email ? "Email is required" : "",
+        password: !formData.password ? "Password is required" : "",
+      });
       return;
     }
 
-    setErrors({});
-    setServerError("");
+    try {
+      const payload = {
+        email: formData.email,
+        password: formData.password,
+      };
 
-    // ===== Call API =====
-    const response = await loginUser(formData);
+      const response = await loginUser(payload);
 
-    if (response && response.access) {
-      // Successful login, redirect to dashboard
-      router.push("/dashboard");
-    } else {
-      // Login failed
-      setServerError("Invalid email or password");
+      if (response?.access) {
+        localStorage.setItem("accessToken", response.access);
+        if (response.refresh) {
+          localStorage.setItem("refreshToken", response.refresh);
+        }
+        router.push("/dashboard");
+      } else {
+        setServerError("Invalid email or password");
+      }
+    } catch (err) {
+      setServerError(err.response?.data?.detail || "Login failed, try again");
     }
   };
 
@@ -82,10 +68,11 @@ export default function SignIn() {
         <h2 className="signin-title">Welcome Back 👋</h2>
         <p className="signin-subtitle">Sign in to continue</p>
 
-        <form className="signin-form" onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="signin-form">
+          {/* Email */}
           <div className="form-group">
             <input
-              type="email"
+              type="text"
               name="email"
               placeholder="Email"
               value={formData.email}
@@ -96,6 +83,7 @@ export default function SignIn() {
             {errors.email && <span className="error-text">{errors.email}</span>}
           </div>
 
+          {/* Password */}
           <div className="form-group">
             <input
               type="password"
@@ -106,7 +94,9 @@ export default function SignIn() {
               className={errors.password ? "input-error" : ""}
               required
             />
-            {errors.password && <span className="error-text">{errors.password}</span>}
+            {errors.password && (
+              <span className="error-text">{errors.password}</span>
+            )}
           </div>
 
           {serverError && <p className="error-text">{serverError}</p>}
@@ -115,7 +105,9 @@ export default function SignIn() {
             <Link href={"/forget-password"}>Forgot Password?</Link>
           </p>
 
-          <button type="submit" className="signin-btn">Sign In</button>
+          <button type="submit" className="signin-btn">
+            Sign In
+          </button>
 
           <p className="signin-footer">
             Don’t have an account? <Link href="/signup">Sign Up</Link>

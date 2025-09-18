@@ -1,16 +1,39 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FaSearch, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
+import axios from "axios";
 import "./merchant-issue-reports.css";
 
-export default function MerchantIssueReports() {
-  const [issues, setIssues] = useState([
-    { id: 1, merchant: "ABC Traders", issue: "Payment delay", status: "Pending", date: "2025-09-12" },
-    { id: 2, merchant: "XYZ Mart", issue: "Invoice mismatch", status: "Resolved", date: "2025-09-14" },
-    { id: 3, merchant: "Global Store", issue: "Login issue", status: "Pending", date: "2025-09-15" },
-  ]);
+const API_URL = "http://127.0.0.1:8000/api/merchant-issues/"; // replace with your actual endpoint
 
+export default function MerchantIssueReports() {
+  const [issues, setIssues] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // 📌 Fetch issues from API on mount
+  useEffect(() => {
+    fetchIssues();
+  }, []);
+
+  const fetchIssues = async () => {
+    try {
+      // const response = await axios.get(API_URL);
+      setIssues(response.data); // expects an array from API
+    } catch (error) {
+      console.error("Error fetching issues:", error);
+    }
+  };
+
+  // 📌 Mark issue as resolved
+  const handleResolve = async (id) => {
+    try {
+      await axios.put(`${API_URL}${id}/`, { status: "Resolved" });
+      // Refresh issues after update
+      fetchIssues();
+    } catch (error) {
+      console.error("Error resolving issue:", error);
+    }
+  };
 
   // Filter issues based on search term
   const filteredIssues = issues.filter(
@@ -18,15 +41,6 @@ export default function MerchantIssueReports() {
       item.merchant.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.issue.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  // Mark issue as resolved
-  const handleResolve = (id) => {
-    setIssues(
-      issues.map((issue) =>
-        issue.id === id ? { ...issue, status: "Resolved" } : issue
-      )
-    );
-  };
 
   return (
     <div className="issue-container">

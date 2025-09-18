@@ -1,14 +1,35 @@
 "use client";
-import { useState } from "react";
-import { FaSearch, FaCheckCircle, FaTimesCircle, FaPaperPlane } from "react-icons/fa";
+import { useState, useEffect } from "react";
+import { FaSearch, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
+import axios from "axios";
 import "./bulk-notification-reports.css";
 
+const API_URL = "http://127.0.0.1:8000/api/bulk-notifications/"; // replace with your actual endpoint
+
 export default function BulkNotificationReports() {
-  const [reports, setReports] = useState([
-    { id: 1, title: "Promo Offer", type: "Email", recipients: 1200, status: "Sent", date: "2025-09-10" },
-    { id: 2, title: "System Alert", type: "SMS", recipients: 350, status: "Failed", date: "2025-09-12" },
-    { id: 3, title: "Invoice Reminder", type: "Push", recipients: 500, status: "Sent", date: "2025-09-14" },
-  ]);
+  const [reports, setReports] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // 📌 Fetch reports on component mount
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  const fetchReports = async () => {
+    try {
+      // const response = await axios.get(API_URL);
+      setReports(response.data); // expects an array from API
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+    }
+  };
+
+  // Filter reports based on search term
+  const filteredReports = reports.filter(
+    (item) =>
+      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.type.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="notification-report-container">
@@ -18,7 +39,12 @@ export default function BulkNotificationReports() {
       <div className="report-actions">
         <div className="search-bar">
           <FaSearch />
-          <input type="text" placeholder="Search reports..." />
+          <input
+            type="text"
+            placeholder="Search reports..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
       </div>
 
@@ -35,26 +61,34 @@ export default function BulkNotificationReports() {
           </tr>
         </thead>
         <tbody>
-          {reports.map((item, index) => (
-            <tr key={item.id}>
-              <td>{index + 1}</td>
-              <td>{item.title}</td>
-              <td>{item.type}</td>
-              <td>{item.recipients}</td>
-              <td>{item.date}</td>
-              <td>
-                {item.status === "Sent" ? (
-                  <span className="status sent">
-                    <FaCheckCircle /> {item.status}
-                  </span>
-                ) : (
-                  <span className="status failed">
-                    <FaTimesCircle /> {item.status}
-                  </span>
-                )}
+          {filteredReports.length > 0 ? (
+            filteredReports.map((item, index) => (
+              <tr key={item.id}>
+                <td>{index + 1}</td>
+                <td>{item.title}</td>
+                <td>{item.type}</td>
+                <td>{item.recipients}</td>
+                <td>{item.date}</td>
+                <td>
+                  {item.status === "Sent" ? (
+                    <span className="status sent">
+                      <FaCheckCircle /> {item.status}
+                    </span>
+                  ) : (
+                    <span className="status failed">
+                      <FaTimesCircle /> {item.status}
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={6} style={{ textAlign: "center", padding: "10px" }}>
+                No reports found
               </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
     </div>

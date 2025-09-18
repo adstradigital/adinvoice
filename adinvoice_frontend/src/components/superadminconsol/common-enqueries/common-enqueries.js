@@ -1,37 +1,65 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Table from "react-bootstrap/Table";
 import Button from "react-bootstrap/Button";
 import Badge from "react-bootstrap/Badge";
 import Modal from "react-bootstrap/Modal";
 import Form from "react-bootstrap/Form";
+import axios from "axios";
+
+const API_URL = "http://127.0.0.1:8000/api/enquiries/"; // replace with your endpoint
 
 export default function CommonEnquiries() {
-  const [enquiries, setEnquiries] = useState([
-    { id: "1", name: "John Doe", email: "john@example.com", question: "How can I reset my password?", status: "Open" },
-    { id: "2", name: "Jane Smith", email: "jane@example.com", question: "Can I change my billing address?", status: "In Progress" },
-    { id: "3", name: "Ali Khan", email: "ali@example.com", question: "Why is my invoice not generated?", status: "Resolved" },
-  ]);
-
+  const [enquiries, setEnquiries] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
   const [reply, setReply] = useState("");
 
+  // 📌 Fetch enquiries on mount
+  useEffect(() => {
+    fetchEnquiries();
+  }, []);
+
+  const fetchEnquiries = async () => {
+    try {
+      const response = await axios.get(API_URL);
+      setEnquiries(response.data); // expects an array
+    } catch (error) {
+      console.error("Error fetching enquiries:", error);
+    }
+  };
+
+  // Handle Reply Modal
   const handleReply = (enquiry) => {
     setSelectedEnquiry(enquiry);
     setReply("");
     setShowModal(true);
   };
 
-  const handleResolve = (id) => {
-    setEnquiries((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, status: "Resolved" } : e))
-    );
+  // Send reply to API
+  const handleSendReply = async () => {
+    if (!selectedEnquiry) return;
+    try {
+      await axios.post(`${API_URL}${selectedEnquiry.id}/reply/`, { message: reply });
+      alert(`Reply sent to ${selectedEnquiry.email}`);
+      setShowModal(false);
+    } catch (error) {
+      console.error("Error sending reply:", error);
+      alert("Failed to send reply.");
+    }
   };
 
-  const handleSendReply = () => {
-    alert(`Reply sent to ${selectedEnquiry.email}: ${reply}`);
-    setShowModal(false);
+  // Mark enquiry as resolved via API
+  const handleResolve = async (id) => {
+    try {
+      await axios.patch(`${API_URL}${id}/`, { status: "Resolved" });
+      setEnquiries((prev) =>
+        prev.map((e) => (e.id === id ? { ...e, status: "Resolved" } : e))
+      );
+    } catch (error) {
+      console.error("Error resolving enquiry:", error);
+      alert("Failed to mark as resolved.");
+    }
   };
 
   const getStatusVariant = (status) => {

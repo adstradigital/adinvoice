@@ -1,35 +1,45 @@
+// api.js
 import axios from "axios";
 
 // Base URL of your Django backend
 const API_URL = "http://127.0.0.1:8000/api";
 
-// ===== Helper for Auth Headers =====
+// Create axios instance
+const API = axios.create({
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+// ===== AUTH HELPERS =====
 const getAuthHeaders = () => {
-  const token = localStorage.getItem("access_token"); // get saved access token
+  const token = localStorage.getItem("access_token");
   return token
     ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
     : { "Content-Type": "application/json" };
 };
 
-// ===== USERS =====
+// ===== AUTH =====
 
 // Login
 export const loginUser = async (credentials) => {
   try {
-    const response = await axios.post(`${API_URL}/users/signin/`, credentials, {
-      headers: { "Content-Type": "application/json" },
+    const res = await API.post("/users/signin/", {
+      email: credentials.email, // ⚠️ backend expects "email" (even if it's username value)
+      password: credentials.password,
     });
 
-    // Save access token to localStorage
-    if (response.data.access) {
-      localStorage.setItem("access_token", response.data.access);
-      localStorage.setItem("refresh_token", response.data.refresh);
+    // Store tokens if available
+    if (res.data.access) {
+      localStorage.setItem("access_token", res.data.access);
+      localStorage.setItem("refresh_token", res.data.refresh);
     }
 
-    return response.data;
+    return res.data;
   } catch (error) {
-    console.error("Login error:", error);
-    return null;
+    console.error("Login error:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Login failed" };
   }
 };
 
@@ -39,90 +49,71 @@ export const logoutUser = () => {
   localStorage.removeItem("refresh_token");
 };
 
+// ===== USERS =====
+
 // Get all users
 export const getUsers = async () => {
   try {
-    const response = await axios.get(`${API_URL}/users/`, { headers: getAuthHeaders() });
-    return response.data;
+    const res = await API.get("/users/", { headers: getAuthHeaders() });
+    return res.data;
   } catch (error) {
-    console.error("Error fetching users:", error);
+    console.error("Error fetching users:", error.response?.data || error.message);
     return [];
   }
 };
 
-// Create new user
-export const createUser = async (userData) => {
+// Signup
+export const signupUser = async (userData) => {
   try {
-    const response = await axios.post(`${API_URL}/users/`, userData, { headers: getAuthHeaders() });
-    return response.data;
+    const res = await API.post("/users/register/", userData);
+    return res.data;
   } catch (error) {
-    console.error("Error creating user:", error);
-    return null;
+    console.error("Signup error:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Signup failed" };
   }
 };
 
-// ===== TENANTS =====
-
-export const getTenants = async () => {
+export const getProducts = async () => {
   try {
-    const response = await axios.get(`${API_URL}/tenants/`, { headers: getAuthHeaders() });
-    return response.data;
+    const res = await API.get("/products/list/", { headers: getAuthHeaders() });
+    return res.data;
   } catch (error) {
-    console.error("Error fetching tenants:", error);
+    console.error("Error fetching products:", error.response?.data || error.message);
     return [];
   }
 };
 
-export const createTenant = async (tenantData) => {
+// Add new product/service
+export const addProduct = async (productData) => {
   try {
-    const response = await axios.post(`${API_URL}/tenants/`, tenantData, { headers: getAuthHeaders() });
-    return response.data;
+    const res = await API.post("/products/create/", productData, {
+      headers: getAuthHeaders(),
+    });
+    return res.data;
   } catch (error) {
-    console.error("Error creating tenant:", error);
-    return null;
+    console.error("Error adding product:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to add product" };
   }
 };
 
-// ===== INVOICES =====
-
-export const getInvoices = async () => {
+// Delete product/service
+export const deleteProduct = async (productId) => {
   try {
-    const response = await axios.get(`${API_URL}/invoices/`, { headers: getAuthHeaders() });
-    return response.data;
+    const res = await API.delete(`/products/${productId}/`, { headers: getAuthHeaders() });
+    return res.data;
   } catch (error) {
-    console.error("Error fetching invoices:", error);
+    console.error("Error deleting product:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to delete product" };
+  }
+};
+
+// Get all products/services
+export const getProductsServices = async () => {
+  try {
+    const res = await API.get("/products/", { headers: getAuthHeaders() });
+    return res.data;
+  } catch (error) {
+    console.error("Error fetching products/services:", error.response?.data || error.message);
     return [];
   }
 };
-
-export const createInvoice = async (invoiceData) => {
-  try {
-    const response = await axios.post(`${API_URL}/invoices/`, invoiceData, { headers: getAuthHeaders() });
-    return response.data;
-  } catch (error) {
-    console.error("Error creating invoice:", error);
-    return null;
-  }
-};
-
-export const updateInvoice = async (id, invoiceData) => {
-  try {
-    const response = await axios.put(`${API_URL}/invoices/${id}/`, invoiceData, { headers: getAuthHeaders() });
-    return response.data;
-  } catch (error) {
-    console.error("Error updating invoice:", error);
-    return null;
-  }
-};
-
-export const deleteInvoice = async (id) => {
-  try {
-    const response = await axios.delete(`${API_URL}/invoices/${id}/`, { headers: getAuthHeaders() });
-    return response.data;
-  } catch (error) {
-    console.error("Error deleting invoice:", error);
-    return null;
-  }
-};
-
-

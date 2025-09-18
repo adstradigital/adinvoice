@@ -1,32 +1,59 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FaSearch, FaEdit, FaTrash, FaPlus } from "react-icons/fa";
+import axios from "axios";
 import "./merchant-management.css";
 
-export default function MerchantManagement() {
-  const [merchants, setMerchants] = useState([
-    { id: 1, name: "ABC Traders", email: "abc@traders.com", status: "Active" },
-    { id: 2, name: "XYZ Mart", email: "xyz@mart.com", status: "Inactive" },
-    { id: 3, name: "Global Store", email: "global@store.com", status: "Active" },
-  ]);
+const API_URL = "http://127.0.0.1:8000/api/merchants/"; // replace with your actual endpoint
 
+export default function MerchantManagement() {
+  const [merchants, setMerchants] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Handle delete
-  const handleDelete = (id) => {
-    setMerchants(merchants.filter((merchant) => merchant.id !== id));
+  // 📌 Fetch merchants from API
+  useEffect(() => {
+    fetchMerchants();
+  }, []);
+
+  const fetchMerchants = async () => {
+    try {
+      // const response = await axios.get(API_URL);
+      setMerchants(response.data); // expects array of merchants from API
+    } catch (error) {
+      console.error("Error fetching merchants:", error);
+    }
   };
 
-  // Handle add merchant
-  const handleAdd = () => {
-    const newId = merchants.length + 1;
-    const newMerchant = {
-      id: newId,
-      name: `New Merchant ${newId}`,
-      email: `new${newId}@merchant.com`,
-      status: "Active",
-    };
-    setMerchants([...merchants, newMerchant]);
+  // 📌 Add new merchant
+  const handleAdd = async () => {
+    try {
+      const newMerchant = {
+        name: `New Merchant ${Date.now()}`,
+        email: `new${Date.now()}@merchant.com`,
+        status: "Active",
+      };
+      await axios.post(API_URL, newMerchant);
+      fetchMerchants(); // refresh list
+    } catch (error) {
+      console.error("Error adding merchant:", error);
+    }
+  };
+
+  // 📌 Delete merchant
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`${API_URL}${id}/`);
+      fetchMerchants(); // refresh list
+    } catch (error) {
+      console.error("Error deleting merchant:", error);
+    }
+  };
+
+  // 📌 Edit merchant placeholder (you can add modal like user management)
+  const handleEdit = async (merchant) => {
+    // Open edit form or inline edit logic
+    // Example: axios.put(`${API_URL}${merchant.id}/`, updatedData)
+    console.log("Edit merchant:", merchant);
   };
 
   // Filter merchants based on search term
@@ -83,7 +110,7 @@ export default function MerchantManagement() {
                 </span>
               </td>
               <td>
-                <button className="edit-btn">
+                <button className="edit-btn" onClick={() => handleEdit(merchant)}>
                   <FaEdit />
                 </button>
                 <button

@@ -4,36 +4,34 @@
   height: 100vh;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   overflow: hidden;
-  background: #f3f4f6;
+  background: #f9fafb; /* lighter background */
 }
 
 /* Sidebar */
 .sidebar {
   width: 250px;
-  background: linear-gradient(180deg, #4f46e5, #6366f1);
+  background: linear-gradient(180deg, #4338ca, #6366f1); /* deeper branding gradient */
   color: white;
   padding: 30px 20px;
   display: flex;
   flex-direction: column;
   transition: width 0.3s ease;
-  box-shadow: 5px 0 15px rgba(0,0,0,0.1);
-
-  /* FIX: enable scrolling */
+  box-shadow: 5px 0 20px rgba(0, 0, 0, 0.1);
   overflow-y: auto;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-/* Optional: hide ugly scrollbar */
+/* Scrollbar styling */
 .sidebar::-webkit-scrollbar {
   width: 6px;
 }
 .sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 10px;
 }
 .sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.6);
 }
-
 
 .sidebar:hover {
   width: 270px;
@@ -41,11 +39,13 @@
 
 /* Sidebar title */
 .sidebar-title {
-  font-size: 26px;
-  font-weight: bold;
+  font-size: 24px;
+  font-weight: 700;
   margin-bottom: 40px;
   text-align: center;
+  letter-spacing: 1px;
   animation: fadeIn 1s ease forwards;
+  color: #f9fafb;
 }
 
 /* Menu items */
@@ -54,8 +54,8 @@
   align-items: center;
   gap: 15px;
   padding: 12px 20px;
-  margin-bottom: 15px;
-  border-radius: 10px;
+  margin-bottom: 12px;
+  border-radius: 12px;
   cursor: pointer;
   font-size: 16px;
   position: relative;
@@ -67,26 +67,27 @@
 }
 
 .menu-item:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateX(10px);
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateX(8px);
 }
 
 .menu-item.active {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.25);
   font-weight: bold;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
 }
 
 /* Badge */
 .badge {
-  background: #f87171;
+  background: #ef4444; /* red badge */
   color: white;
   font-size: 12px;
-  font-weight: bold;
+  font-weight: 600;
   padding: 2px 8px;
   border-radius: 12px;
   margin-left: auto;
-  animation: bounce 1s infinite;
+  animation: bounce 1.2s infinite;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* Content area */
@@ -94,24 +95,26 @@
   flex: 1;
   padding: 40px;
   overflow-y: auto;
+  background: #f9fafb;
   transition: all 0.3s ease;
 }
 
 /* Cards for content */
 .content-card {
-  background: linear-gradient(135deg, #fef9c3, #fef08a);
-  padding: 30px;
+  background: linear-gradient(135deg, #fef9c3, #fde047);
+  padding: 28px;
   border-radius: 16px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
   font-size: 18px;
   color: #1f2937;
   transition: all 0.4s ease;
   animation: fadeIn 0.8s ease forwards;
+  margin-bottom: 25px;
 }
 
 .content-card:hover {
-  transform: translateY(-10px) scale(1.02);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
 }
 
 /* Animations */

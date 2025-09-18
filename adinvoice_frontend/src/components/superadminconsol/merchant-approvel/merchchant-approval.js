@@ -1,20 +1,40 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Table from "react-bootstrap/Table";
 import Button from "react-bootstrap/Button";
 import Badge from "react-bootstrap/Badge";
+import axios from "axios";
+
+const API_URL = "http://127.0.0.1:8000/api/merchants/"; // replace with your endpoint
 
 export default function MerchantApproval() {
-  const [merchants, setMerchants] = useState([
-    { id: "1", name: "ABC Traders", email: "abc@traders.com", status: "Pending" },
-    { id: "2", name: "XYZ Store", email: "xyz@store.com", status: "Approved" },
-    { id: "3", name: "QuickMart", email: "quick@mart.com", status: "Rejected" },
-  ]);
+  const [merchants, setMerchants] = useState([]);
 
-  const handleApproval = (id, newStatus) => {
-    setMerchants((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, status: newStatus } : m))
-    );
+  // 📌 Fetch merchants on mount
+  useEffect(() => {
+    fetchMerchants();
+  }, []);
+
+  const fetchMerchants = async () => {
+    try {
+      // const response = await axios.get(API_URL);
+      setMerchants(response.data); // expects an array of merchants
+    } catch (error) {
+      console.error("Error fetching merchants:", error);
+    }
+  };
+
+  // Approve or Reject merchant
+  const handleApproval = async (id, newStatus) => {
+    try {
+      await axios.patch(`${API_URL}${id}/`, { status: newStatus });
+      setMerchants((prev) =>
+        prev.map((m) => (m.id === id ? { ...m, status: newStatus } : m))
+      );
+    } catch (error) {
+      console.error(`Error updating merchant ${id}:`, error);
+      alert("Failed to update merchant status.");
+    }
   };
 
   const getStatusVariant = (status) => {
@@ -72,6 +92,13 @@ export default function MerchantApproval() {
               </td>
             </tr>
           ))}
+          {merchants.length === 0 && (
+            <tr>
+              <td colSpan="5" style={{ textAlign: "center", padding: "10px" }}>
+                No merchants found
+              </td>
+            </tr>
+          )}
         </tbody>
       </Table>
     </div>

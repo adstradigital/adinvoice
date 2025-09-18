@@ -1,23 +1,33 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./user-management.css";
 import { FaUserPlus, FaEdit, FaTrash, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
+import axios from "axios";
+
+// Dummy API base (replace with your Django backend API URL)
+const API_URL = "http://127.0.0.1:8000/api/users/";
 
 export default function UserManagement() {
-  // Dummy users data
-  const [users, setUsers] = useState([
-    { id: 1, name: "John Doe", email: "john@example.com", role: "Admin", status: "Active" },
-    { id: 2, name: "Jane Smith", email: "jane@example.com", role: "Editor", status: "Inactive" },
-    { id: 3, name: "Michael Lee", email: "michael@example.com", role: "Author", status: "Active" },
-    { id: 4, name: "Sarah Connor", email: "sarah@example.com", role: "Reader", status: "Pending" },
-  ]);
-
+  const [users, setUsers] = useState([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
-
-  // Handle Add/Edit Form
   const [formData, setFormData] = useState({ id: null, name: "", email: "", role: "Reader", status: "Active" });
 
+  // 📌 Fetch Users from API
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await axios.get(API_URL);
+      setUsers(response.data); // assumes API returns a list of users
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  };
+
+  // 📌 Open Add/Edit form
   const handleOpenForm = (user = null) => {
     if (user) {
       setFormData(user);
@@ -33,19 +43,31 @@ export default function UserManagement() {
     setIsFormOpen(false);
   };
 
-  const handleSaveUser = () => {
-    if (editUser) {
-      // Update existing
-      setUsers(users.map(u => (u.id === editUser.id ? formData : u)));
-    } else {
-      // Add new
-      setUsers([...users, { ...formData, id: Date.now() }]);
+  // 📌 Save user (Add or Update)
+  const handleSaveUser = async () => {
+    try {
+      if (editUser) {
+        // Update user
+        await axios.put(`${API_URL}${editUser.id}/`, formData);
+      } else {
+        // Add new user
+        await axios.post(API_URL, formData);
+      }
+      fetchUsers(); // refresh list
+      setIsFormOpen(false);
+    } catch (error) {
+      console.error("Error saving user:", error);
     }
-    setIsFormOpen(false);
   };
 
-  const handleDeleteUser = (id) => {
-    setUsers(users.filter(u => u.id !== id));
+  // 📌 Delete user
+  const handleDeleteUser = async (id) => {
+    try {
+      await axios.delete(`${API_URL}${id}/`);
+      fetchUsers(); // refresh list
+    } catch (error) {
+      console.error("Error deleting user:", error);
+    }
   };
 
   return (

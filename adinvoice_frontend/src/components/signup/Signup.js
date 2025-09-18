@@ -1,41 +1,58 @@
 "use client";
 import React, { useState } from "react";
-import Image from "next/image";  // ✅ Import Image
-import Link from "next/link";    // ✅ Use Link for internal navigation
+import Image from "next/image";
+import Link from "next/link";
+import { signupUser } from "../../../Api"; // <-- API helper
 import "./Signup.css";
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
-    name: "",
+    first_name: "",
+    last_name: "",
     email: "",
-    mobile: "",
-    password: "",
+    phone: "",
+    address: "",
+    date_of_birth: "",
+    company_name: "",
   });
 
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
-  // Live validation function
+  // Live validation
   const validateField = (name, value) => {
     let error = "";
 
     switch (name) {
-      case "name":
-        if (!value.trim()) error = "Full name is required";
-        else if (value.trim().length < 3) error = "Name must be at least 3 characters";
+      case "first_name":
+      case "last_name":
+        if (!value.trim()) error = `${name === "first_name" ? "First" : "Last"} name is required`;
+        else if (value.trim().length < 2) error = "Must be at least 2 characters";
         break;
       case "email":
         if (!value) error = "Email is required";
         else if (!/^\S+@\S+\.\S+$/.test(value)) error = "Email is invalid";
         break;
-      case "mobile":
-        if (!value) error = "Mobile number is required";
-        else if (!/^\d{10}$/.test(value)) error = "Mobile must be 10 digits";
+      case "phone":
+        if (!value) error = "Phone number is required";
+        else if (!/^\+?\d{7,15}$/.test(value)) error = "Enter valid phone number";
         break;
-      case "password":
-        if (!value) error = "Password is required";
-        else if (value.length < 6) error = "Password must be at least 6 characters";
-        else if (!/(?=.*[A-Za-z])(?=.*\d)/.test(value))
-          error = "Password must contain letters and numbers";
+      case "address":
+        if (!value.trim()) error = "Address is required";
+        break;
+      case "date_of_birth":
+        if (!value) error = "Date of birth is required";
+        else {
+          const today = new Date();
+          const dob = new Date(value);
+          let age = today.getFullYear() - dob.getFullYear();
+          const monthDiff = today.getMonth() - dob.getMonth();
+          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) age--;
+          if (age < 18) error = "You must be 18 or older";
+        }
+        break;
+      case "company_name":
+        if (!value.trim()) error = "Company name is required";
         break;
       default:
         break;
@@ -48,35 +65,49 @@ export default function SignUp() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-
-    // Live validation
     validateField(name, value);
   };
 
   // Handle form submit
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate all fields on submit
-    const formErrors = {};
-    Object.keys(formData).forEach((field) => {
-      validateField(field, formData[field]);
-      if (errors[field]) formErrors[field] = errors[field];
-    });
+    // Validate all fields
+    Object.keys(formData).forEach((field) => validateField(field, formData[field]));
 
     if (Object.values(errors).every((err) => err === "")) {
-      console.log("Form submitted:", formData);
-      alert("SignUp Successful!");
-      setFormData({ name: "", email: "", mobile: "", password: "" });
-      setErrors({});
+      try {
+        setLoading(true);
+
+        // <-- API call
+        const response = await signupUser(formData);
+        console.log("API response:", response);
+
+        alert("SignUp Successful!");
+
+        setFormData({
+          first_name: "",
+          last_name: "",
+          email: "",
+          phone: "",
+          address: "",
+          date_of_birth: "",
+          company_name: "",
+        });
+        setErrors({});
+      } catch (error) {
+        console.error("API Error:", error.response ? error.response.data : error.message);
+        alert(error.response?.data?.error || "Failed to register. Please try again!");
+      } finally {
+        setLoading(false);
+      }
     } else {
-      console.log("Fix errors before submitting:", errors);
+      alert("Please fix the errors before submitting.");
     }
   };
 
   return (
     <div className="signup-page">
-      {/* Background Animation */}
       <div className="background-animation">
         <div className="shape shape1"></div>
         <div className="shape shape2"></div>
@@ -93,7 +124,6 @@ export default function SignUp() {
             Sign up today and take the first step towards smarter business management.
           </p>
 
-          {/* ✅ Optimized Image */}
           <Image
             src="/assets/invoice.jpg"
             alt="Illustration"
@@ -109,18 +139,32 @@ export default function SignUp() {
           <form className="signup-form" onSubmit={handleSubmit}>
             <h2>Create an Account</h2>
 
-            {/* Name */}
+            {/* First Name */}
             <div className="form-group">
-              <label>Full Name</label>
+              <label>First Name</label>
               <input
                 type="text"
-                name="name"
-                placeholder="Enter your full name"
-                value={formData.name}
+                name="first_name"
+                placeholder="Enter your first name"
+                value={formData.first_name}
                 onChange={handleChange}
-                className={errors.name ? "input-error" : ""}
+                className={errors.first_name ? "input-error" : ""}
               />
-              {errors.name && <span className="error-text">{errors.name}</span>}
+              {errors.first_name && <span className="error-text">{errors.first_name}</span>}
+            </div>
+
+            {/* Last Name */}
+            <div className="form-group">
+              <label>Last Name</label>
+              <input
+                type="text"
+                name="last_name"
+                placeholder="Enter your last name"
+                value={formData.last_name}
+                onChange={handleChange}
+                className={errors.last_name ? "input-error" : ""}
+              />
+              {errors.last_name && <span className="error-text">{errors.last_name}</span>}
             </div>
 
             {/* Email */}
@@ -137,42 +181,67 @@ export default function SignUp() {
               {errors.email && <span className="error-text">{errors.email}</span>}
             </div>
 
-            {/* ✅ Mobile Number Field */}
-            {/* Mobile */}
+            {/* Phone */}
             <div className="form-group">
-              <label>Mobile Number</label>
+              <label>Phone Number</label>
               <input
                 type="tel"
-                name="mobile"
-                placeholder="Enter your mobile number"
-                value={formData.mobile}
+                name="phone"
+                placeholder="Enter your phone number"
+                value={formData.phone}
                 onChange={handleChange}
-                className={errors.mobile ? "input-error" : ""}
+                className={errors.phone ? "input-error" : ""}
               />
-              {errors.mobile && <span className="error-text">{errors.mobile}</span>}
+              {errors.phone && <span className="error-text">{errors.phone}</span>}
             </div>
 
-            {/* Password */}
+            {/* Address */}
             <div className="form-group">
-              <label>Password</label>
+              <label>Address</label>
               <input
-                type="password"
-                name="password"
-                placeholder="Enter your password"
-                value={formData.password}
+                type="text"
+                name="address"
+                placeholder="Enter your address"
+                value={formData.address}
                 onChange={handleChange}
-                className={errors.password ? "input-error" : ""}
+                className={errors.address ? "input-error" : ""}
               />
-              {errors.password && <span className="error-text">{errors.password}</span>}
+              {errors.address && <span className="error-text">{errors.address}</span>}
             </div>
 
-            <button type="submit" className="signup-btn">
-              Sign Up
+            {/* Date of Birth */}
+            <div className="form-group">
+              <label>Date of Birth</label>
+              <input
+                type="date"
+                name="date_of_birth"
+                value={formData.date_of_birth}
+                onChange={handleChange}
+                className={errors.date_of_birth ? "input-error" : ""}
+              />
+              {errors.date_of_birth && <span className="error-text">{errors.date_of_birth}</span>}
+            </div>
+
+            {/* Company Name */}
+            <div className="form-group">
+              <label>Company Name</label>
+              <input
+                type="text"
+                name="company_name"
+                placeholder="Enter your company name"
+                value={formData.company_name}
+                onChange={handleChange}
+                className={errors.company_name ? "input-error" : ""}
+              />
+              {errors.company_name && <span className="error-text">{errors.company_name}</span>}
+            </div>
+
+            <button type="submit" className="signup-btn" disabled={loading}>
+              {loading ? "Submitting..." : "Sign Up"}
             </button>
 
             <p className="login-link">
-              Already have an account?{" "}
-              <Link href="/signin">Sign In</Link>  {/* ✅ Use Link instead of <a> */}
+              Already have an account? <Link href="/signin">Sign In</Link>
             </p>
           </form>
         </div>
