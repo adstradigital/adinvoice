@@ -1,3 +1,4 @@
+from .models import Document
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -255,5 +256,70 @@ def approve_entrepreneur(request, user_id):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+# Endpoint: Get Entrepreneur Company Details
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_company_details(request, user_id=None):
+    try:
+        # If no user_id provided → return logged-in user's details
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id, role="entrepreneur")
+            except User.DoesNotExist:
+                return Response({"error": "Entrepreneur not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            user = request.user
+
+        # Entrepreneur / Company Details
+        company_data = {
+            "id": user.id,
+            "full_name": user.full_name,
+            "email": user.email,
+            "phone": user.phone,
+            "alternate_phone": user.alternate_phone,
+            "date_of_birth": user.date_of_birth,
+            "company_name": user.company_name,
+            "designation": user.designation,
+            "industry": user.industry,
+            "experience_years": user.experience_years,
+            "address": {
+                "line1": user.address_line1,
+                "line2": user.address_line2,
+                "city": user.city,
+                "state": user.state,
+                "country": user.country,
+                "pincode": user.pincode,
+            },
+            "website": user.website,
+            "linkedin_profile": user.linkedin_profile,
+            "twitter_profile": user.twitter_profile,
+            "application_status": user.application_status,
+            "email_verified": user.email_verified,
+            "sms_verified": user.sms_verified,
+            "profile_completed": user.profile_completed,
+        }
+
+        # Fetch uploaded documents
+        docs = Document.objects.filter(user=user)
+        company_data["documents"] = [
+            {
+                "id": doc.id,
+                "doc_type": doc.get_doc_type_display(),
+                "file_url": doc.document_file.url if doc.document_file else None,
+                "is_verified": doc.is_verified,
+                "uploaded_at": doc.uploaded_at
+            }
+            for doc in docs
+        ]
+
+        return Response(company_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
 
 
