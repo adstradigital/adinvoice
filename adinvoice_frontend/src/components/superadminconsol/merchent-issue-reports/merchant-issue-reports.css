@@ -1,0 +1,65 @@
+.issue-container {
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.issue-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 15px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  background: #f3f4f6;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+.search-bar input {
+  border: none;
+  outline: none;
+  background: transparent;
+  margin-left: 6px;
+}
+
+.issue-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.issue-table th, .issue-table td {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+.status {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.status.resolved {
+  background: #d1fae5;
+  color: #065f46;
+}
+.status.pending {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.resolve-btn {
+  background: #2563eb;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+.resolve-btn:hover {
+  background: #1d4ed8;
+}
