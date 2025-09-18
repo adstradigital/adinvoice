@@ -175,7 +175,8 @@ def signin(request):
 
         if not email or not password:
             return Response({"error": "Email and password are required"}, status=status.HTTP_400_BAD_REQUEST)
-
+        
+        print("---", email, password)
         user = authenticate(request, username=email, password=password)
 
         if user is None:
