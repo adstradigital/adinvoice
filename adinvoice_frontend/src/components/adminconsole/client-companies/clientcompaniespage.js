@@ -1,7 +1,11 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { getClientsCompanies, addClientCompany, updateClientCompany } from "../../../../Api/index"; // ✅ Make sure to export these in api.js
+import {
+  getClientsCompanies,
+  addClientCompany,
+  updateClientCompany,
+} from "../../../../Api/index";
 
 export default function ClientCompanies() {
   const [companies, setCompanies] = useState([]);
@@ -28,7 +32,7 @@ export default function ClientCompanies() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
-  // ✅ Fetch client companies from API
+  // Fetch client companies from API
   const fetchCompanies = async () => {
     try {
       const data = await getClientsCompanies();
@@ -44,11 +48,12 @@ export default function ClientCompanies() {
     fetchCompanies();
   }, []);
 
-  // ✅ Validate form fields
+  // Validate form fields
   const validate = () => {
     let tempErrors = {};
     if (!newCompany.name.trim()) tempErrors.name = "Company name is required";
-    if (!newCompany.contact?.trim()) tempErrors.contact = "Contact person is required";
+    if (!newCompany.contact?.trim())
+      tempErrors.contact = "Contact person is required";
 
     if (newCompany.email && !/\S+@\S+\.\S+/.test(newCompany.email)) {
       tempErrors.email = "Enter a valid email address";
@@ -62,30 +67,32 @@ export default function ClientCompanies() {
     return Object.keys(tempErrors).length === 0;
   };
 
-  // ✅ Handle input changes
+  // Handle input changes
   const handleChange = (e) => {
     setNewCompany({ ...newCompany, [e.target.name]: e.target.value });
     setErrors({ ...errors, [e.target.name]: "" });
   };
 
-  // ✅ Add or update company
+  // Add or update company
   const handleAddOrUpdateCompany = async (e) => {
     e.preventDefault();
     if (!validate()) return;
 
     try {
       if (editingId) {
-        // Update existing company
-        await updateClientCompany(editingId, newCompany);
+        // Update existing company via API
+        const updatedCompany = await updateClientCompany(editingId, newCompany);
+
         setCompanies((prev) =>
-          prev.map((c) => (c.id === editingId ? { ...c, ...newCompany } : c))
+          prev.map((c) => (c.id === editingId ? updatedCompany : c))
         );
       } else {
-        // Add new company
+        // Add new company via API
         const savedCompany = await addClientCompany(newCompany);
         setCompanies([...companies, savedCompany]);
       }
 
+      // Reset form
       setNewCompany({
         name: "",
         contact: "",
@@ -109,10 +116,11 @@ export default function ClientCompanies() {
       setEditingId(null);
     } catch (err) {
       console.error("Failed to save company", err);
+      alert(err.detail || "Failed to save company. Please try again.");
     }
   };
 
-  // ✅ Edit company
+  // Edit company
   const handleEdit = (company) => {
     setNewCompany({ ...company });
     setEditingId(company.id);
@@ -128,9 +136,10 @@ export default function ClientCompanies() {
             + Add Company
           </button>
         </div>
-        <p className="text-muted">
-          Manage your client companies below. Click "Add Company" to create a new entry.
-        </p>
+          <p className="text-muted">
+            Manage your client companies below. Click Add Company to create a new entry.
+          </p>
+
 
         <div className="table-responsive">
           <table className="table table-hover align-middle">
@@ -189,7 +198,9 @@ export default function ClientCompanies() {
         >
           <div className="card shadow" style={{ width: "500px" }}>
             <div className="card-header d-flex justify-content-between align-items-center">
-              <h5 className="mb-0">{editingId ? "Edit Company" : "Add New Company"}</h5>
+              <h5 className="mb-0">
+                {editingId ? "Edit Company" : "Add New Company"}
+              </h5>
               <button className="btn-close" onClick={() => setShowModal(false)}></button>
             </div>
             <form onSubmit={handleAddOrUpdateCompany} noValidate>
@@ -214,7 +225,9 @@ export default function ClientCompanies() {
                     value={newCompany.contact}
                     onChange={handleChange}
                   />
-                  {errors.contact && <div className="invalid-feedback">{errors.contact}</div>}
+                  {errors.contact && (
+                    <div className="invalid-feedback">{errors.contact}</div>
+                  )}
                 </div>
                 <div className="mb-3">
                   <label className="form-label">Email</label>

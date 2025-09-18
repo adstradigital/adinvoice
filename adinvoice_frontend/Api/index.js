@@ -150,3 +150,26 @@ export const updateClientCompany = async (clientId, companyData) => {
     throw error.response?.data || { detail: "Failed to update client company" };
   }
 };
+
+// Get own company details
+export const getOwnCompanyDetails = async () => {
+  try {
+    const res = await API.get("/users/own-company/", { headers: getAuthHeaders() });
+    return res.data;
+  } catch (error) {
+    console.error("Error fetching own company details:", error.response?.data || error.message);
+    return null;
+  }
+};
+
+// Update own company details
+export const updateOwnCompanyDetails = async (companyData) => {
+  try {
+    const res = await API.put("/users/own-company/", companyData, { headers: getAuthHeaders() });
+    return res.data;
+  } catch (error) {
+    console.error("Error updating company details:", error.response?.data || error.message);
+    throw error;
+  }
+};
+
