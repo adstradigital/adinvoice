@@ -68,7 +68,7 @@ def list_client_companies(request, tenant):
 
 
 
-# ✅ Update Client (with tenant support)
+# Endpoint: Update Client (with tenant support)
 @api_view(["PUT"])
 @permission_classes([IsAuthenticated])
 def update_client_company(request, client_id):
@@ -104,7 +104,7 @@ def update_client_company(request, client_id):
 
 
 
-# ✅ Delete Client (with tenant support)
+# Endpoint: Delete Client (with tenant support)
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
 def delete_client_company(request, client_id):
@@ -132,7 +132,7 @@ def delete_client_company(request, client_id):
 
 
 
-# ✅ Activate / Deactivate Client (with tenant support)
+# Endpoint: Activate / Deactivate Client (with tenant support)
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def toggle_client_status(request, client_id):
