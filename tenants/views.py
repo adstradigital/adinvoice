@@ -14,7 +14,8 @@ from django.db import connections, connection
 
 # Endpoint: Create Tenant (Admin only)
 @api_view(['POST'])
-@role_required(["admin"])
+# @role_required(["admin"])
+
 def create_tenant(request):
     serializer = TenantSerializer(data=request.data)
     if serializer.is_valid():
