@@ -1,3 +1,6 @@
+from tenants.models import Tenant
+from users.serializers import UserSerializer
+from django.contrib.auth.hashers import check_password
 from .models import Document
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -12,6 +15,10 @@ from datetime import timedelta
 from django.utils import timezone
 import secrets
 import string
+from .serializers import DocumentSerializer
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.decorators import api_view, permission_classes, parser_classes
+
 
 
 User = get_user_model()
@@ -96,6 +103,77 @@ def verify_sms_otp(request):
 
 
 # Endpoint: Register Entrepreneur
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# def register_entrepreneur(request):
+#     try:
+#         data = request.data
+
+#         # Collect entrepreneur details
+#         first_name = data.get("first_name")
+#         last_name = data.get("last_name")
+#         email = data.get("email")
+#         phone = data.get("phone")
+#         address = data.get("address")
+#         date_of_birth = data.get("date_of_birth")
+#         company_name = data.get("company_name")
+
+
+#         # Basic validation
+#         if not first_name or not last_name or not email or not phone:
+#             return Response({"error": "First name, last name, email and phone are required"},
+#                             status=status.HTTP_400_BAD_REQUEST)
+
+#         if User.objects.filter(email=email).exists():
+#             return Response({"error": "Email already exists"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         if User.objects.filter(phone=phone).exists():
+#             return Response({"error": "Phone number already exists"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         # Create user in 'pending' status
+#         user = User.objects.create(
+#             username=f"pending_{email}",   # temp username until approved
+#             email=email,
+#             first_name=first_name,
+#             last_name=last_name,
+#             role="admin",  # set role
+#             is_active=False,  # cannot login yet
+#             application_status="pending"
+#         )
+
+#         # Save entrepreneur-specific fields
+#         user.phone = phone
+#         user.address_line1 = address
+#         user.date_of_birth = date_of_birth
+#         user.company_name = company_name
+#         user.save()
+
+#         # Check OTP verification
+#         if not user.sms_verified:
+#             return Response({
+#                 "warning": "SMS verification pending. Please verify your phone number.",
+#                 "application_id": user.id,
+#                 "status": user.application_status
+#             }, status=status.HTTP_202_ACCEPTED)
+
+#         if not user.email_verified:
+#             return Response({
+#                 "warning": "Email verification pending. Please verify your email.",
+#                 "application_id": user.id,
+#                 "status": user.application_status
+#             }, status=status.HTTP_202_ACCEPTED)
+
+#         return Response({
+#             "success": "Application submitted successfully. Wait for admin approval.",
+#             "application_id": user.id,
+#             "status": user.application_status
+#         }, status=status.HTTP_201_CREATED)
+
+#     except Exception as e:
+#         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# Endpoint: Register Entrepreneur
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_entrepreneur(request):
@@ -110,11 +188,14 @@ def register_entrepreneur(request):
         address = data.get("address")
         date_of_birth = data.get("date_of_birth")
         company_name = data.get("company_name")
+        password = data.get("password")  # <-- new password field
 
         # Basic validation
-        if not first_name or not last_name or not email or not phone:
-            return Response({"error": "First name, last name, email and phone are required"},
-                            status=status.HTTP_400_BAD_REQUEST)
+        if not first_name or not last_name or not email or not phone or not password:
+            return Response(
+                {"error": "First name, last name, email, phone and password are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         if User.objects.filter(email=email).exists():
             return Response({"error": "Email already exists"}, status=status.HTTP_400_BAD_REQUEST)
@@ -133,6 +214,9 @@ def register_entrepreneur(request):
             application_status="pending"
         )
 
+        # Set hashed password
+        user.set_password(password)
+
         # Save entrepreneur-specific fields
         user.phone = phone
         user.address_line1 = address
@@ -140,7 +224,7 @@ def register_entrepreneur(request):
         user.company_name = company_name
         user.save()
 
-        # Check OTP verification
+        # Check OTP/email verification
         if not user.sms_verified:
             return Response({
                 "warning": "SMS verification pending. Please verify your phone number.",
@@ -165,23 +249,23 @@ def register_entrepreneur(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
 # Endpoint: Sign In
 @api_view(['POST'])
 @permission_classes([AllowAny])
-def signin(request):
+def signin(request): 
     try:
-        email = request.data.get("email")
+        username = request.data.get("username")
         password = request.data.get("password")
 
-        if not email or not password:
+        if not username or not password:
             return Response({"error": "Email and password are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = authenticate(request, username=email, password=password)
+        # Fetch user by username/email
+        user = User.objects.filter(username=username).first()
 
-        if user is None:
+        if user is None or not check_password(password, user.password):
             return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
-
+    
         # Check if account is active
         if not user.is_active:
             return Response({"error": "Account is disabled. Contact Adinvoice Support Team."}, status=status.HTTP_403_FORBIDDEN)
@@ -189,7 +273,9 @@ def signin(request):
         # Entrepreneurs must be approved
         if user.role == "admin" and user.application_status != "approved":
             return Response({"error": f"Application {user.application_status}. Please wait for approval."}, status=status.HTTP_403_FORBIDDEN)
-
+        
+        tenant = Tenant.objects.get(owner_id=user.id)
+        
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
 
@@ -198,7 +284,8 @@ def signin(request):
             "access": str(refresh.access_token),
             "refresh": str(refresh),
             "role": user.role,
-            "user_id": user.id
+            "user_id": user.id,
+            "tenant_id": tenant.id,
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
@@ -208,10 +295,10 @@ def signin(request):
 
 
 
-
 # Endpoint: Approve/Reject Entrepreneur Application
 @api_view(['PUT'])
-@role_required(["admin"])
+# @role_required(["admin"])
+@permission_classes([AllowAny])
 def approve_entrepreneur(request, user_id):
     try:
         action = request.data.get("action")  # "approve" or "reject"
@@ -259,13 +346,11 @@ def approve_entrepreneur(request, user_id):
 
 
 
-
-# Endpoint: Get Entrepreneur Company Details
-@api_view(['GET'])
+@api_view(['GET', 'PUT'])
 @permission_classes([IsAuthenticated])
 def get_company_details(request, user_id=None):
     try:
-        # If no user_id provided → return logged-in user's details
+        # Determine user
         if user_id:
             try:
                 user = User.objects.get(id=user_id, role="entrepreneur")
@@ -274,7 +359,23 @@ def get_company_details(request, user_id=None):
         else:
             user = request.user
 
-        # Entrepreneur / Company Details
+        if request.method == 'PUT':
+            # Only update allowed fields
+            allowed_fields = ["alternate_phone", "website", "linkedin_profile", "twitter_profile", "address_line2"]
+            
+            for field in allowed_fields:
+                if field in request.data:
+                    setattr(user, field, request.data[field])
+            
+            # For nested address updates
+            address_data = request.data.get("address")
+            if address_data and "line2" in address_data:
+                user.address_line2 = address_data["line2"]
+
+            user.save()
+            return Response({"message": "Company details updated successfully!"}, status=status.HTTP_200_OK)
+
+        # GET: return company data
         company_data = {
             "id": user.id,
             "full_name": user.full_name,
@@ -316,10 +417,62 @@ def get_company_details(request, user_id=None):
             for doc in docs
         ]
 
+        print(company_data)
+
         return Response(company_data, status=status.HTTP_200_OK)
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def list_documents(request):
+    docs = Document.objects.filter(user=request.user)
+    serializer = DocumentSerializer(docs, many=True, context={"request": request})
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def upload_document(request):
+    file_obj = request.FILES.get("document_file")
+    doc_type = request.data.get("doc_type")
+
+    if not file_obj or not doc_type:
+        return Response({"error": "document_file and doc_type are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    document = Document.objects.create(
+        user=request.user,
+        doc_type=doc_type,
+        document_file=file_obj,
+    )
+
+    serializer = DocumentSerializer(document, context={"request": request})
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_document(request, doc_id):
+    print("Received doc_id:", doc_id)
+    try:
+        document = Document.objects.get(id=doc_id, user=request.user)
+        document.delete()
+        return Response({"message": "Document deleted successfully"}, status=status.HTTP_200_OK)
+    except Document.DoesNotExist:
+        return Response({"error": "Document not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
+@api_view(['GET'])
+def pending_users(request):
+    try:
+
+        pending_user = User.objects.filter(application_status="pending").all()
+     
+        serializer = UserSerializer(pending_user, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        if not pending_user:
+            return Response({"error":"user not found"})
+        return  Response(pending_user, status=status.HTTP_200_OK)    
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
