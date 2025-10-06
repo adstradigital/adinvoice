@@ -7,9 +7,10 @@ class ClientCompany(models.Model):
     # Basic Info
     name = models.CharField(max_length=255)
     industry = models.CharField(max_length=255, blank=True, null=True)
-    website = models.URLField(blank=True, null=True)
-    logo = models.ImageField(upload_to="client_companies/logos/", blank=True, null=True)
-
+    website = models.URLField(max_length=255, blank=True, null=True)
+    
+    logo = models.ImageField(upload_to='uploads/logos/', max_length=255, null=True, blank=True)
+    
     # Registration / Compliance
     registration_number = models.CharField(max_length=255, blank=True, null=True)
     tax_id = models.CharField(max_length=255, blank=True, null=True)
@@ -27,14 +28,6 @@ class ClientCompany(models.Model):
     email = models.EmailField(blank=True, null=True)
     support_email = models.EmailField(blank=True, null=True)
     
-    # Account Manager
-    account_manager = models.ForeignKey(
-        "users.User",
-        on_delete=models.SET_NULL,
-        blank=True,
-        null=True,
-        related_name="managed_clients"
-    )
 
     # Extra
     notes = models.TextField(blank=True, null=True)

@@ -1,106 +1,144 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import Table from "react-bootstrap/Table";
-import Button from "react-bootstrap/Button";
-import Badge from "react-bootstrap/Badge";
-import axios from "axios";
 
-const API_URL = "http://127.0.0.1:8000/api/merchants/"; // replace with your endpoint
+import React, { useEffect, useState } from "react";
+import { Table, Button, Badge, Spinner } from "react-bootstrap";
+import { getPendingMerchants, updateMerchantStatus } from "../../../../Api/index";
 
 export default function MerchantApproval() {
   const [merchants, setMerchants] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  // 📌 Fetch merchants on mount
+  // ✅ Fetch pending merchants on component mount
   useEffect(() => {
-    fetchMerchants();
+    const loadMerchants = async () => {
+      try {
+        setLoading(true);
+        const data = await getPendingMerchants();
+        setMerchants(data);
+      } catch (error) {
+        console.error("Error fetching merchants:", error);
+        alert("Failed to fetch merchants.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadMerchants();
   }, []);
 
-  const fetchMerchants = async () => {
+  // ✅ Approve or Reject merchant
+  const handleApproval = async (id, action) => {
     try {
-      // const response = await axios.get(API_URL);
-      setMerchants(response.data); // expects an array of merchants
-    } catch (error) {
-      console.error("Error fetching merchants:", error);
-    }
-  };
+      setLoading(true);
+      await updateMerchantStatus(id, action); // "enable" or "disable"
 
-  // Approve or Reject merchant
-  const handleApproval = async (id, newStatus) => {
-    try {
-      await axios.patch(`${API_URL}${id}/`, { status: newStatus });
+      // Update UI after response
       setMerchants((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, status: newStatus } : m))
+        prev.map((m) =>
+          m.id === id
+            ? { ...m, application_status: action === "enable" ? "approved" : "rejected" }
+            : m
+        )
       );
+
+      alert(`Merchant ${action === "enable" ? "approved" : "rejected"} successfully!`);
     } catch (error) {
-      console.error(`Error updating merchant ${id}:`, error);
+      console.error("Error updating merchant status:", error);
       alert("Failed to update merchant status.");
+    } finally {
+      setLoading(false);
     }
   };
 
+  // ✅ Map status to badge color
   const getStatusVariant = (status) => {
-    if (status === "Approved") return "success";
-    if (status === "Rejected") return "danger";
-    return "warning";
+    if (status === "approved") return "success";
+    if (status === "rejected") return "danger";
+    return "warning"; // pending
   };
 
   return (
     <div className="container mt-4">
       <h2 className="mb-4">Merchant Approval</h2>
-      <Table striped bordered hover responsive>
-        <thead className="table-dark">
-          <tr>
-            <th>#</th>
-            <th>Merchant Name</th>
-            <th>Email</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {merchants.map((merchant, index) => (
-            <tr key={merchant.id}>
-              <td>{index + 1}</td>
-              <td>{merchant.name}</td>
-              <td>{merchant.email}</td>
-              <td>
-                <Badge bg={getStatusVariant(merchant.status)}>
-                  {merchant.status}
-                </Badge>
-              </td>
-              <td>
-                {merchant.status === "Pending" ? (
-                  <>
-                    <Button
-                      variant="success"
-                      size="sm"
-                      className="me-2"
-                      onClick={() => handleApproval(merchant.id, "Approved")}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      onClick={() => handleApproval(merchant.id, "Rejected")}
-                    >
-                      Reject
-                    </Button>
-                  </>
-                ) : (
-                  <span className="text-muted">No Action</span>
-                )}
-              </td>
-            </tr>
-          ))}
-          {merchants.length === 0 && (
+
+      {loading && <Spinner animation="border" className="mb-3" />}
+
+      {/* Scrollable table container */}
+      <div
+        style={{
+          maxHeight: "500px",  // vertical scroll
+          overflowY: "auto",
+          overflowX: "auto",  // horizontal scroll
+        }}
+      >
+        <Table striped bordered hover>
+          <thead className="table-dark">
             <tr>
-              <td colSpan="5" style={{ textAlign: "center", padding: "10px" }}>
-                No merchants found
-              </td>
+              <th>#</th>
+              <th>Merchant Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Alternate Phone</th>
+              <th>Company Name</th>
+              <th>Role</th>
+              <th>Date Joined</th>
+              <th>Status</th>
+              <th>Action</th>
             </tr>
-          )}
-        </tbody>
-      </Table>
+          </thead>
+          <tbody>
+            {merchants.length > 0 ? (
+              merchants.map((merchant, index) => (
+                <tr key={merchant.id}>
+                  <td>{index + 1}</td>
+                  <td>{merchant.full_name || merchant.username}</td>
+                  <td>{merchant.email}</td>
+                  <td>{merchant.phone || "-"}</td>
+                  <td>{merchant.alternate_phone || "-"}</td>
+                  <td>{merchant.company_name || "-"}</td>
+                  <td>{merchant.role || "-"}</td>
+                  <td>{new Date(merchant.date_joined).toLocaleDateString()}</td>
+                  <td>
+                    <Badge bg={getStatusVariant(merchant.application_status)}>
+                      {merchant.application_status}
+                    </Badge>
+                  </td>
+                  <td>
+                    {merchant.application_status === "pending" ? (
+                      <>
+                        <Button
+                          variant="success"
+                          size="sm"
+                          className="me-2"
+                          onClick={() => handleApproval(merchant.id, "enable")}
+                          disabled={loading}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleApproval(merchant.id, "disable")}
+                          disabled={loading}
+                        >
+                          Reject
+                        </Button>
+                      </>
+                    ) : (
+                      <span className="text-muted">No Action</span>
+                    )}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="10" className="text-center">
+                  {loading ? "Loading..." : "No merchants found."}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </Table>
+      </div>
     </div>
   );
 }

@@ -12,10 +12,6 @@ from django.db import connections, connection
 
 
 
-
-
-
-
 # Endpoint: Create Tenant (Admin only)
 @api_view(['POST'])
 @role_required(["admin"])
@@ -75,34 +71,25 @@ def get_tenant(request, tenant_id):
 
 
 
-# Endpoint: Update Tenant (Admin only)
 @api_view(['PUT'])
 @role_required(["admin"])
 def update_tenant(request, tenant_id):
     try:
         tenant = Tenant.objects.get(id=tenant_id)
 
-        # ✅ Handle enable/disable operation
+        # ✅ Handle enable/disable (approve/reject)
         if "action" in request.data:
             action = request.data.get("action")
-            name = request.data.get("name")
-
-            tenant = Tenant.objects.get(name=name)
-            if tenant:
-                return Response({"error":"This name already existed try other"})
-
 
             if action == "disable":
                 tenant.is_active = False
-                tenant.name = name
                 tenant.save()
                 return Response(
                     {"success": "Tenant disabled successfully", "data": {"id": tenant.id, "is_active": tenant.is_active}},
                     status=status.HTTP_200_OK,
                 )
             elif action == "enable":
-                tenant.is_active = True                
-                tenant.name = name
+                tenant.is_active = True
                 tenant.save()
                 return Response(
                     {"success": "Tenant enabled successfully", "data": {"id": tenant.id, "is_active": tenant.is_active}},
@@ -114,7 +101,6 @@ def update_tenant(request, tenant_id):
         # ✅ Normal update (without touching db_name)
         serializer = TenantSerializer(tenant, data=request.data, partial=True)
         if serializer.is_valid():
-            # Prevent changing db_name
             if "db_name" in serializer.validated_data:
                 serializer.validated_data.pop("db_name")
 
@@ -127,7 +113,6 @@ def update_tenant(request, tenant_id):
         return Response({"error": "Tenant not found"}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 # Endpoint: Delete Tenant (Admin only)

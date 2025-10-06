@@ -36,7 +36,8 @@ def create_client_company(request):
     if serializer.is_valid():
         company = ClientCompany.objects.using(db_alias).create(**serializer.validated_data)
         return Response({"success": "Client company created", "data": {"id": company.id, "name": company.name}}, status=201)
-
+    
+    print(serializer.errors)
     return Response(serializer.errors, status=400)
 
 

@@ -8,7 +8,7 @@ import "./SignIn.css";
 export default function SignIn() {
   const router = useRouter();
 
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData] = useState({ username: "", password: "" });
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
 
@@ -32,9 +32,9 @@ export default function SignIn() {
     setServerError("");
 
     // Simple validation
-    if (!formData.email || !formData.password) {
+    if (!formData.username || !formData.password) {
       setErrors({
-        email: !formData.email ? "Email is required" : "",
+        username: !formData.username ? "Username is required" : "",
         password: !formData.password ? "Password is required" : "",
       });
       return;
@@ -42,23 +42,28 @@ export default function SignIn() {
 
     try {
       const payload = {
-        email: formData.email,
+        username: formData.username,
         password: formData.password,
       };
 
       const response = await loginUser(payload);
 
       if (response?.access) {
+        // Save tokens
         localStorage.setItem("accessToken", response.access);
         if (response.refresh) {
           localStorage.setItem("refreshToken", response.refresh);
         }
-        router.push("/dashboard");
+
+        // ✅ Redirect to client admin dashboard
+        router.push("/client-admin-dashboard");
       } else {
-        setServerError("Invalid email or password");
+        setServerError("Invalid username or password");
       }
     } catch (err) {
-      setServerError(err.response?.data?.detail || "Login failed, try again");
+      setServerError(
+        err.response?.data?.detail || err.error || "Login failed, try again"
+      );
     }
   };
 
@@ -69,18 +74,20 @@ export default function SignIn() {
         <p className="signin-subtitle">Sign in to continue</p>
 
         <form onSubmit={handleSubmit} className="signin-form">
-          {/* Email */}
+          {/* Username */}
           <div className="form-group">
             <input
               type="text"
-              name="email"
-              placeholder="Email"
-              value={formData.email}
+              name="username"
+              placeholder="Username or Email"
+              value={formData.username}
               onChange={handleChange}
-              className={errors.email ? "input-error" : ""}
+              className={errors.username ? "input-error" : ""}
               required
             />
-            {errors.email && <span className="error-text">{errors.email}</span>}
+            {errors.username && (
+              <span className="error-text">{errors.username}</span>
+            )}
           </div>
 
           {/* Password */}

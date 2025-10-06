@@ -1,24 +1,32 @@
 "use client";
 import React, { useState } from "react";
+import { submitSupportTicket } from "../../../../Api/index"; 
 
 export default function SupportPage() {
   const [formData, setFormData] = useState({
     subject: "",
     description: "",
-    priority: "Medium",
   });
   const [file, setFile] = useState(null);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Ticket Submitted:", { ...formData, file });
-    setSuccess(true);
-    setFormData({ subject: "", description: "", priority: "Medium" });
-    setFile(null);
 
-    // Hide success message after 3s
-    setTimeout(() => setSuccess(false), 3000);
+    try {
+      await submitSupportTicket(formData, file); // ✅ now tenant is auto-included
+      setSuccess(true);
+      setFormData({ subject: "", description: "" });
+      setFile(null);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err) {
+      console.error(err);
+      setError(
+        err.response?.data?.detail || err.message || "Failed to submit ticket."
+      );
+      setTimeout(() => setError(""), 5000);
+    }
   };
 
   return (
@@ -35,8 +43,13 @@ export default function SupportPage() {
           </div>
         )}
 
+        {error && (
+          <div className="alert alert-danger" role="alert">
+            ❌ {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
-          {/* Subject */}
           <div className="mb-3">
             <label className="form-label fw-bold">Subject</label>
             <input
@@ -49,7 +62,6 @@ export default function SupportPage() {
             />
           </div>
 
-          {/* Description */}
           <div className="mb-3">
             <label className="form-label fw-bold">Description</label>
             <textarea
@@ -59,11 +71,9 @@ export default function SupportPage() {
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Describe your issue in detail"
               required
-            ></textarea>
+            />
           </div>
 
-
-          {/* File Upload */}
           <div className="mb-3">
             <label className="form-label fw-bold">Attach File (Optional)</label>
             <input
@@ -73,7 +83,6 @@ export default function SupportPage() {
             />
           </div>
 
-          {/* Submit Button */}
           <div className="d-grid">
             <button type="submit" className="btn btn-primary btn-lg">
               Submit Request

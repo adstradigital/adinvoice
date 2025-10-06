@@ -115,7 +115,7 @@ class Document(models.Model):
         related_name="documents"
     )
     doc_type = models.CharField(max_length=50, choices=DOC_TYPES)
-    document_file = models.FileField(upload_to="documents/%Y/%m/")
+    document_file = models.FileField(upload_to="documents/")
     uploaded_at = models.DateTimeField(auto_now_add=True)
     is_verified = models.BooleanField(default=False)
 

@@ -1,12 +1,15 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./client-admin-dashboard.css";
+
+// Import subpages
 import DashboardPage from "../dashboard/dashboard";
 import UserManagement from "../user-management/user-management";
 import Invoices from "../invoices/invoices";
 import CreateInvoicePage from "../create-invoice/create-invoices";
-import InvoiceProposal from "@/components/proposel/page";
+import InvoiceProposal from "@/components/proposal/page";
 import Accounts from "@/components/adminconsole/accounting/page";
 import Banking from "@/components/adminconsole/Banking/page";
 import Payroll from "@/components/payroll/page";
@@ -20,8 +23,36 @@ import ClientCompanies from "../client-companies/clientcompaniespage";
 import ProductsServices from "../products-and-service-manage/products-and-service";
 import CompanyDetailPage from "../company-details/company-details";
 import ReceiptsPage from "../reciepts/reciepts";
+import { jwtDecode } from "jwt-decode";
 
 export default function ClientAdminDashboard() {
+  const router = useRouter();
+
+  // ✅ Protect route
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+
+    if (!token) {
+      router.push("/signin");
+      return;
+    }
+
+    try {
+      const decoded = jwtDecode(token);
+      const currentTime = Date.now() / 1000;
+
+      if (decoded.exp < currentTime) {
+        // Token expired
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        router.push("/signin");
+      }
+    } catch (err) {
+      console.error("Invalid token", err);
+      router.push("/signin");
+    }
+  }, [router]);
+
   // ✅ Default page set to Dashboard
   const [activePage, setActivePage] = useState("Dashboard");
 
@@ -44,6 +75,13 @@ export default function ClientAdminDashboard() {
       due: 0,
     },
   ]);
+
+  // Logout handler
+  const handleLogout = () => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    router.push("/signin");
+  };
 
   const renderContent = () => {
     switch (activePage) {
@@ -72,7 +110,7 @@ export default function ClientAdminDashboard() {
       case "Company details":
         return <CompanyDetailPage />;
       case "Receipts":
-        return <ReceiptsPage />
+        return <ReceiptsPage />;
       case "Banking":
         return <Banking />;
       case "Accounting":
@@ -93,9 +131,6 @@ export default function ClientAdminDashboard() {
         return <ProductsServices />;
       case "Report & Analytics":
         return <ReportsAnalytics />;
-      // ✅ Optional: Receipts placeholder
-      case "Receipts":
-        return <h3 className="fw-bold">Receipts Page (Coming Soon)</h3>;
       default:
         return <h3 className="fw-bold">{activePage}</h3>;
     }
@@ -133,19 +168,27 @@ export default function ClientAdminDashboard() {
               </button>
             </li>
           ))}
-        </ul>
-        {/* Enhanced Footer */}
-  <div className="sidebar-footer text-center">
-    <p>Designed & Developed by</p>
-    <h6>Adstra Digital</h6>
-  </div>
 
+          {/* Logout Button */}
+          <li className="mt-3">
+            <button
+              className="btn btn-danger w-100"
+              onClick={handleLogout}
+            >
+              Logout
+            </button>
+          </li>
+        </ul>
+
+        {/* Sidebar Footer */}
+        <div className="sidebar-footer text-center mt-auto">
+          <p>Designed & Developed by</p>
+          <h6>Adstra Digital</h6>
+        </div>
       </aside>
-      
 
       {/* Main Content */}
       <main className="content flex-grow-1 p-4">{renderContent()}</main>
     </div>
-    
   );
 }
