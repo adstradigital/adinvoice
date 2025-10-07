@@ -478,10 +478,9 @@ def pending_users(request):
         pending_user = User.objects.filter(application_status="pending").all()
      
         serializer = UserSerializer(pending_user, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
 
         if not pending_user:
             return Response({"error":"user not found"})
-        return  Response(pending_user, status=status.HTTP_200_OK)    
+        return Response(serializer.data, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
