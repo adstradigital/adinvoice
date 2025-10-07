@@ -24,8 +24,8 @@ const TEMPLATES = [
     file: "template_1.jpg",
     style: {
       container: { fontFamily: "Times New Roman, serif", fontSize: "14px", fontWeight: "normal", textColor: "#111111", textAlign: "left" },
-      header: { color: "#e1e5eaff", fontSize: "20px", fontWeight: "bold", textAlign: "left" },
-      subHeader: { color: "#dde2e8ff", fontSize: "16px", fontWeight: "bold" },
+      header: { color: "#b2b4b6ff", fontSize: "20px", fontWeight: "bold", textAlign: "left" },
+      subHeader: { color: "#003366", fontSize: "16px", fontWeight: "bold" },
       clientInfo: { fontSize: "14px", fontWeight: "normal", textColor: "#111111" },
       tableHeader: { backgroundColor: "#f0f0f0", fontWeight: "bold", textAlign: "left", fontSize: "14px", color: "#000" },
       tableCell: { fontSize: "14px", color: "#000", textAlign: "left" },

@@ -17,4 +17,31 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
+
+// Add request interceptor to attach token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token"); // or tenant_id if needed
+    if (token) {
+      config.headers["Authorization"] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Add response interceptor to handle token expiry
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      alert("Your session has expired. Please login again.");
+      localStorage.removeItem("token"); // remove token
+      window.location.href = "/login"; // redirect to login
+    }
+    return Promise.reject(error);
+  }
+);
+
+
 export default API;

@@ -346,7 +346,7 @@ def approve_entrepreneur(request, user_id):
 
 
 
-@api_view(['GET', 'PUT'])
+@api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_company_details(request, user_id=None):
     try:
@@ -358,22 +358,6 @@ def get_company_details(request, user_id=None):
                 return Response({"error": "Entrepreneur not found"}, status=status.HTTP_404_NOT_FOUND)
         else:
             user = request.user
-
-        if request.method == 'PUT':
-            # Only update allowed fields
-            allowed_fields = ["alternate_phone", "website", "linkedin_profile", "twitter_profile", "address_line2"]
-            
-            for field in allowed_fields:
-                if field in request.data:
-                    setattr(user, field, request.data[field])
-            
-            # For nested address updates
-            address_data = request.data.get("address")
-            if address_data and "line2" in address_data:
-                user.address_line2 = address_data["line2"]
-
-            user.save()
-            return Response({"message": "Company details updated successfully!"}, status=status.HTTP_200_OK)
 
         # GET: return company data
         company_data = {
@@ -417,12 +401,37 @@ def get_company_details(request, user_id=None):
             for doc in docs
         ]
 
-        print(company_data)
-
         return Response(company_data, status=status.HTTP_200_OK)
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_company_details(request):
+    try:
+        user = request.user
+
+        # Fields allowed to update
+        editable_fields = [
+            "company_name", "phone", "alternate_phone", "date_of_birth",
+            "designation", "industry", "experience_years",
+            "address_line1", "address_line2", "city", "state",
+            "country", "pincode", "website", "linkedin_profile",
+            "twitter_profile"
+        ]
+
+        for field in editable_fields:
+            if field in request.data:
+                setattr(user, field, request.data[field])
+
+        user.save()
+        return Response({"message": "Company details updated successfully!"}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])

@@ -1,6 +1,6 @@
 // api.js
 import axios from "axios";
-import { handleApiError } from "./errorHandler"
+// import { handleApiError } from "./errorHandler"
 
 // Base URL of your Django backend
 const API_URL = "http://127.0.0.1:8000/api";
@@ -96,37 +96,7 @@ export const getClientsCompanies = async () => {
   }
 };
 
-// Add client company (tenant included in payload)
-// export const addClientCompany = async (companyData) => {
-//   const tenantId = localStorage.getItem("tenant_id");
-//   if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
 
-//   const payload = { ...companyData, tenant: tenantId };
-
-//   try {
-//     const res = await API.post("/clients/create/", payload, { headers: getAuthHeaders() });
-//     return res.data;
-//   } catch (error) {
-//     console.error("Error adding client company:", error.response?.data || error.message);
-//     throw error.response?.data || { detail: "Failed to add client company" };
-//   }
-// };
-
-// // Update client company (tenant included in payload)
-// export const updateClientCompany = async (clientId, companyData) => {
-//   const tenantId = localStorage.getItem("tenant_id");
-//   if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
-
-//   const payload = { ...companyData, tenant: tenantId };
-
-//   try {
-//     const res = await API.put(`/clients/update/${clientId}/`, payload, { headers: getAuthHeaders() });
-//     return res.data;
-//   } catch (error) {
-//     console.error("Error updating client company:", error.response?.data || error.message);
-//     throw error.response?.data || { detail: "Failed to update client company" };
-//   }
-// };
 
 // Add client company
 export const addClientCompany = async (formData) => {
@@ -202,15 +172,24 @@ export const getOwnCompanyDetails = async () => {
   }
 };
 
-export const updateOwnCompanyDetails = async (companyData) => {
+// New API for updating all fields
+export const updateCompanyDetails = async (companyData) => {
   try {
-    const res = await API.put("/users/own-company/", companyData, { headers: getAuthHeaders() });
+    const res = await API.patch("/users/own-company/update/", companyData, { 
+      headers: getAuthHeaders(),
+      // withCredentials: true, // uncomment if backend uses session auth
+    });
     return res.data;
   } catch (error) {
-    console.error("Error updating company details:", error.response?.data || error.message);
+    console.error(
+      "Error updating all company details:",
+      error.response ? error.response.data : error.message
+    );
     throw error;
   }
 };
+
+
 
 // ✅ Upload Document
 export async function uploadDocument(file, docType) {

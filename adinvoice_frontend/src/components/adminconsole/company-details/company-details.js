@@ -4,7 +4,7 @@ import { Card, Row, Col, Button, Form, Modal } from "react-bootstrap";
 import { FileText, Mail, Phone, MapPin } from "lucide-react";
 import {
   getOwnCompanyDetails,
-  updateOwnCompanyDetails,
+  updateCompanyDetails,
   uploadDocument,
   deleteDocument,
 } from "../../../../Api/index";
@@ -37,23 +37,29 @@ export default function CompanyDetailPage() {
     "designation",
     "industry",
     "experience_years",
-    "address_line1",
-    "address_line2",
-    "city",
-    "state",
-    "country",
-    "pincode",
     "website",
     "linkedin_profile",
     "twitter_profile",
+    "address.line1",
+    "address.line2",
+    "address.city",
+    "address.state",
+    "address.country",
+    "address.pincode",
   ];
 
   const calculateProfileCompletion = (data) => {
     const filledCount = profileFields.filter((field) => {
-      const value = data[field];
-      return value !== null && value !== undefined && value.toString().trim() !== "";
+      const keys = field.split(".");
+      let value = data;
+      for (let key of keys) {
+        value = value?.[key];
+        if (value === undefined || value === null) break;
+      }
+      return value !== undefined && value !== null && value.toString().trim() !== "";
     }).length;
-    return Math.round((filledCount / profileFields.length) * 200);
+
+    return Math.round((filledCount / profileFields.length) * 100);
   };
 
   useEffect(() => {
@@ -74,24 +80,30 @@ export default function CompanyDetailPage() {
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    if (name.startsWith("address.")) {
+      const key = name.split(".")[1];
+      setFormData({
+        ...formData,
+        address: {
+          ...formData.address,
+          [key]: value,
+        },
+      });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
   };
 
   const handleUpdate = async () => {
     try {
-      const payload = {
-        alternate_phone: formData.alternate_phone,
-        address_line2: formData.address_line2 || "",
-        website: formData.website,
-        linkedin_profile: formData.linkedin_profile,
-        twitter_profile: formData.twitter_profile,
-      };
-      await updateOwnCompanyDetails(payload);
-      setCompany((prev) => ({ ...prev, ...payload }));
+      await updateCompanyDetails(formData);
+      setCompany({ ...company, ...formData });
       setShowEdit(false);
       alert("Company details updated successfully!");
     } catch (err) {
-      console.error(err);
+      console.error("Error updating company details:", err.response?.data || err.message);
       alert("Failed to update company details.");
     }
   };
@@ -170,7 +182,8 @@ export default function CompanyDetailPage() {
             <Row>
               <Col md={6} className="mb-3">
                 <FileText className="me-2 text-primary" />
-                <strong>Company Name:</strong> <span className="text-muted">{company.company_name || "—"}</span>
+                <strong>Company Name:</strong>{" "}
+                <span className="text-muted">{company.company_name || "—"}</span>
               </Col>
               <Col md={6} className="mb-3">
                 <Mail className="me-2 text-secondary" />
@@ -182,36 +195,44 @@ export default function CompanyDetailPage() {
               </Col>
               <Col md={6} className="mb-3">
                 <Phone className="me-2 text-info" />
-                <strong>Alternate Phone:</strong> <span className="text-muted">{company.alternate_phone || "—"}</span>
+                <strong>Alternate Phone:</strong>{" "}
+                <span className="text-muted">{company.alternate_phone || "—"}</span>
               </Col>
               <Col md={6} className="mb-3">
-                <strong>Date of Birth:</strong> <span className="text-muted">{company.date_of_birth || "—"}</span>
+                <strong>Date of Birth:</strong>{" "}
+                <span className="text-muted">{company.date_of_birth || "—"}</span>
               </Col>
               <Col md={6} className="mb-3">
-                <strong>Designation:</strong> <span className="text-muted">{company.designation || "—"}</span>
+                <strong>Designation:</strong>{" "}
+                <span className="text-muted">{company.designation || "—"}</span>
               </Col>
               <Col md={6} className="mb-3">
-                <strong>Industry:</strong> <span className="text-muted">{company.industry || "—"}</span>
+                <strong>Industry:</strong>{" "}
+                <span className="text-muted">{company.industry || "—"}</span>
               </Col>
               <Col md={6} className="mb-3">
-                <strong>Experience (Years):</strong> <span className="text-muted">{company.experience_years || "—"}</span>
+                <strong>Experience (Years):</strong>{" "}
+                <span className="text-muted">{company.experience_years || "—"}</span>
               </Col>
               <Col md={12} className="mb-3">
                 <MapPin className="me-2 text-danger" />
                 <strong>Address:</strong>{" "}
                 <span className="text-muted">
-                  {company.address_line1 || "—"}, {company.address_line2 || ""}, {company.city || ""}, {company.state || ""},{" "}
-                  {company.country || ""}
+                  {company.address?.line1 || "—"}, {company.address?.line2 || ""},{" "}
+                  {company.address?.city || ""}, {company.address?.state || ""},{" "}
+                  {company.address?.country || ""}, {company.address?.pincode || ""}
                 </span>
               </Col>
               <Col md={6} className="mb-3">
                 <strong>Website:</strong> <span className="text-muted">{company.website || "—"}</span>
               </Col>
               <Col md={6} className="mb-3">
-                <strong>LinkedIn:</strong> <span className="text-muted">{company.linkedin_profile || "—"}</span>
+                <strong>LinkedIn:</strong>{" "}
+                <span className="text-muted">{company.linkedin_profile || "—"}</span>
               </Col>
               <Col md={6} className="mb-3">
-                <strong>Twitter:</strong> <span className="text-muted">{company.twitter_profile || "—"}</span>
+                <strong>Twitter:</strong>{" "}
+                <span className="text-muted">{company.twitter_profile || "—"}</span>
               </Col>
             </Row>
           </Card>
@@ -222,12 +243,25 @@ export default function CompanyDetailPage() {
             <ul className="list-group mb-3">
               {company.documents?.length > 0 ? (
                 company.documents.map((doc) => (
-                  <li key={doc.id} className="list-group-item d-flex justify-content-between align-items-center">
+                  <li
+                    key={doc.id}
+                    className="list-group-item d-flex justify-content-between align-items-center"
+                  >
                     <span>
-                      {doc.doc_type} {doc.is_verified ? <span className="text-success">(Verified)</span> : <span className="text-warning">(Pending)</span>}
+                      {doc.doc_type}{" "}
+                      {doc.is_verified ? (
+                        <span className="text-success">(Verified)</span>
+                      ) : (
+                        <span className="text-warning">(Pending)</span>
+                      )}
                     </span>
                     <span>
-                      <Button size="sm" variant="outline-primary" className="me-2" onClick={() => handleViewDoc(doc.file_url)}>
+                      <Button
+                        size="sm"
+                        variant="outline-primary"
+                        className="me-2"
+                        onClick={() => handleViewDoc(doc.file_url)}
+                      >
                         View
                       </Button>
                       <Button size="sm" variant="danger" onClick={() => handleDelete(doc.id)}>
@@ -262,10 +296,18 @@ export default function CompanyDetailPage() {
           <Card className="shadow-sm p-4 h-100">
             <h5 className="mb-3">Verification & Profile</h5>
             <ul className="list-group list-group-flush mb-3">
-              <li className="list-group-item">Email Verified: <strong>{company.email_verified ? "Yes" : "No"}</strong></li>
-              <li className="list-group-item">SMS Verified: <strong>{company.sms_verified ? "Yes" : "No"}</strong></li>
-              <li className="list-group-item">Profile Completed: <strong>{profileCompleted}%</strong></li>
-              <li className="list-group-item">Documents Uploaded: <strong>{company.documents?.length || 0}</strong></li>
+              <li className="list-group-item">
+                Email Verified: <strong>{company.email_verified ? "Yes" : "No"}</strong>
+              </li>
+              <li className="list-group-item">
+                SMS Verified: <strong>{company.sms_verified ? "Yes" : "No"}</strong>
+              </li>
+              <li className="list-group-item">
+                Profile Completed: <strong>{profileCompleted}%</strong>
+              </li>
+              <li className="list-group-item">
+                Documents Uploaded: <strong>{company.documents?.length || 0}</strong>
+              </li>
             </ul>
 
             <div className="text-center mt-3">
@@ -276,90 +318,95 @@ export default function CompanyDetailPage() {
         </Col>
       </Row>
 
-     {/* Edit Modal */}
-<Modal show={showEdit} onHide={() => setShowEdit(false)}>
-  <Modal.Header closeButton>
-    <Modal.Title>Edit Company Details</Modal.Title>
-  </Modal.Header>
-  <Modal.Body>
-    <Form>
-      {/* All fields editable */}
-      <Form.Group className="mb-3">
-        <Form.Label>Company Name</Form.Label>
-        <Form.Control name="company_name" value={formData.company_name || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>Email</Form.Label>
-        <Form.Control name="email" value={formData.email || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>Phone</Form.Label>
-        <Form.Control name="phone" value={formData.phone || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>Alternate Phone</Form.Label>
-        <Form.Control name="alternate_phone" value={formData.alternate_phone || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>Date of Birth</Form.Label>
-        <Form.Control name="date_of_birth" value={formData.date_of_birth || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>Designation</Form.Label>
-        <Form.Control name="designation" value={formData.designation || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>Industry</Form.Label>
-        <Form.Control name="industry" value={formData.industry || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>Experience (Years)</Form.Label>
-        <Form.Control name="experience_years" value={formData.experience_years || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>Address Line 1</Form.Label>
-        <Form.Control name="address_line1" value={formData.address_line1 || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>Address Line 2</Form.Label>
-        <Form.Control name="address_line2" value={formData.address_line2 || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>City</Form.Label>
-        <Form.Control name="city" value={formData.city || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>State</Form.Label>
-        <Form.Control name="state" value={formData.state || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>Country</Form.Label>
-        <Form.Control name="country" value={formData.country || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>Pincode</Form.Label>
-        <Form.Control name="pincode" value={formData.pincode || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>Website</Form.Label>
-        <Form.Control name="website" value={formData.website || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>LinkedIn Profile</Form.Label>
-        <Form.Control name="linkedin_profile" value={formData.linkedin_profile || ""} onChange={handleChange} />
-      </Form.Group>
-      <Form.Group className="mb-3">
-        <Form.Label>Twitter Profile</Form.Label>
-        <Form.Control name="twitter_profile" value={formData.twitter_profile || ""} onChange={handleChange} />
-      </Form.Group>
-    </Form>
-  </Modal.Body>
-  <Modal.Footer>
-    <Button variant="secondary" onClick={() => setShowEdit(false)}>Cancel</Button>
-    <Button variant="primary" onClick={handleUpdate}>Save Changes</Button>
-  </Modal.Footer>
-</Modal>
+      {/* Edit Modal */}
+      <Modal show={showEdit} onHide={() => setShowEdit(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Edit Company Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Company Name</Form.Label>
+              <Form.Control name="company_name" value={formData.company_name || ""} onChange={handleChange} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Email</Form.Label>
+              <Form.Control name="email" value={formData.email || ""} onChange={handleChange} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Phone</Form.Label>
+              <Form.Control name="phone" value={formData.phone || ""} onChange={handleChange} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Alternate Phone</Form.Label>
+              <Form.Control name="alternate_phone" value={formData.alternate_phone || ""} onChange={handleChange} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Date of Birth</Form.Label>
+              <Form.Control name="date_of_birth" value={formData.date_of_birth || ""} onChange={handleChange} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Designation</Form.Label>
+              <Form.Control name="designation" value={formData.designation || ""} onChange={handleChange} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Industry</Form.Label>
+              <Form.Control name="industry" value={formData.industry || ""} onChange={handleChange} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Experience (Years)</Form.Label>
+              <Form.Control name="experience_years" value={formData.experience_years || ""} onChange={handleChange} />
+            </Form.Group>
 
+            {/* Address Fields */}
+            <Form.Group className="mb-3">
+              <Form.Label>Address Line 1</Form.Label>
+              <Form.Control name="address.line1" value={formData.address?.line1 || ""} onChange={handleChange} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Address Line 2</Form.Label>
+              <Form.Control name="address.line2" value={formData.address?.line2 || ""} onChange={handleChange} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>City</Form.Label>
+              <Form.Control name="address.city" value={formData.address?.city || ""} onChange={handleChange} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>State</Form.Label>
+              <Form.Control name="address.state" value={formData.address?.state || ""} onChange={handleChange} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Country</Form.Label>
+              <Form.Control name="address.country" value={formData.address?.country || ""} onChange={handleChange} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Pincode</Form.Label>
+              <Form.Control name="address.pincode" value={formData.address?.pincode || ""} onChange={handleChange} />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Website</Form.Label>
+              <Form.Control name="website" value={formData.website || ""} onChange={handleChange} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>LinkedIn Profile</Form.Label>
+              <Form.Control name="linkedin_profile" value={formData.linkedin_profile || ""} onChange={handleChange} />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Twitter Profile</Form.Label>
+              <Form.Control name="twitter_profile" value={formData.twitter_profile || ""} onChange={handleChange} />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowEdit(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleUpdate}>
+            Save Changes
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {/* Document Modal */}
       <Modal show={showDoc} onHide={() => setShowDoc(false)} size="lg">
