@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Trash2, Loader2, RefreshCw, Search, UserPlus, Building, Edit } from "lucide-react";
+import { Trash2, Loader2, RefreshCw, Search, UserPlus, Building, Edit, Save, FileText, List, Printer } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
@@ -14,7 +14,11 @@ import {
   addClientCompany,
   getOwnCompanyDetails,
   updateCompanyDetails,
-  uploadDocument
+  uploadDocument,
+  saveProposal,
+  getProposals,
+  updateProposal,
+  deleteProposal
 } from "./../../../Api/index";
 
 // Helper function to handle address objects
@@ -527,6 +531,145 @@ const apiService = {
       
       return addressParts.join(', ');
     }
+  },
+
+  // Proposals API Service
+  proposals: {
+    async getAll() {
+      try {
+        const proposals = await getProposals();
+        return { proposals: proposals || [] };
+      } catch (error) {
+        console.error('Error fetching proposals:', error);
+        throw error;
+      }
+    },
+
+    async create(proposalData) {
+      try {
+        // Calculate totals
+        const calculateTotals = (items) => {
+          let subtotal = 0;
+          let totalGst = 0;
+          let grandTotal = 0;
+
+          items.forEach(item => {
+            const itemSubtotal = (item.qty || 0) * (item.price || 0);
+            const itemGst = itemSubtotal * ((item.gst || 0) / 100);
+            subtotal += itemSubtotal;
+            totalGst += itemGst;
+          });
+
+          grandTotal = subtotal + totalGst;
+
+          return {
+            subtotal: subtotal.toFixed(2),
+            totalGst: totalGst.toFixed(2),
+            grandTotal: grandTotal.toFixed(2)
+          };
+        };
+
+        const totals = calculateTotals(proposalData.items);
+
+        // Transform data for API
+        const apiData = {
+          title: proposalData.title || `Proposal-${proposalData.invoiceNumber}`,
+          proposal_number: proposalData.invoiceNumber,
+          client_name: proposalData.clientName,
+          client_email: proposalData.clientEmail,
+          client_phone: proposalData.clientPhone,
+          client_address: proposalData.clientAddress,
+          company_name: proposalData.companyName,
+          company_email: proposalData.companyEmail,
+          company_phone: proposalData.companyPhone,
+          company_address: proposalData.companyAddress,
+          company_logo: proposalData.companyLogo,
+          items: proposalData.items.map(item => ({
+            name: item.name,
+            description: item.description || '',
+            quantity: item.qty || 1,
+            price: item.price || 0,
+            gst_rate: item.gst || 0,
+            type: item.type || 'product'
+          })),
+          subtotal: parseFloat(totals.subtotal),
+          total_gst: parseFloat(totals.totalGst),
+          grand_total: parseFloat(totals.grandTotal),
+          date: proposalData.date,
+          due_date: proposalData.dueDate,
+          notes: proposalData.notes,
+          template: proposalData.template.id,
+          status: 'draft',
+          tenant: localStorage.getItem("tenant_id")
+        };
+
+        const newProposal = await saveProposal(apiData);
+        return newProposal;
+      } catch (error) {
+        console.error('Error creating proposal:', error);
+        throw error;
+      }
+    },
+
+    async update(id, proposalData) {
+      try {
+        // Calculate totals
+        const calculateTotals = (items) => {
+          let subtotal = 0;
+          let totalGst = 0;
+          let grandTotal = 0;
+
+          items.forEach(item => {
+            const itemSubtotal = (item.qty || 0) * (item.price || 0);
+            const itemGst = itemSubtotal * ((item.gst || 0) / 100);
+            subtotal += itemSubtotal;
+            totalGst += itemGst;
+          });
+
+          grandTotal = subtotal + totalGst;
+
+          return {
+            subtotal: subtotal.toFixed(2),
+            totalGst: totalGst.toFixed(2),
+            grandTotal: grandTotal.toFixed(2)
+          };
+        };
+
+        const totals = calculateTotals(proposalData.items);
+
+        const apiData = {
+          items: proposalData.items.map(item => ({
+            name: item.name,
+            description: item.description || '',
+            quantity: item.qty || 1,
+            price: item.price || 0,
+            gst_rate: item.gst || 0,
+            type: item.type || 'product'
+          })),
+          subtotal: parseFloat(totals.subtotal),
+          total_gst: parseFloat(totals.totalGst),
+          grand_total: parseFloat(totals.grandTotal),
+          notes: proposalData.notes,
+          status: proposalData.status || 'draft',
+        };
+
+        const updatedProposal = await updateProposal(id, apiData);
+        return updatedProposal;
+      } catch (error) {
+        console.error('Error updating proposal:', error);
+        throw error;
+      }
+    },
+
+    async delete(id) {
+      try {
+        await deleteProposal(id);
+        return { success: true };
+      } catch (error) {
+        console.error('Error deleting proposal:', error);
+        throw error;
+      }
+    }
   }
 };
 
@@ -582,7 +725,7 @@ const TEMPLATES = [
   },
 ];
 
-// Company Settings Modal Component (keep your existing modal)
+// Company Settings Modal Component
 const CompanySettingsModal = ({ companyDetails, onUpdate, onClose, loading, onLogoUpload }) => {
   const [formData, setFormData] = useState(companyDetails);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -826,6 +969,147 @@ const CompanySettingsModal = ({ companyDetails, onUpdate, onClose, loading, onLo
   );
 };
 
+// Proposals List Modal Component
+const ProposalsModal = ({ 
+  proposals, 
+  loading, 
+  onLoadProposal, 
+  onDeleteProposal, 
+  onClose 
+}) => {
+  return (
+    <div
+      className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+      style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1060 }}
+      onClick={onClose}
+    >
+      <div
+        className="card shadow"
+        style={{ width: "900px", maxHeight: "90vh", overflowY: "auto" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+          <h5 className="mb-0">
+            <FileText size={20} className="me-2" />
+            Saved Proposals
+          </h5>
+          <button 
+            className="btn-close btn-close-white" 
+            onClick={onClose}
+          ></button>
+        </div>
+        
+        <div className="card-body">
+          {loading ? (
+            <div className="text-center py-4">
+              <Loader2 size={32} className="spinner" />
+              <p className="mt-2">Loading proposals...</p>
+            </div>
+          ) : proposals.length === 0 ? (
+            <div className="text-center py-4">
+              <FileText size={48} className="text-muted mb-3" />
+              <p>No saved proposals found.</p>
+              <p className="text-muted">Create and save your first proposal!</p>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="table table-striped table-hover">
+                <thead className="table-dark">
+                  <tr>
+                    <th>Proposal #</th>
+                    <th>Client</th>
+                    <th>Date</th>
+                    <th>Items</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {proposals.map(proposal => (
+                    <tr key={proposal.id}>
+                      <td>
+                        <strong>{proposal.proposal_number}</strong>
+                        {proposal.title && (
+                          <div><small className="text-muted">{proposal.title}</small></div>
+                        )}
+                      </td>
+                      <td>
+                        <div className="fw-bold">{proposal.client_name}</div>
+                        {proposal.client_email && (
+                          <div><small>{proposal.client_email}</small></div>
+                        )}
+                        {proposal.client_phone && (
+                          <div><small>{proposal.client_phone}</small></div>
+                        )}
+                      </td>
+                      <td>
+                        <div>{proposal.date}</div>
+                        {proposal.due_date && (
+                          <div><small className="text-muted">Due: {proposal.due_date}</small></div>
+                        )}
+                      </td>
+                      <td>
+                        <span className="badge bg-info">
+                          {proposal.items?.length || 0} items
+                        </span>
+                      </td>
+                      <td>
+                        <strong>${proposal.grand_total}</strong>
+                      </td>
+                      <td>
+                        <span className={`badge ${
+                          proposal.status === 'accepted' ? 'bg-success' :
+                          proposal.status === 'rejected' ? 'bg-danger' :
+                          proposal.status === 'sent' ? 'bg-warning' : 'bg-secondary'
+                        }`}>
+                          {proposal.status || 'draft'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="btn-group btn-group-sm">
+                          <button
+                            className="btn btn-outline-primary"
+                            onClick={() => onLoadProposal(proposal)}
+                            title="Load this proposal"
+                          >
+                            <FileText size={14} />
+                          </button>
+                          <button
+                            className="btn btn-outline-danger"
+                            onClick={() => onDeleteProposal(proposal.id)}
+                            title="Delete this proposal"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+        
+        <div className="card-footer">
+          <div className="d-flex justify-content-between align-items-center">
+            <small className="text-muted">
+              Showing {proposals.length} proposal{proposals.length !== 1 ? 's' : ''}
+            </small>
+            <button 
+              className="btn btn-secondary"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function ProposalGenerator() {
   const [invoiceData, setInvoiceData] = useState({
     companyName: "Your Company Name",
@@ -837,7 +1121,7 @@ export default function ProposalGenerator() {
     clientAddress: "",
     clientPhone: "",
     clientEmail: "",
-    invoiceNumber: "INV-001",
+    invoiceNumber: `PROP-${Date.now()}`,
     date: new Date().toISOString().split("T")[0],
     dueDate: "",
     paymentTerms: "Net 30",
@@ -859,13 +1143,16 @@ export default function ProposalGenerator() {
     creatingProduct: false,
     creatingService: false,
     creatingClient: false,
-    updatingCompany: false
+    updatingCompany: false,
+    proposals: false,
+    savingProposal: false
   });
   const [error, setError] = useState({
     products: null,
     services: null,
     clients: null,
-    company: null
+    company: null,
+    proposals: null
   });
 
   // Client Search States
@@ -876,7 +1163,12 @@ export default function ProposalGenerator() {
   // Company Settings State
   const [showCompanySettings, setShowCompanySettings] = useState(false);
 
-  // ADD THE MISSING STATE VARIABLE HERE
+  // Proposal States
+  const [savedProposals, setSavedProposals] = useState([]);
+  const [showProposalsModal, setShowProposalsModal] = useState(false);
+  const [currentProposalId, setCurrentProposalId] = useState(null);
+
+  // Client Company Modal State
   const [showClientCompanyModal, setShowClientCompanyModal] = useState(false);
   const [clientCompanyFormData, setClientCompanyFormData] = useState({
     name: "",
@@ -902,10 +1194,9 @@ export default function ProposalGenerator() {
 
   const style = invoiceData.template.style;
 
-  // ADD THIS USEEFFECT TO PRE-FILL DATA
+  // Pre-fill client company modal data
   useEffect(() => {
     if (showClientCompanyModal) {
-      // Pre-fill the modal form with data from the 4 fields
       setClientCompanyFormData(prev => ({
         ...prev,
         name: invoiceData.clientName,
@@ -916,67 +1207,6 @@ export default function ProposalGenerator() {
       }));
     }
   }, [showClientCompanyModal, invoiceData]);
-
-  // ADD THIS FUNCTION TO HANDLE FULL FORM SUBMISSION
-  const handleCreateClientFromFullForm = async () => {
-    try {
-      const tenantId = localStorage.getItem("tenant_id");
-      if (!tenantId) {
-        alert("Tenant ID not found. Please login again.");
-        return;
-      }
-
-      // Combine data from both forms
-      const finalData = {
-        name: clientCompanyFormData.name || invoiceData.clientName,
-        contact: clientCompanyFormData.contact || invoiceData.clientName,
-        email: clientCompanyFormData.email || invoiceData.clientEmail,
-        phone: clientCompanyFormData.phone || invoiceData.clientPhone,
-        address_line1: clientCompanyFormData.address_line1 || invoiceData.clientAddress,
-        industry: clientCompanyFormData.industry,
-        website: clientCompanyFormData.website,
-        registration_number: clientCompanyFormData.registration_number,
-        tax_id: clientCompanyFormData.tax_id,
-        city: clientCompanyFormData.city,
-        state: clientCompanyFormData.state,
-        country: clientCompanyFormData.country,
-        postal_code: clientCompanyFormData.postal_code,
-        support_email: clientCompanyFormData.support_email,
-        notes: clientCompanyFormData.notes,
-        logo: clientCompanyFormData.logo
-      };
-
-      const formData = new FormData();
-      Object.entries(finalData).forEach(([key, value]) => {
-        if (value !== null && value !== "") {
-          formData.append(key, value);
-        }
-      });
-      formData.append("tenant", tenantId);
-
-      const newClient = await addClientCompany(formData);
-      
-      // Update the main form with the new client data
-      setInvoiceData(prev => ({
-        ...prev,
-        clientName: finalData.name,
-        clientEmail: finalData.email,
-        clientPhone: finalData.phone,
-        clientAddress: finalData.address_line1
-      }));
-
-      // Refresh clients list
-      await fetchClients();
-      
-      // Close modal
-      setShowClientCompanyModal(false);
-      
-      alert('Client company created successfully with full details!');
-    } catch (err) {
-      console.error('Error creating client:', err);
-      alert(err.response?.data?.detail || err.message || 'Failed to create client company');
-    }
-  };
 
   // Fetch Company Details
   const fetchCompanyDetails = async () => {
@@ -1096,6 +1326,23 @@ export default function ProposalGenerator() {
     }
   };
 
+  // Fetch Proposals from API
+  const fetchProposals = async () => {
+    setLoading(prev => ({ ...prev, proposals: true }));
+    setError(prev => ({ ...prev, proposals: null }));
+    
+    try {
+      const proposalsData = await apiService.proposals.getAll();
+      setSavedProposals(proposalsData.proposals || []);
+    } catch (err) {
+      const errorMessage = err.response?.data?.detail || err.message || 'Failed to fetch proposals';
+      setError(prev => ({ ...prev, proposals: errorMessage }));
+      console.error('Error fetching proposals:', err);
+    } finally {
+      setLoading(prev => ({ ...prev, proposals: false }));
+    }
+  };
+
   // Search Clients
   const handleClientSearch = (searchTerm) => {
     setClientSearch(searchTerm);
@@ -1127,7 +1374,7 @@ export default function ProposalGenerator() {
     setShowClientDropdown(false);
   };
 
-  // FIXED: Create New Client from Current Data
+  // Create New Client from Current Data
   const createClientFromCurrentData = async () => {
     if (!invoiceData.clientName || !invoiceData.clientEmail) {
       alert('Client Name and Email are required to create a new client.');
@@ -1248,12 +1495,232 @@ export default function ProposalGenerator() {
     }
   };
 
+  // PROPOSAL MANAGEMENT FUNCTIONS
+
+  // Save or Update Proposal
+  const saveProposalHandler = async () => {
+    if (!invoiceData.clientName || invoiceData.items.length === 0) {
+      alert('Please add client information and at least one item before saving.');
+      return;
+    }
+
+    setLoading(prev => ({ ...prev, savingProposal: true }));
+    try {
+      let savedProposal;
+      if (currentProposalId) {
+        // Update existing proposal
+        savedProposal = await apiService.proposals.update(currentProposalId, invoiceData);
+        alert('Proposal updated successfully!');
+      } else {
+        // Create new proposal
+        savedProposal = await apiService.proposals.create(invoiceData);
+        setCurrentProposalId(savedProposal.id);
+        alert('Proposal saved successfully!');
+      }
+      
+      // Refresh proposals list
+      await fetchProposals();
+      
+    } catch (error) {
+      console.error('Error saving proposal:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to save proposal';
+      setError(prev => ({ ...prev, proposals: errorMessage }));
+      alert(`Error saving proposal: ${errorMessage}`);
+    } finally {
+      setLoading(prev => ({ ...prev, savingProposal: false }));
+    }
+  };
+
+  // Load a saved proposal
+  const loadProposal = (proposal) => {
+    setInvoiceData({
+      companyName: proposal.company_name || "Your Company Name",
+      companyAddress: proposal.company_address || "123 Business Rd, City, Country",
+      companyPhone: proposal.company_phone || "+123456789",
+      companyEmail: proposal.company_email || "info@company.com",
+      companyLogo: proposal.company_logo || null,
+      clientName: proposal.client_name || "",
+      clientAddress: proposal.client_address || "",
+      clientPhone: proposal.client_phone || "",
+      clientEmail: proposal.client_email || "",
+      invoiceNumber: proposal.proposal_number || `PROP-${Date.now()}`,
+      date: proposal.date || new Date().toISOString().split("T")[0],
+      dueDate: proposal.due_date || "",
+      items: proposal.items?.map(item => ({
+        name: item.name,
+        description: item.description,
+        qty: item.quantity,
+        price: item.price,
+        gst: item.gst_rate,
+        type: item.type
+      })) || [],
+      notes: proposal.notes || "",
+      template: TEMPLATES.find(t => t.id === proposal.template) || TEMPLATES[0],
+    });
+    
+    setCurrentProposalId(proposal.id);
+    setShowProposalsModal(false);
+    alert('Proposal loaded successfully!');
+  };
+
+  // Delete a proposal
+  const deleteProposalHandler = async (proposalId) => {
+    if (!confirm('Are you sure you want to delete this proposal?')) return;
+
+    try {
+      await apiService.proposals.delete(proposalId);
+      setSavedProposals(prev => prev.filter(p => p.id !== proposalId));
+      
+      if (currentProposalId === proposalId) {
+        setCurrentProposalId(null);
+      }
+      
+      alert('Proposal deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting proposal:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to delete proposal';
+      alert(`Error deleting proposal: ${errorMessage}`);
+    }
+  };
+
+  // Create new proposal (reset form)
+  const createNewProposal = () => {
+    setInvoiceData({
+      companyName: companyDetails?.companyName || "Your Company Name",
+      companyAddress: companyDetails?.companyAddress || "123 Business Rd, City, Country",
+      companyPhone: companyDetails?.companyPhone || "+123456789",
+      companyEmail: companyDetails?.companyEmail || "info@company.com",
+      companyLogo: companyDetails?.companyLogo || null,
+      clientName: "",
+      clientAddress: "",
+      clientPhone: "",
+      clientEmail: "",
+      invoiceNumber: `PROP-${Date.now()}`,
+      date: new Date().toISOString().split("T")[0],
+      dueDate: "",
+      items: [],
+      notes: "",
+      template: TEMPLATES[0],
+    });
+    setCurrentProposalId(null);
+    alert('New proposal created!');
+  };
+
+  // Print Proposal
+  const printProposal = () => {
+    const invoicePages = document.querySelectorAll(".invoice-page, .explanation-page");
+    const printWindow = window.open('', '_blank');
+    
+    let printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Proposal - ${invoiceData.invoiceNumber}</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+          .invoice-page { margin-bottom: 20px; page-break-after: always; }
+          .explanation-page { page-break-after: always; }
+          table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          th { background-color: #f5f5f5; }
+          .totals { text-align: right; margin-top: 20px; }
+          .header { text-align: center; margin-bottom: 30px; }
+          @media print {
+            body { margin: 0; }
+            .invoice-page, .explanation-page { page-break-after: always; }
+          }
+        </style>
+      </head>
+      <body>
+    `;
+
+    invoicePages.forEach(page => {
+      printContent += page.outerHTML;
+    });
+
+    printContent += `
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    // Wait for images to load before printing
+    printWindow.onload = function() {
+      printWindow.print();
+      // printWindow.close(); // Uncomment if you want to auto-close after printing
+    };
+  };
+
+  // Handle full client company form submission
+  const handleCreateClientFromFullForm = async () => {
+    try {
+      const tenantId = localStorage.getItem("tenant_id");
+      if (!tenantId) {
+        alert("Tenant ID not found. Please login again.");
+        return;
+      }
+
+      // Combine data from both forms
+      const finalData = {
+        name: clientCompanyFormData.name || invoiceData.clientName,
+        contact: clientCompanyFormData.contact || invoiceData.clientName,
+        email: clientCompanyFormData.email || invoiceData.clientEmail,
+        phone: clientCompanyFormData.phone || invoiceData.clientPhone,
+        address_line1: clientCompanyFormData.address_line1 || invoiceData.clientAddress,
+        industry: clientCompanyFormData.industry,
+        website: clientCompanyFormData.website,
+        registration_number: clientCompanyFormData.registration_number,
+        tax_id: clientCompanyFormData.tax_id,
+        city: clientCompanyFormData.city,
+        state: clientCompanyFormData.state,
+        country: clientCompanyFormData.country,
+        postal_code: clientCompanyFormData.postal_code,
+        support_email: clientCompanyFormData.support_email,
+        notes: clientCompanyFormData.notes,
+        logo: clientCompanyFormData.logo
+      };
+
+      const formData = new FormData();
+      Object.entries(finalData).forEach(([key, value]) => {
+        if (value !== null && value !== "") {
+          formData.append(key, value);
+        }
+      });
+      formData.append("tenant", tenantId);
+
+      const newClient = await addClientCompany(formData);
+      
+      // Update the main form with the new client data
+      setInvoiceData(prev => ({
+        ...prev,
+        clientName: finalData.name,
+        clientEmail: finalData.email,
+        clientPhone: finalData.phone,
+        clientAddress: finalData.address_line1
+      }));
+
+      // Refresh clients list
+      await fetchClients();
+      
+      // Close modal
+      setShowClientCompanyModal(false);
+      
+      alert('Client company created successfully with full details!');
+    } catch (err) {
+      console.error('Error creating client:', err);
+      alert(err.response?.data?.detail || err.message || 'Failed to create client company');
+    }
+  };
+
   // Refresh all data
   const refreshData = () => {
     fetchProducts();
     fetchServices();
     fetchClients();
     fetchCompanyDetails();
+    fetchProposals();
   };
 
   // Load data on component mount
@@ -1262,6 +1729,7 @@ export default function ProposalGenerator() {
     fetchServices();
     fetchClients();
     fetchCompanyDetails();
+    fetchProposals();
   }, []);
 
   // Calculate totals
@@ -1383,6 +1851,53 @@ export default function ProposalGenerator() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Proposal Controls */}
+        <div className="mb-4">
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <h5>Proposal Controls</h5>
+            {loading.proposals && <Loader2 size={16} className="spinner" />}
+          </div>
+          
+          <div className="d-grid gap-2">
+            <button 
+              className="btn btn-success btn-sm"
+              onClick={saveProposalHandler}
+              disabled={loading.savingProposal || invoiceData.items.length === 0}
+            >
+              {loading.savingProposal ? (
+                <>
+                  <Loader2 size={14} className="spinner me-1" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save size={14} className="me-1" />
+                  {currentProposalId ? 'Update Proposal' : 'Save Proposal'}
+                </>
+              )}
+            </button>
+            
+            <button 
+              className="btn btn-outline-primary btn-sm"
+              onClick={() => {
+                setShowProposalsModal(true);
+                fetchProposals();
+              }}
+            >
+              <List size={14} className="me-1" />
+              My Proposals ({savedProposals.length})
+            </button>
+            
+            <button 
+              className="btn btn-outline-secondary btn-sm"
+              onClick={createNewProposal}
+            >
+              <FileText size={14} className="me-1" />
+              New Proposal
+            </button>
+          </div>
         </div>
 
         <h5>Filters</h5>
@@ -1683,7 +2198,7 @@ export default function ProposalGenerator() {
         {/* Invoice Details */}
         <div className="row mb-3">
           <div className="col-md-4">
-            <label className="form-label">Invoice Number</label>
+            <label className="form-label">Proposal Number</label>
             <input type="text" className="form-control" value={invoiceData.invoiceNumber} onChange={(e) => setInvoiceData({ ...invoiceData, invoiceNumber: e.target.value })} />
           </div>
           <div className="col-md-4">
@@ -1740,6 +2255,81 @@ export default function ProposalGenerator() {
           </table>
         </div>
         
+        {/* Notes Section */}
+        <div className="mb-3">
+          <label className="form-label">Notes</label>
+          <textarea
+            className="form-control"
+            rows="3"
+            value={invoiceData.notes}
+            onChange={(e) => setInvoiceData({ ...invoiceData, notes: e.target.value })}
+            placeholder="Additional notes or terms and conditions..."
+          />
+        </div>
+
+        {/* Action Buttons */}
+        <div className="text-center mt-4">
+          <div className="btn-group" role="group">
+            <button 
+              className="btn btn-success"
+              onClick={saveProposalHandler}
+              disabled={loading.savingProposal || invoiceData.items.length === 0}
+            >
+              {loading.savingProposal ? (
+                <>
+                  <Loader2 size={16} className="spinner me-2" />
+                  {currentProposalId ? 'Updating...' : 'Saving...'}
+                </>
+              ) : (
+                <>
+                  <Save size={16} className="me-2" />
+                  {currentProposalId ? 'Update Proposal' : 'Save Proposal'}
+                </>
+              )}
+            </button>
+            
+            <button 
+              className="btn btn-outline-primary"
+              onClick={() => {
+                setShowProposalsModal(true);
+                fetchProposals();
+              }}
+            >
+              <List size={16} className="me-2" />
+              My Proposals
+            </button>
+            
+            <button 
+              className="btn btn-outline-secondary"
+              onClick={createNewProposal}
+            >
+              <FileText size={16} className="me-2" />
+              New Proposal
+            </button>
+
+            <button 
+              className="btn btn-info"
+              onClick={printProposal}
+              disabled={invoiceData.items.length === 0}
+            >
+              <Printer size={16} className="me-2" />
+              Print
+            </button>
+            
+            <button className="btn btn-primary" onClick={downloadInvoice}>
+              📄 Download PDF
+            </button>
+          </div>
+          
+          {currentProposalId && (
+            <div className="mt-2">
+              <small className="text-muted">
+                Editing: Proposal #{currentProposalId}
+              </small>
+            </div>
+          )}
+        </div>
+
         {/* Default Template Preview */}
         {invoiceData.items.length === 0 && (
           <>
@@ -1760,7 +2350,7 @@ export default function ProposalGenerator() {
             }}>
               {invoiceData.companyLogo && <img src={invoiceData.companyLogo} alt="Logo" style={{ maxHeight: 60 }} />}
               <h3 style={style.header}>{invoiceData.companyName}</h3>
-              <p style={{ textAlign: "center", marginTop: 50 }}>Your invoice preview will appear here</p>
+              <p style={{ textAlign: "center", marginTop: 50 }}>Your proposal preview will appear here</p>
             </div>
 
             <div className="explanation-page" style={{
@@ -1784,7 +2374,7 @@ export default function ProposalGenerator() {
           </>
         )}
 
-        {/* --- INVOICE PAGES --- */}
+        {/* --- PROPOSAL PAGES --- */}
         {itemChunks.map((itemChunk, pageIndex) => {
           const isFirstPage = pageIndex === 0;
           const isLastPage = pageIndex === itemChunks.length - 1;
@@ -1818,8 +2408,8 @@ export default function ProposalGenerator() {
                       <p style={style.clientInfo}>{invoiceData.companyPhone} | {invoiceData.companyEmail}</p>
                     </div>
                     <div style={{ textAlign: "right" }}>
-                      <h4 style={style.subHeader}>INVOICE</h4>
-                      <p style={style.clientInfo}>Invoice #: {invoiceData.invoiceNumber}</p>
+                      <h4 style={style.subHeader}>PROPOSAL</h4>
+                      <p style={style.clientInfo}>Proposal #: {invoiceData.invoiceNumber}</p>
                       <p style={style.clientInfo}>Date: {invoiceData.date}</p>
                       {invoiceData.dueDate && <p style={style.clientInfo}>Due Date: {invoiceData.dueDate}</p>}
                     </div>
@@ -1827,7 +2417,7 @@ export default function ProposalGenerator() {
 
                   {/* Client Information */}
                   <div style={{ marginTop: 20, marginBottom: 20 }}>
-                    <h5 style={style.subHeader}>Bill To:</h5>
+                    <h5 style={style.subHeader}>Proposal For:</h5>
                     <p style={style.clientInfo}>{invoiceData.clientName}</p>
                     {invoiceData.clientAddress && (
                       <p style={style.clientInfo}>{renderAddress(invoiceData.clientAddress)}</p>
@@ -1889,11 +2479,19 @@ export default function ProposalGenerator() {
                   </div>
                 )}
 
-                {/* FOOTER - Only on LAST page */}
+                {/* NOTES & FOOTER - Only on LAST page */}
                 {isLastPage && (
-                  <div style={{ position: "absolute", bottom: 20, left: 0, right: 0, textAlign: "center" }}>
-                    <p style={style.footer}>Thank you for your business!</p>
-                    <p style={style.footer}>{invoiceData.companyName} | {invoiceData.companyPhone} | {invoiceData.companyEmail}</p>
+                  <div style={{ position: "absolute", bottom: 20, left: 0, right: 0, padding: "0 20px" }}>
+                    {invoiceData.notes && (
+                      <div style={{ marginBottom: 15 }}>
+                        <h5 style={style.subHeader}>Notes:</h5>
+                        <p style={style.notes}>{invoiceData.notes}</p>
+                      </div>
+                    )}
+                    <div style={{ textAlign: "center" }}>
+                      <p style={style.footer}>Thank you for your business!</p>
+                      <p style={style.footer}>{invoiceData.companyName} | {invoiceData.companyPhone} | {invoiceData.companyEmail}</p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1934,13 +2532,6 @@ export default function ProposalGenerator() {
             </div>
           </div>
         ))}
-
-        {/* Download Button */}
-        <div className="text-center mt-4">
-          <button className="btn btn-primary" onClick={downloadInvoice}>
-            Download PDF
-          </button>
-        </div>
       </div>
 
       {/* Company Settings Modal */}
@@ -1954,7 +2545,18 @@ export default function ProposalGenerator() {
         />
       )}
 
-      {/* ADD THE CLIENT COMPANY MODAL HERE */}
+      {/* Proposals Modal */}
+      {showProposalsModal && (
+        <ProposalsModal
+          proposals={savedProposals}
+          loading={loading.proposals}
+          onLoadProposal={loadProposal}
+          onDeleteProposal={deleteProposalHandler}
+          onClose={() => setShowProposalsModal(false)}
+        />
+      )}
+
+      {/* Client Company Modal */}
       {showClientCompanyModal && (
         <div
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"

@@ -10,6 +10,7 @@ urlpatterns = [
     path('api/clients/', include('clients.urls')),
     path('api/products/', include('productservices.urls')),
     path('api/support/', include('support.urls')),
+    path('api/proposal/', include('proposal.urls')),
 ]
 
 # Serve media files during development
