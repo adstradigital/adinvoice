@@ -9,7 +9,7 @@ import DashboardPage from "../dashboard/dashboard";
 import UserManagement from "../user-management/user-management";
 import Invoices from "../invoices/invoices";
 import CreateInvoicePage from "../create-invoice/create-invoices";
-import InvoiceProposal from "@/components/proposal/page";
+import InvoiceProposal from "@/components/proposal/proposal";
 import Accounts from "@/components/adminconsole/accounting/page";
 import Banking from "@/components/adminconsole/Banking/page";
 import Payroll from "@/components/payroll/page";
