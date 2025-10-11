@@ -31,7 +31,7 @@ export default function ProductsServices() {
       description: "",
       price: "",
       is_active: true,
-      sku: "",
+      hsn_code: "", // ✅ changed from sku
       stock_quantity: "",
       delivery_available: true,
     };
@@ -69,32 +69,31 @@ export default function ProductsServices() {
     }
   };
 
-const handleInputChange = (e) => {
-  const { name, value, type, checked } = e.target;
-  let newValue = type === "checkbox" ? checked : value;
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    let newValue = type === "checkbox" ? checked : value;
 
-  // Ensure price is a positive integer (>=1)
-  if (name === "price") {
-    let strValue = String(newValue); // convert to string
-    strValue = strValue.replace(/\D/g, ""); // remove non-digits
-    newValue = strValue === "" ? "" : parseInt(strValue, 10);
-    if (newValue < 1) newValue = 1; // enforce minimum 1
-  }
+    // Ensure price is a positive integer (>=1)
+    if (name === "price") {
+      let strValue = String(newValue); // convert to string
+      strValue = strValue.replace(/\D/g, ""); // remove non-digits
+      newValue = strValue === "" ? "" : parseInt(strValue, 10);
+      if (newValue < 1) newValue = 1; // enforce minimum 1
+    }
 
-  // Ensure stock quantity is non-negative integer (>=0)
-  if (name === "stock_quantity") {
-    let strValue = String(newValue); // convert to string
-    strValue = strValue.replace(/\D/g, ""); // remove non-digits
-    newValue = strValue === "" ? "" : parseInt(strValue, 10);
-    if (newValue < 0) newValue = 0; // enforce minimum 0
-  }
+    // Ensure stock quantity is non-negative integer (>=0)
+    if (name === "stock_quantity") {
+      let strValue = String(newValue); // convert to string
+      strValue = strValue.replace(/\D/g, ""); // remove non-digits
+      newValue = strValue === "" ? "" : parseInt(strValue, 10);
+      if (newValue < 0) newValue = 0; // enforce minimum 0
+    }
 
-  setFormData({
-    ...formData,
-    [name]: newValue,
-  });
-};
-
+    setFormData({
+      ...formData,
+      [name]: newValue,
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -154,7 +153,7 @@ const handleInputChange = (e) => {
       description: product.description || "",
       price: product.price || "",
       is_active: product.is_active,
-      sku: product.sku || "",
+      hsn_code: product.hsn_code || "",
       stock_quantity: product.stock_quantity,
       delivery_available: product.delivery_available,
     });
@@ -342,15 +341,14 @@ const handleInputChange = (e) => {
               />
             </Form.Group>
 
-            {/* SKU */}
             <Form.Group className="mb-3">
-              <Form.Label>SKU</Form.Label>
+              <Form.Label>HSN Code</Form.Label>
               <Form.Control
                 type="text"
-                name="sku"
-                value={formData.sku}
+                name="hsn_code"
+                value={formData.hsn_code}
                 onChange={handleInputChange}
-                placeholder="Enter SKU"
+                placeholder="Enter HSN Code"
               />
             </Form.Group>
 

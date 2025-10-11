@@ -59,16 +59,6 @@ def create_product_service(request):
 @permission_classes([IsAuthenticated])
 def get_my_products_services(request):
     try:
-        user = request.user
-
-        # Optional: Check if user is entrepreneur
-        # if user.role != "entrepreneur":
-        #     return Response(
-        #         {"error": "Only entrepreneurs can view their products or services."},
-        #         status=status.HTTP_403_FORBIDDEN
-        #     )
-
-        # 🔹 Get tenant ID from request body
         tenant_id = request.data.get("tenant")
         if not tenant_id:
             return Response(
@@ -105,6 +95,7 @@ def get_my_products_services(request):
         print(traceback.format_exc())
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 # ✅ Update Product/Service
 @api_view(['PUT', 'PATCH'])
 @permission_classes([IsAuthenticated])
@@ -117,6 +108,7 @@ def update_product_service(request, pk):
         # 🔹 Get tenant and db alias
         try:
             tenant = Tenant.objects.get(id=tenant_id)
+            print("----",tenant)
         except Tenant.DoesNotExist:
             return Response({"error": "Tenant not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -131,12 +123,13 @@ def update_product_service(request, pk):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # 🔹 Update with serializer
         serializer = ProductServiceSerializer(
-            item, 
-            data=request.data, 
-            context={"db_alias": db_alias, "tenant": tenant, "request": request}
+            item,
+            data=request.data,
+            partial=True,  # ✅ allow partial updates
+            context={"db_alias": db_alias, "tenant": tenant, "request": request},
         )
+
 
         if serializer.is_valid():
             serializer.save()
@@ -187,11 +180,23 @@ def delete_product_service(request, pk):
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def list_categories(request):
     try:
-        categories = Category.objects.all()
+        tenant_id = request.query_params.get("tenantId")  # ✅ use query_params, not data
+        if not tenant_id:
+            return Response({"success": False, "errors": "tenantId is required"}, status=400)
+
+        try:
+            tenant = Tenant.objects.get(id=tenant_id)
+        except Tenant.DoesNotExist:
+            return Response({"error": "Tenant not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        tenant_db = get_tenant_db(tenant)
+
+        categories = Category.objects.using(tenant_db).all()
         serializer = CategorySerializer(categories, many=True)
         return Response({"success": True, "items": serializer.data}, status=status.HTTP_200_OK)
     except Exception as e:
@@ -199,14 +204,34 @@ def list_categories(request):
 
 
 
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def create_category(request):
     try:
+        tenant_id = request.data.get("tenantId")
+        if not tenant_id:
+            return Response({"success": False, "errors": "tenantId is required"}, status=400)
+        
+        try:
+            tenant = Tenant.objects.get(id=tenant_id)
+        except Tenant.DoesNotExist:
+            return Response({"error": "Tenant not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        tenant_db = get_tenant_db(tenant)
+
         serializer = CategorySerializer(data=request.data)
         if serializer.is_valid():
-            category = serializer.save()
-            return Response({"success": True, "item": serializer.data}, status=status.HTTP_201_CREATED)
+            category = Category.objects.using(tenant_db).create(**serializer.validated_data)
+            return Response(
+                {"success": True, "item": CategorySerializer(category).data},
+                status=status.HTTP_201_CREATED
+            )
+
+        # 👇 Print the actual serializer errors
+        print("CATEGORY VALIDATION ERRORS:", serializer.errors)
         return Response({"success": False, "errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    
     except Exception as e:
+        print("CATEGORY CREATION ERROR:", e)
         return Response({"success": False, "errors": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
