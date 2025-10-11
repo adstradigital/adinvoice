@@ -22,7 +22,7 @@ class ProductServiceSerializer(serializers.ModelSerializer):
         model = ProductService
         fields = [
             "id", "type", "category", "name", "description", "price",
-            "is_active", "sku", "stock_quantity", "delivery_available",
+            "is_active", "hsn_code", "stock_quantity", "delivery_available",
             "created_at", "updated_at", "images"
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
@@ -39,6 +39,13 @@ class ProductServiceSerializer(serializers.ModelSerializer):
         db_alias = self.context.get("db_alias", "default")
         # ✅ Just save in tenant DB; no FK to admin user
         return ProductService.objects.using(db_alias).create(**validated_data)
+    
+    def update(self, instance, validated_data):
+        db_alias = self.context.get("db_alias", "default")
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save(using=db_alias)
+        return instance
 
 
     

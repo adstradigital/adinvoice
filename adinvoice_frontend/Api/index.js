@@ -363,7 +363,11 @@ export const submitSupportTicket = async (formData, file) => {
 // ===== CATEGORIES =====
 export const listCategories = async () => {
   try {
-    const res = await API.get("products/categories/", { headers: getAuthHeaders() });
+    const tenantId = localStorage.getItem("tenant_id");
+    const res = await API.get("products/categories/", {
+      headers: getAuthHeaders(),
+      params: { tenantId }, // ✅ tenantId sent as query param
+    });
     return res.data.items || [];
   } catch (error) {
     console.error("Error fetching categories:", error.response?.data || error.message);
@@ -373,9 +377,10 @@ export const listCategories = async () => {
 
 export const createCategory = async (name) => {
   try {
+    const tenantId = localStorage.getItem("tenant_id");
     const res = await API.post(
       "products/categories/create/",
-      { name },
+      { name, tenantId }, // ✅ include tenantId in body
       { headers: getAuthHeaders() }
     );
     return res.data.item;
@@ -384,6 +389,7 @@ export const createCategory = async (name) => {
     throw error.response?.data || { detail: "Failed to create category" };
   }
 };
+
 
 // Interceptor for session expiry
 API.interceptors.response.use(

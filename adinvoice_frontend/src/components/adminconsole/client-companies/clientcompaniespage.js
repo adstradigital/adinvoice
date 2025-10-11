@@ -55,8 +55,10 @@ export default function ClientCompanies() {
   // Validate form
   const validate = () => {
     const tempErrors = {};
-    if (!(newCompany.name || "").trim()) tempErrors.name = "Company name is required";
-    if (!(newCompany.contact || "").trim()) tempErrors.contact = "Contact person is required";
+    if (!(newCompany.name || "").trim())
+      tempErrors.name = "Company name is required";
+    if (!(newCompany.contact || "").trim())
+      tempErrors.contact = "Contact person is required";
     if (newCompany.email && !/\S+@\S+\.\S+/.test(newCompany.email))
       tempErrors.email = "Enter a valid email address";
     if (newCompany.phone && !/^\d{10}$/.test(newCompany.phone))
@@ -79,10 +81,12 @@ export default function ClientCompanies() {
     // Live validation
     let error = "";
     if (name === "name" && !value.trim()) error = "Company name is required";
-    if (name === "contact" && !value.trim()) error = "Contact person is required";
+    if (name === "contact" && !value.trim())
+      error = "Contact person is required";
     if (name === "email" && value && !/\S+@\S+\.\S+/.test(value))
       error = "Enter a valid email address";
-    if (name === "phone" && value && !/^\d{10}$/.test(value)) error = "Phone must be 10 digits";
+    if (name === "phone" && value && !/^\d{10}$/.test(value))
+      error = "Phone must be 10 digits";
     if (name === "website" && value && !/^https?:\/\/.+\..+/.test(value))
       error = "Enter a valid URL (or leave empty)";
 
@@ -159,7 +163,9 @@ export default function ClientCompanies() {
     try {
       const res = await toggleClientStatus(company.id, tenantId);
       setCompanies((prev) =>
-        prev.map((c) => (c.id === company.id ? { ...c, is_active: res.status } : c))
+        prev.map((c) =>
+          c.id === company.id ? { ...c, is_active: res.status } : c
+        )
       );
       alert(res.success);
     } catch (error) {
@@ -192,7 +198,10 @@ export default function ClientCompanies() {
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ maxWidth: "250px" }}
             />
-            <button className="btn btn-primary ms-2" onClick={() => setShowModal(true)}>
+            <button
+              className="btn btn-primary ms-2"
+              onClick={() => setShowModal(true)}
+            >
               + Add Company
             </button>
           </div>
@@ -268,14 +277,19 @@ export default function ClientCompanies() {
                     <td>{c.notes}</td>
                     <td>
                       <button
-                        className={`btn btn-sm ${c.is_active ? "btn-success" : "btn-danger"}`}
+                        className={`btn btn-sm ${
+                          c.is_active ? "btn-success" : "btn-danger"
+                        }`}
                         onClick={() => handleToggleStatus(c)}
                       >
                         {c.is_active ? "Active" : "Inactive"}
                       </button>
                     </td>
                     <td>
-                      <button className="btn btn-sm btn-outline-primary" onClick={() => handleEdit(c)}>
+                      <button
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={() => handleEdit(c)}
+                      >
                         Edit
                       </button>
                     </td>
@@ -293,7 +307,6 @@ export default function ClientCompanies() {
         </div>
       </div>
 
-      {/* Modal */}
       {showModal && (
         <div
           className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
@@ -306,31 +319,54 @@ export default function ClientCompanies() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="card-header d-flex justify-content-between align-items-center">
-              <h5 className="mb-0">{editingId ? "Edit Company" : "Add Company"}</h5>
+              <h5 className="mb-0">
+                {editingId ? "Edit Company" : "Add Company"}
+              </h5>
               <button className="btn-close" onClick={resetForm}></button>
             </div>
             <form onSubmit={handleAddOrUpdateCompany} noValidate>
               <div className="card-body">
-                {Object.keys(newCompany).map((field) => (
-                  <div className="mb-3" key={field}>
-                    <label className="form-label">{field.replace(/_/g, " ").toUpperCase()}</label>
-                    {field === "logo" ? (
-                      <input type="file" className="form-control" name="logo" accept="image/*" onChange={handleChange} />
-                    ) : (
-                      <input
-                        type="text"
-                        className={`form-control ${errors[field] ? "is-invalid" : ""}`}
-                        name={field}
-                        value={newCompany[field] || ""}
-                        onChange={handleChange}
-                      />
-                    )}
-                    {errors[field] && <div className="invalid-feedback">{errors[field]}</div>}
-                  </div>
-                ))}
+                {Object.keys(newCompany).map((field) => {
+                  // Skip is_active field in modal
+                  if (field === "is_active" || field === "updated_at" || field === "created_at") return null;
+
+                  return (
+                    <div className="mb-3" key={field}>
+                      <label className="form-label">
+                        {field.replace(/_/g, " ").toUpperCase()}
+                      </label>
+                      {field === "logo" ? (
+                        <input
+                          type="file"
+                          className="form-control"
+                          name="logo"
+                          accept="image/*"
+                          onChange={handleChange}
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          className={`form-control ${
+                            errors[field] ? "is-invalid" : ""
+                          }`}
+                          name={field}
+                          value={newCompany[field] || ""}
+                          onChange={handleChange}
+                        />
+                      )}
+                      {errors[field] && (
+                        <div className="invalid-feedback">{errors[field]}</div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <div className="card-footer d-flex justify-content-end">
-                <button type="button" className="btn btn-secondary me-2" onClick={resetForm}>
+                <button
+                  type="button"
+                  className="btn btn-secondary me-2"
+                  onClick={resetForm}
+                >
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">
