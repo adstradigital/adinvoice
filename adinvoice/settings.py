@@ -52,7 +52,8 @@ INSTALLED_APPS = [
     'users',
     'invoices',
     'clients',
-    'support'
+    'support',
+    'proposal',
 ]
 
 CORS_ALLOWED_ORIGINS = [

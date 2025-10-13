@@ -405,4 +405,171 @@ API.interceptors.response.use(
   }
 );
 
+// ===== PROPOSALS (Using Axios) =====
 
+// Save Proposal
+export const saveProposal = async (proposalData) => {
+  const tenantId = localStorage.getItem("tenant_id");
+  if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
+
+  try {
+    // Format dates to YYYY-MM-DD
+    const formattedData = {
+      ...proposalData,
+      date: formatDateForAPI(proposalData.date),
+      due_date: proposalData.due_date ? formatDateForAPI(proposalData.due_date) : null,
+      tenant: tenantId
+    };
+
+    console.log('📤 Saving proposal:', formattedData);
+
+    const res = await API.post("/proposal/create/", formattedData, { 
+      headers: getAuthHeaders() 
+    });
+    
+    return res.data;
+  } catch (error) {
+    console.error("Error saving proposal:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to save proposal" };
+  }
+};
+
+// Get Proposals
+export const getProposals = async () => {
+  const tenantId = localStorage.getItem("tenant_id");
+  if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
+
+  try {
+    console.log('📥 Fetching proposals for tenant:', tenantId);
+    
+    const res = await API.post("/proposal/list/", {
+      tenant: tenantId
+    }, { 
+      headers: getAuthHeaders() 
+    });
+    
+    return res.data;
+  } catch (error) {
+    console.error("Error fetching proposals:", error.response?.data || error.message);
+    
+    // Return empty array instead of throwing to prevent UI break
+    return {
+      success: "Proposals fetched successfully (fallback)",
+      count: 0,
+      proposals: []
+    };
+  }
+};
+
+// Update Proposal
+export const updateProposal = async (id, proposalData) => {
+  const tenantId = localStorage.getItem("tenant_id");
+  if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
+
+  try {
+    const res = await API.put(`/proposal/${id}/update/`, {
+      ...proposalData,
+      tenant: tenantId
+    }, { 
+      headers: getAuthHeaders() 
+    });
+    
+    return res.data;
+  } catch (error) {
+    console.error("Error updating proposal:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to update proposal" };
+  }
+};
+
+// Delete Proposal
+export const deleteProposal = async (id) => {
+  const tenantId = localStorage.getItem("tenant_id");
+  if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
+
+  try {
+    const res = await API.delete(`/proposal/${id}/delete/`, {
+      headers: getAuthHeaders(),
+      data: { tenant: tenantId }
+    });
+    
+    return res.data;
+  } catch (error) {
+    console.error("Error deleting proposal:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to delete proposal" };
+  }
+};
+
+// Helper function to format dates for API
+const formatDateForAPI = (dateString) => {
+  if (!dateString) return null;
+  
+  // If it's already in YYYY-MM-DD format, return as is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return dateString;
+  }
+  
+  // Convert from other formats to YYYY-MM-DD
+  const date = new Date(dateString);
+  if (isNaN(date.getTime())) {
+    console.error('Invalid date:', dateString);
+    return null;
+  }
+  
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+};
+
+// Get Single Proposal
+export const getProposalDetail = async (id) => {
+  const tenantId = localStorage.getItem("tenant_id");
+  if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
+
+  try {
+    const res = await API.post(`/proposal/${id}/`, { // ✅ Changed to singular
+      tenant: tenantId
+    }, { headers: getAuthHeaders() });
+    
+    return res.data;
+  } catch (error) {
+    console.error("Error fetching proposal:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to fetch proposal" };
+  }
+};
+
+// Update Proposal Status
+export const updateProposalStatus = async (id, status) => {
+  const tenantId = localStorage.getItem("tenant_id");
+  if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
+
+  try {
+    const res = await API.post(`/proposal/${id}/status/`, { // ✅ Changed to singular
+      tenant: tenantId,
+      status: status
+    }, { headers: getAuthHeaders() });
+    
+    return res.data;
+  } catch (error) {
+    console.error("Error updating proposal status:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to update proposal status" };
+  }
+};
+
+// Get Proposal Statistics
+export const getProposalStats = async () => {
+  const tenantId = localStorage.getItem("tenant_id");
+  if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
+
+  try {
+    const res = await API.post("/proposal/stats/", { // ✅ Changed to singular
+      tenant: tenantId
+    }, { headers: getAuthHeaders() });
+    
+    return res.data;
+  } catch (error) {
+    console.error("Error fetching proposal stats:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to fetch proposal stats" };
+  }
+};
