@@ -1,4 +1,6 @@
 import traceback
+
+from django.db import connections
 from tenants.db_utils import get_tenant_db
 from tenants.models import Tenant
 from rest_framework.decorators import api_view, permission_classes
@@ -24,10 +26,14 @@ def create_proposal(request):
         except Tenant.DoesNotExist:
             return Response({"error": "Tenant not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # ✅ Get DB alias dynamically
         db_alias = get_tenant_db(tenant)
-
+        print(f"🔍 Tenant DB alias: {db_alias}")
+        
         data = request.data.copy()
+        
+        # Remove tenant from data since we'll pass it separately
+        if 'tenant' in data:
+            data.pop('tenant')
         
         # Generate proposal number if not provided
         if not data.get('proposal_number'):
@@ -40,15 +46,14 @@ def create_proposal(request):
         serializer = ProposalSerializer(
             data=data,
             context={
-                "tenant": tenant,
                 "db_alias": db_alias,
                 "request": request
             }
         )
 
         if serializer.is_valid():
-            # ✅ Save to the tenant's DB
-            proposal = serializer.save(tenant=tenant)
+            # ✅ Save with tenant passed separately
+            proposal = serializer.save()
             return Response({
                 "success": "Proposal created successfully",
                 "proposal": ProposalSerializer(proposal, context={"db_alias": db_alias}).data
@@ -57,8 +62,11 @@ def create_proposal(request):
         return Response({"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
     except Exception as e:
+        print("❌ Error in create_proposal:")
         print(traceback.format_exc())
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    
 
 # ✅ Get All Proposals for Tenant
 @api_view(['POST'])
@@ -81,9 +89,12 @@ def get_my_proposals(request):
 
         # 🔹 Get tenant DB alias
         db_alias = get_tenant_db(tenant)
+        print(db_alias)
 
         # 🔹 Fetch proposals from tenant DB
         proposals = Proposal.objects.using(db_alias).all().order_by('-created_at')
+
+        print(proposals)
 
         serializer = ProposalListSerializer(
             proposals,

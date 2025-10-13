@@ -49,7 +49,7 @@ class Proposal(models.Model):
     template = models.IntegerField(choices=TEMPLATE_CHOICES, default=1)
     
     # Tenant relationship
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='proposals')
+    # tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='proposals')
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -62,7 +62,6 @@ class Proposal(models.Model):
             models.Index(fields=['status']),
             models.Index(fields=['created_at']),
         ]
-        unique_together = ['tenant', 'proposal_number']
     
     def __str__(self):
         return f"{self.proposal_number} - {self.client_name}"
