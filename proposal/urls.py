@@ -11,4 +11,6 @@ urlpatterns = [
     path('<uuid:pk>/status/', views.update_proposal_status, name='update-proposal-status'),
     path('stats/', views.get_proposal_stats, name='proposal-stats'),
     path('client/<uuid:client_id>/', views.get_proposals_by_client, name='proposal-stats'),
+    path('<uuid:pk>/items/', views.get_proposal_items, name='proposal-items'),
+
 ]

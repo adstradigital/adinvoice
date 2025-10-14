@@ -139,7 +139,7 @@ def get_proposals_by_client(request, client_id):
             client_name=client.name  # Changed from client.name to client.company_name
         ).order_by('-created_at')
 
-        serializer = ProposalListSerializer(
+        serializer = ProposalSerializer(
             proposals,
             many=True,
             context={"db_alias": db_alias, "tenant": tenant}
@@ -210,7 +210,31 @@ def get_proposal_detail(request, pk):
         print(traceback.format_exc())
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_proposal_items(request, pk):
+    try:
+        tenant_id = request.GET.get("tenant")
+        if not tenant_id:
+            return Response({"error": "Tenant ID is required"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Get tenant and database alias
+        try:
+            tenant = Tenant.objects.get(id=tenant_id)
+        except Tenant.DoesNotExist:
+            return Response({"error": "Tenant not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        db_alias = get_tenant_db(tenant)
+
+        # Get items from the correct tenant database
+        items = ProposalItem.objects.using(db_alias).filter(proposal_id=pk)
+        serializer = ProposalItemSerializer(items, many=True)
+        
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        print(traceback.format_exc())
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # ✅ Update Proposal
 @api_view(['PUT', 'PATCH'])

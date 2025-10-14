@@ -5,6 +5,7 @@ import {
   getClientsCompanies,
   getProposalsByClient,
   getProposalItems,
+  saveInvoice, // ✅ ADD THIS IMPORT
 } from "../../../../Api/index";
 
 const THEME = {
@@ -26,6 +27,19 @@ export default function InvoiceBuilder() {
   const [previewMode, setPreviewMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedProposalData, setSelectedProposalData] = useState(null);
+  
+  // ✅ PRINT-RELATED STATES
+  const [printOptions, setPrintOptions] = useState({
+    showPrices: true,
+    includeNotes: true,
+    includeTerms: true,
+    includeBankDetails: true,
+    showSignature: true,
+    paperSize: 'a4'
+  });
+  
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
 
   // Fetch clients from API
   const fetchClients = async () => {
@@ -121,36 +135,44 @@ export default function InvoiceBuilder() {
     }
   };
 
-  // Fetch invoice items for selected proposal
   const fetchInvoiceItems = async (proposalId) => {
     if (!proposalId) {
       setInvoiceItems([]);
+      setSelectedProposalData(null);
       return;
     }
 
     setLoading(true);
     setError("");
-    
+
     try {
       console.log("📦 Fetching items for proposal:", proposalId);
-      
+
+      // Find the selected proposal data
+      const proposal = proposals.find(p => p.id == proposalId);
+      if (proposal) {
+        setSelectedProposalData(proposal.fullData);
+      }
+
+      // ✅ Use the fixed API function
       const itemsData = await getProposalItems(proposalId);
       console.log("📦 Items data received:", itemsData);
 
       if (itemsData && itemsData.length > 0) {
         // Transform API response to match expected format
         const transformedItems = itemsData.map((item) => ({
+          id: item.id,
           description: item.description || item.name || "Service Item",
           quantity: Number(item.quantity) || 1,
           price: Number(item.price) || Number(item.unit_price) || 0,
           gst: Number(item.gst_rate) || Number(item.gst) || 18,
-          id: item.id,
           unit: item.unit || "pc",
           item_type: item.item_type || "service",
         }));
+
         setInvoiceItems(transformedItems);
         console.log("✅ Transformed items:", transformedItems);
-        setError(""); // Clear any previous errors
+        setError(""); // Clear previous errors
       } else {
         setInvoiceItems([]);
         console.log("❌ No items found for this proposal");
@@ -158,12 +180,16 @@ export default function InvoiceBuilder() {
       }
     } catch (err) {
       console.error("❌ Error fetching proposal items:", err);
-
-      const errorMessage =
-        err.response?.data?.detail ||
-        err.message ||
-        "Failed to load proposal items";
-      setError(`API Error: ${errorMessage}`);
+      
+      // Provide helpful error message
+      if (err.detail) {
+        setError(`Failed to load items: ${err.detail}`);
+      } else if (err.message) {
+        setError(`Failed to load items: ${err.message}`);
+      } else {
+        setError("Failed to load proposal items. Please check your connection.");
+      }
+      
       setInvoiceItems([]);
     } finally {
       setLoading(false);
@@ -236,6 +262,347 @@ export default function InvoiceBuilder() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(Number.isFinite(n) ? n : 0);
+
+  // ✅ SAVE INVOICE FUNCTION
+  const handleSaveInvoice = async () => {
+    if (!selectedClient || !selectedProposal || invoiceItems.length === 0) {
+      setError("Please complete all steps before saving invoice");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const client = clients.find(c => c.id == selectedClient);
+      const proposal = proposals.find(p => p.id == selectedProposal);
+      
+      // Generate invoice data
+      const invoiceData = {
+        proposal: selectedProposal,
+        client: selectedClient,
+        issue_date: new Date().toISOString().split('T')[0],
+        due_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        subtotal: subtotal,
+        total_gst: totalGST,
+        grand_total: grandTotal,
+        template_used: template,
+        notes: "Thank you for your business! Payment due within 15 days.",
+        terms: "Late payments may attract 2% interest per month. All disputes subject to Pune jurisdiction.",
+        // Client information for record keeping
+        client_name: client?.name || "Client",
+        client_email: client?.email || "",
+        client_phone: client?.phone || "",
+        client_address: client?.address || "",
+        client_gstin: client?.gstin || "",
+        // Company information
+        company_name: "CUBE Real Estate Pvt. Ltd.",
+        company_email: "accounts@cuberealestate.com",
+        company_phone: "+91 9876543210",
+        company_address: "Flat No. 006, Shivam Apartment, Opp. Manipal Hospital, Pune - 411001",
+        company_gstin: "27AAACC1234F1Z5",
+        items: invoiceItems.map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          price: item.price,
+          gst_rate: item.gst,
+          total: item.quantity * item.price * (1 + item.gst / 100),
+          item_type: item.item_type || "service",
+          unit: item.unit || "pc"
+        }))
+      };
+
+      console.log("📤 Saving invoice data:", invoiceData);
+      
+      const result = await saveInvoice(invoiceData);
+      
+      // Show success message
+      setError("");
+      
+      // Success alert with invoice number
+      if (result.invoice?.invoice_number) {
+        alert(`✅ Invoice saved successfully!\nInvoice Number: ${result.invoice.invoice_number}\nStatus: ${result.invoice.status}`);
+      } else if (result.success) {
+        alert(`✅ ${result.success}`);
+      } else {
+        alert(`✅ Invoice saved successfully!`);
+      }
+      
+      console.log("✅ Invoice save result:", result);
+      
+    } catch (err) {
+      console.error("❌ Error saving invoice:", err);
+      
+      // Handle specific error cases
+      if (err.detail) {
+        setError(`Failed to save invoice: ${err.detail}`);
+      } else if (err.error) {
+        setError(`Failed to save invoice: ${err.error}`);
+      } else if (err.message) {
+        setError(`Failed to save invoice: ${err.message}`);
+      } else {
+        setError("Failed to save invoice. Please check your connection and try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ PRINT FUNCTIONALITY WITH BACKGROUND STYLING
+  const handlePrint = (customOptions = {}) => {
+    // Merge default options with any custom options
+    const settings = { ...printOptions, ...customOptions };
+    
+    try {
+      // Get the invoice preview element
+      const invoiceElement = document.getElementById('invoice-preview');
+      
+      if (!invoiceElement) {
+        setError("Invoice preview not found for printing");
+        return;
+      }
+
+      // Create a new window for printing
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        setError("Please allow popups for printing");
+        return;
+      }
+
+      // Clone the invoice element to avoid modifying the original
+      const printContent = invoiceElement.cloneNode(true);
+      
+      // Apply conditional classes based on print options
+      if (!settings.showPrices) {
+        printContent.classList.add('no-prices');
+      }
+      if (!settings.includeTerms) {
+        printContent.classList.add('no-terms');
+      }
+      if (!settings.includeBankDetails) {
+        printContent.classList.add('no-bank-details');
+      }
+      if (!settings.showSignature) {
+        printContent.classList.add('no-signature');
+      }
+
+      // Generate the print HTML
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Invoice - ${new Date().toLocaleDateString()}</title>
+            <style>
+              ${getPrintStyles(settings)}
+            </style>
+          </head>
+          <body>
+            <div class="print-container">
+              ${printContent.outerHTML}
+            </div>
+            <script>
+              window.onload = function() {
+                // Add delay to ensure styles are applied
+                setTimeout(() => {
+                  window.print();
+                  // Close window after printing
+                  setTimeout(() => window.close(), 1000);
+                }, 500);
+              }
+              
+              // Also handle print with keyboard/mouse
+              window.onafterprint = function() {
+                setTimeout(() => window.close(), 500);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      
+      printWindow.document.close();
+      
+    } catch (err) {
+      console.error("❌ Print error:", err);
+      setError("Failed to open print window. Please try again.");
+    }
+  };
+
+  // Helper function for print styles WITH BACKGROUND COLORS
+  const getPrintStyles = (options) => `
+    /* Reset and base styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Arial', 'Helvetica', sans-serif;
+      background: white !important;
+      color: black !important;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .print-container {
+      width: 100%;
+      min-height: 100vh;
+    }
+    
+    /* Hide elements that shouldn't print */
+    .no-print {
+      display: none !important;
+    }
+    
+    /* Page break controls */
+    .page-break {
+      page-break-after: always;
+    }
+    
+    .avoid-break {
+      page-break-inside: avoid;
+    }
+    
+    .break-before {
+      page-break-before: always;
+    }
+    
+    /* Conditional visibility based on print options */
+    ${!options.showPrices ? `
+      .price-column, 
+      .amount-column, 
+      .totals-section,
+      .col-unit,
+      .col-amount,
+      .totals {
+        display: none !important;
+      }
+    ` : ''}
+    
+    ${!options.includeTerms ? `
+      .terms-section,
+      .terms-title,
+      .terms-text {
+        display: none !important;
+      }
+    ` : ''}
+    
+    ${!options.includeBankDetails ? `
+      .bank-details,
+      .bank {
+        display: none !important;
+      }
+    ` : ''}
+    
+    ${!options.showSignature ? `
+      .signature-section,
+      .signature-wrap {
+        display: none !important;
+      }
+    ` : ''}
+    
+    /* Print-specific media queries WITH BACKGROUND COLORS */
+    @media print {
+      @page {
+        size: ${options.paperSize};
+        margin: 15mm;
+      }
+      
+      body {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        font-size: 12pt;
+        line-height: 1.4;
+      }
+      
+      /* Ensure colors print correctly */
+      .inv-preview {
+        background: white !important;
+        box-shadow: none !important;
+        border: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      
+      /* Preserve background colors in print */
+      .inv-preview.saffron .items thead th {
+        background: #e53935 !important;
+        color: white !important;
+        -webkit-print-color-adjust: exact;
+      }
+      
+      .inv-preview.saffron .brand-title {
+        color: #d84315 !important;
+      }
+      
+      .inv-preview.saffron .meta-title {
+        color: #e53935 !important;
+      }
+      
+      .inv-preview.saffron .terms-title {
+        color: #e53935 !important;
+      }
+      
+      .vertical-tag {
+        color: #e53935 !important;
+      }
+      
+      .red-rule {
+        border-color: #e53935 !important;
+      }
+      
+      /* Table styling for print */
+      .table thead th {
+        background: #f8f9fa !important;
+        color: #000 !important;
+        -webkit-print-color-adjust: exact;
+      }
+      
+      .table-striped tbody tr:nth-of-type(odd) {
+        background-color: rgba(0,0,0,.05) !important;
+        -webkit-print-color-adjust: exact;
+      }
+      
+      /* Improve table printing */
+      table {
+        page-break-inside: auto;
+      }
+      
+      tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+      }
+      
+      thead {
+        display: table-header-group;
+      }
+      
+      tfoot {
+        display: table-footer-group;
+      }
+    }
+    
+    /* Screen styles for print preview */
+    @media screen {
+      body {
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      
+      .print-container {
+        max-width: 210mm;
+        margin: 0 auto;
+        background: white;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      }
+    }
+  `;
+
+  // ✅ QUICK PRINT FUNCTION
+  const handleQuickPrint = () => {
+    // Simple print without options
+    handlePrint();
+  };
 
   const handleDownload = async () => {
     try {
@@ -317,6 +684,46 @@ export default function InvoiceBuilder() {
         @page {
           size: A4;
           margin: 12mm 12mm 14mm 12mm;
+        }
+
+        /* Print-specific classes */
+        .no-print {
+          display: block;
+        }
+
+        @media print {
+          .no-print {
+            display: none !important;
+          }
+          
+          /* Ensure good print quality */
+          .inv-preview {
+            break-inside: avoid;
+          }
+          
+          /* Add page breaks where needed */
+          .terms {
+            break-before: always;
+          }
+        }
+
+        /* Conditional classes for print options */
+        .no-prices .col-unit,
+        .no-prices .col-amount,
+        .no-prices .totals {
+          display: none;
+        }
+
+        .no-terms .terms {
+          display: none;
+        }
+
+        .no-bank-details .bank {
+          display: none;
+        }
+
+        .no-signature .signature-wrap {
+          display: none;
         }
 
         /* Existing variants (kept) */
@@ -1209,10 +1616,184 @@ export default function InvoiceBuilder() {
               )}
             </div>
 
-            <div className="text-end mt-3">
+            {/* ✅ PRINT OPTIONS MODAL */}
+            <AnimatePresence>
+              {showPrintDialog && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="modal fade show d-block"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}
+                >
+                  <div className="modal-dialog modal-dialog-centered">
+                    <div className="modal-content">
+                      <div className="modal-header">
+                        <h5 className="modal-title">🖨 Print Options</h5>
+                        <button 
+                          type="button" 
+                          className="btn-close"
+                          onClick={() => setShowPrintDialog(false)}
+                        ></button>
+                      </div>
+                      
+                      <div className="modal-body">
+                        <div className="row">
+                          <div className="col-12">
+                            <div className="mb-3 form-check">
+                              <input
+                                type="checkbox"
+                                className="form-check-input"
+                                id="showPrices"
+                                checked={printOptions.showPrices}
+                                onChange={(e) => setPrintOptions({
+                                  ...printOptions,
+                                  showPrices: e.target.checked
+                                })}
+                              />
+                              <label className="form-check-label" htmlFor="showPrices">
+                                Show Prices & Amounts
+                              </label>
+                            </div>
+                            
+                            <div className="mb-3 form-check">
+                              <input
+                                type="checkbox"
+                                className="form-check-input"
+                                id="includeTerms"
+                                checked={printOptions.includeTerms}
+                                onChange={(e) => setPrintOptions({
+                                  ...printOptions,
+                                  includeTerms: e.target.checked
+                                })}
+                              />
+                              <label className="form-check-label" htmlFor="includeTerms">
+                                Include Terms & Conditions
+                              </label>
+                            </div>
+                            
+                            <div className="mb-3 form-check">
+                              <input
+                                type="checkbox"
+                                className="form-check-input"
+                                id="includeBankDetails"
+                                checked={printOptions.includeBankDetails}
+                                onChange={(e) => setPrintOptions({
+                                  ...printOptions,
+                                  includeBankDetails: e.target.checked
+                                })}
+                              />
+                              <label className="form-check-label" htmlFor="includeBankDetails">
+                                Include Bank Details
+                              </label>
+                            </div>
+                            
+                            <div className="mb-3 form-check">
+                              <input
+                                type="checkbox"
+                                className="form-check-input"
+                                id="showSignature"
+                                checked={printOptions.showSignature}
+                                onChange={(e) => setPrintOptions({
+                                  ...printOptions,
+                                  showSignature: e.target.checked
+                                })}
+                              />
+                              <label className="form-check-label" htmlFor="showSignature">
+                                Show Signature Area
+                              </label>
+                            </div>
+                            
+                            <div className="mb-3">
+                              <label className="form-label fw-semibold">Paper Size</label>
+                              <select
+                                className="form-select"
+                                value={printOptions.paperSize}
+                                onChange={(e) => setPrintOptions({
+                                  ...printOptions,
+                                  paperSize: e.target.value
+                                })}
+                              >
+                                <option value="a4">A4 (210mm × 297mm)</option>
+                                <option value="letter">Letter (8.5" × 11")</option>
+                                <option value="a5">A5 (148mm × 210mm)</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="modal-footer">
+                        <button
+                          type="button"
+                          className="btn btn-outline-secondary"
+                          onClick={() => setShowPrintDialog(false)}
+                        >
+                          Cancel
+                        </button>
+                        
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={() => {
+                            handlePrint();
+                            setShowPrintDialog(false);
+                          }}
+                        >
+                          🖨 Print with Options
+                        </button>
+                        
+                        <button
+                          type="button"
+                          className="btn btn-success"
+                          onClick={handleQuickPrint}
+                        >
+                          ⚡ Quick Print
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* ✅ UPDATED ACTION BUTTONS WITH SAVE FUNCTIONALITY */}
+            <div className="text-end mt-3 no-print">
+              <button 
+                className="btn btn-success me-2"
+                onClick={handleSaveInvoice}
+                disabled={loading || !selectedProposal || invoiceItems.length === 0}
+              >
+                {loading ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status">
+                      <span className="visually-hidden">Saving...</span>
+                    </span>
+                    Saving...
+                  </>
+                ) : (
+                  '💾 Save Invoice'
+                )}
+              </button>
+
+              <button 
+                className="btn btn-primary me-2"
+                onClick={() => setShowPrintDialog(true)}
+              >
+                🖨 Print Options
+              </button>
+
+              <button 
+                className="btn btn-info me-2"
+                onClick={handleQuickPrint}
+              >
+                ⚡ Quick Print
+              </button>
+
               <button className="btn btn-danger me-2" onClick={handleDownload}>
                 ⬇ Download PDF
               </button>
+              
               <button
                 className="btn btn-outline-dark"
                 onClick={() => setPreviewMode(false)}
@@ -1220,6 +1801,7 @@ export default function InvoiceBuilder() {
                 ✏ Edit Invoice
               </button>
             </div>
+
           </motion.div>
         )}
       </AnimatePresence>

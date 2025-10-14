@@ -719,3 +719,104 @@ export const getProposalStats = async () => {
     throw error.response?.data || { detail: "Failed to fetch proposal stats" };
   }
 };
+
+// getproposalitems - FIXED VERSION
+export const getProposalItems = async (proposalId) => {
+  const tenantId = localStorage.getItem("tenant_id");
+  if (!tenantId) {
+    throw new Error("Tenant ID not found. Please login again.");
+  }
+
+  try {
+    const response = await API.get(`/proposal/${proposalId}/items/`, {
+      headers: getAuthHeaders(),
+      params: { tenant: tenantId } // Send tenant as query parameter
+    });
+    
+    console.log("📦 Proposal items API response:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Error fetching proposal items:",
+      error.response?.data || error.message
+    );
+    throw error.response?.data || { detail: "Failed to fetch proposal items" };
+  }
+};
+
+
+export const saveInvoice = async (invoiceData) => {
+  const tenantId = localStorage.getItem("tenant_id");
+  if (!tenantId) {
+    throw new Error("Tenant ID not found. Please login again.");
+  }
+  try {
+    const dataToSend = { ...invoiceData, tenant: tenantId };
+
+    const res = await API.post("/invoices/create/", dataToSend, {
+      headers: getAuthHeaders(),
+    });
+
+    console.log("✅ Invoice saved successfully:", res.data);
+    return res.data;
+  } catch (error) {
+    console.error("Error saving invoice:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to save invoice" };
+  }
+};
+
+
+// Get All Invoices
+export const getInvoices = async () => {
+  const tenantId = localStorage.getItem("tenant_id");
+  if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
+
+  try {
+    const res = await API.post("/invoices/list/", {
+      tenant: tenantId
+    }, {
+      headers: getAuthHeaders()
+    });
+    
+    return res.data;
+  } catch (error) {
+    console.error("Error fetching invoices:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to fetch invoices" };
+  }
+};
+
+// Get Single Invoice
+export const getInvoiceDetail = async (invoiceId) => {
+  const tenantId = localStorage.getItem("tenant_id");
+  
+  try {
+    const res = await API.get(`/invoices/${invoiceId}/`, {
+      headers: getAuthHeaders(),
+      params: { tenant: tenantId }
+    });
+    
+    return res.data;
+  } catch (error) {
+    console.error("Error fetching invoice:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to fetch invoice" };
+  }
+};
+
+// Update Invoice Status
+export const updateInvoiceStatus = async (invoiceId, status) => {
+  const tenantId = localStorage.getItem("tenant_id");
+  
+  try {
+    const res = await API.patch(`/invoices/${invoiceId}/status/`, {
+      status: status,
+      tenant: tenantId
+    }, {
+      headers: getAuthHeaders()
+    });
+    
+    return res.data;
+  } catch (error) {
+    console.error("Error updating invoice status:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to update invoice status" };
+  }
+};
