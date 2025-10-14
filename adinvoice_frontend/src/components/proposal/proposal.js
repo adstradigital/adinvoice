@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Trash2, Loader2, RefreshCw, Search, UserPlus, Building, Edit, Save, FileText, List, Printer, Plus } from "lucide-react";
+import { Trash2, Loader2, RefreshCw, Search, UserPlus, Building, Edit, Save, FileText, List, Printer, Plus, Eye } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import Swal from "sweetalert2";
@@ -1197,12 +1197,540 @@ const CompanySettingsModal = ({ companyDetails, onUpdate, onClose, loading, onLo
   );
 };
 
+// View Proposal Modal Component
+const ViewProposalModal = ({ proposal, onClose }) => {
+  if (!proposal) return null;
+
+  const style = TEMPLATES.find(t => t.id === (proposal.template?.id || proposal.template || 1))?.style || TEMPLATES[0].style;
+
+  const calculateTotals = (items) => {
+    let subtotal = 0;
+    let totalGst = 0;
+    let grandTotal = 0;
+
+    items.forEach(item => {
+      const itemSubtotal = (item.quantity || item.qty || 0) * (item.price || 0);
+      const itemGst = itemSubtotal * ((item.gst_rate || item.gst || 0) / 100);
+      subtotal += itemSubtotal;
+      totalGst += itemGst;
+    });
+
+    grandTotal = subtotal + totalGst;
+
+    return {
+      subtotal: subtotal.toFixed(2),
+      totalGst: totalGst.toFixed(2),
+      grandTotal: grandTotal.toFixed(2)
+    };
+  };
+
+  const totals = calculateTotals(proposal.items || []);
+
+  return (
+    <div
+      className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+      style={{ backgroundColor: "rgba(0,0,0,0.8)", zIndex: 1070 }}
+      onClick={onClose}
+    >
+      <div
+        className="card shadow"
+        style={{ width: "90%", maxWidth: "1000px", maxHeight: "90vh", overflowY: "auto" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+          <h5 className="mb-0">
+            <Eye size={20} className="me-2" />
+            View Proposal - {proposal.proposal_number}
+          </h5>
+          <button 
+            className="btn-close btn-close-white" 
+            onClick={onClose}
+          ></button>
+        </div>
+        
+        <div className="card-body p-0">
+          {/* Proposal Preview */}
+          <div className="invoice-page" style={{
+            width: "100%",
+            minHeight: "800px",
+            backgroundImage: `url(/proposal-templates/${TEMPLATES.find(t => t.id === (proposal.template?.id || proposal.template || 1))?.file || 'template_1.jpg'})`,
+            backgroundSize: "cover",
+            backgroundRepeat: "no-repeat",
+            padding: "40px",
+            fontFamily: style.container.fontFamily,
+            fontSize: style.container.fontSize,
+            fontWeight: style.container.fontWeight,
+            color: style.container.textColor,
+            textAlign: style.container.textAlign,
+          }}>
+            {/* Header */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "40px" }}>
+              <div>
+                {proposal.company_logo && (
+                  <img src={proposal.company_logo} alt="Logo" style={{ maxHeight: "80px", marginBottom: "20px" }} />
+                )}
+                <h3 style={style.header}>{proposal.company_name}</h3>
+                <p style={style.clientInfo}>{proposal.company_address}</p>
+                <p style={style.clientInfo}>{proposal.company_phone} | {proposal.company_email}</p>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <h4 style={style.subHeader}>PROPOSAL</h4>
+                <p style={style.clientInfo}>Proposal #: {proposal.proposal_number}</p>
+                <p style={style.clientInfo}>Date: {proposal.date}</p>
+                {proposal.due_date && <p style={style.clientInfo}>Due Date: {proposal.due_date}</p>}
+                <p style={{ ...style.clientInfo, marginTop: "10px", padding: "5px 10px", backgroundColor: proposal.status === 'accepted' ? '#28a745' : proposal.status === 'rejected' ? '#dc3545' : '#6c757d', color: 'white', borderRadius: '5px', display: 'inline-block' }}>
+                  Status: {proposal.status?.toUpperCase() || 'DRAFT'}
+                </p>
+              </div>
+            </div>
+
+            {/* Client Information */}
+            <div style={{ marginBottom: "30px", padding: "20px", backgroundColor: "rgba(255,255,255,0.1)", borderRadius: "10px" }}>
+              <h5 style={style.subHeader}>Proposal For:</h5>
+              <p style={style.clientInfo}><strong>{proposal.client_name}</strong></p>
+              {proposal.client_address && <p style={style.clientInfo}>{proposal.client_address}</p>}
+              {proposal.client_phone && <p style={style.clientInfo}>{proposal.client_phone}</p>}
+              {proposal.client_email && <p style={style.clientInfo}>{proposal.client_email}</p>}
+            </div>
+
+            {/* Items Table */}
+            <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "30px" }}>
+              <thead>
+                <tr style={style.tableHeader}>
+                  <th style={{ padding: "12px", border: "1px solid #ddd" }}>S.No</th>
+                  <th style={{ padding: "12px", border: "1px solid #ddd" }}>Item</th>
+                  <th style={{ padding: "12px", border: "1px solid #ddd" }}>Description</th>
+                  <th style={{ padding: "12px", border: "1px solid #ddd" }}>Qty</th>
+                  <th style={{ padding: "12px", border: "1px solid #ddd" }}>Price</th>
+                  <th style={{ padding: "12px", border: "1px solid #ddd" }}>GST %</th>
+                  <th style={{ padding: "12px", border: "1px solid #ddd" }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(proposal.items || []).map((item, index) => (
+                  <tr key={index} style={{ backgroundColor: index % 2 === 0 ? "#fff" : "#f8f9fa", ...style.tableCell }}>
+                    <td style={{ padding: "12px", border: "1px solid #ddd" }}>{index + 1}</td>
+                    <td style={{ padding: "12px", border: "1px solid #ddd" }}>{item.name}</td>
+                    <td style={{ padding: "12px", border: "1px solid #ddd" }}>{item.description || "-"}</td>
+                    <td style={{ padding: "12px", border: "1px solid #ddd", textAlign: "center" }}>{item.quantity || item.qty || 1}</td>
+                    <td style={{ padding: "12px", border: "1px solid #ddd", textAlign: "right" }}>${(item.price || 0).toFixed(2)}</td>
+                    <td style={{ padding: "12px", border: "1px solid #ddd", textAlign: "right" }}>{item.gst_rate || item.gst || 0}%</td>
+                    <td style={{ padding: "12px", border: "1px solid #ddd", textAlign: "right" }}>
+                      ${(((item.quantity || item.qty || 0) * (item.price || 0)) * (1 + (item.gst_rate || item.gst || 0) / 100)).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Totals */}
+            <div style={{ textAlign: "right", marginBottom: "30px" }}>
+              <div style={{ display: "inline-block", minWidth: "300px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", padding: "5px 0" }}>
+                  <span style={{ ...style.totals, fontSize: "16px" }}>Subtotal:</span>
+                  <span style={{ ...style.totals, fontSize: "16px" }}>${totals.subtotal}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", padding: "5px 0" }}>
+                  <span style={{ ...style.totals, fontSize: "16px" }}>Total GST:</span>
+                  <span style={{ ...style.totals, fontSize: "16px" }}>${totals.totalGst}</span>
+                </div>
+                <hr style={{ margin: "15px 0", borderColor: "#ddd" }} />
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", padding: "5px 0" }}>
+                  <span style={{ ...style.totals, fontSize: "18px", fontWeight: "bold" }}>Grand Total:</span>
+                  <span style={{ ...style.totals, fontSize: "18px", fontWeight: "bold" }}>${totals.grandTotal}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Notes */}
+            {proposal.notes && (
+              <div style={{ marginBottom: "30px", padding: "20px", backgroundColor: "rgba(255,255,255,0.1)", borderRadius: "10px" }}>
+                <h5 style={style.subHeader}>Notes:</h5>
+                <p style={style.notes}>{proposal.notes}</p>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div style={{ textAlign: "center", marginTop: "40px", paddingTop: "20px", borderTop: "1px solid #ddd" }}>
+              <p style={style.footer}>Thank you for your business!</p>
+              <p style={style.footer}>
+                {proposal.company_name} | {proposal.company_phone} | {proposal.company_email}
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="card-footer">
+          <div className="d-flex justify-content-end">
+            <button 
+              className="btn btn-secondary"
+              onClick={onClose}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Client Company Details Modal Component
+const ClientCompanyModal = ({ 
+  show, 
+  onClose, 
+  onSave, 
+  initialData,
+  loading = false 
+}) => {
+  const [formData, setFormData] = useState({
+    name: "",
+    contact: "",
+    email: "",
+    phone: "",
+    industry: "",
+    website: "",
+    registration_number: "",
+    tax_id: "",
+    address_line1: "",
+    address_line2: "",
+    city: "",
+    state: "",
+    country: "",
+    postal_code: "",
+    support_email: "",
+    notes: "",
+    logo: null,
+  });
+
+  // Initialize form with initial data when modal opens
+  useEffect(() => {
+    if (show && initialData) {
+      setFormData(prev => ({
+        ...prev,
+        name: initialData.name || "",
+        contact: initialData.contact || initialData.name || "",
+        email: initialData.email || "",
+        phone: initialData.phone || "",
+        address_line1: initialData.address_line1 || initialData.address || "",
+      }));
+    }
+  }, [show, initialData]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value, type, files } = e.target;
+    
+    if (type === 'file') {
+      setFormData(prev => ({
+        ...prev,
+        [name]: files[0] || null
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  return (
+    <div
+      className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+      style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1060 }}
+      onClick={onClose}
+    >
+      <div
+        className="card shadow"
+        style={{ width: "800px", maxHeight: "90vh", overflowY: "auto" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <h5 className="mb-0">🏢 Add Client Company Details</h5>
+          <button 
+            className="btn-close btn-close-white" 
+            onClick={onClose}
+          ></button>
+        </div>
+        
+        <div className="card-body">
+          <div className="alert alert-info">
+            <small>
+              <strong>Note:</strong> Basic information is pre-filled from the form above. 
+              You can add additional details here.
+            </small>
+          </div>
+
+          <form onSubmit={handleSubmit}>
+            <div className="row">
+              <div className="col-md-6">
+                <div className="mb-3">
+                  <label className="form-label">Company Name *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="Enter company name"
+                    required
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Contact Person *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="contact"
+                    value={formData.contact}
+                    onChange={handleInputChange}
+                    placeholder="Enter contact person name"
+                    required
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Email *</label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="company@example.com"
+                    required
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Phone</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="+1234567890"
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Industry</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="industry"
+                    value={formData.industry}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Technology, Healthcare"
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Website</label>
+                  <input
+                    type="url"
+                    className="form-control"
+                    name="website"
+                    value={formData.website}
+                    onChange={handleInputChange}
+                    placeholder="https://example.com"
+                  />
+                </div>
+              </div>
+
+              <div className="col-md-6">
+                <div className="mb-3">
+                  <label className="form-label">Registration Number</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="registration_number"
+                    value={formData.registration_number}
+                    onChange={handleInputChange}
+                    placeholder="Business registration number"
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Tax ID / VAT Number</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="tax_id"
+                    value={formData.tax_id}
+                    onChange={handleInputChange}
+                    placeholder="Tax identification number"
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Address Line 1 *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="address_line1"
+                    value={formData.address_line1}
+                    onChange={handleInputChange}
+                    placeholder="Street address, P.O. box"
+                    required
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Address Line 2</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="address_line2"
+                    value={formData.address_line2}
+                    onChange={handleInputChange}
+                    placeholder="Apartment, suite, unit, building, floor, etc."
+                  />
+                </div>
+
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label">City</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        name="city"
+                        value={formData.city}
+                        onChange={handleInputChange}
+                        placeholder="City"
+                      />
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label">State/Province</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        name="state"
+                        value={formData.state}
+                        onChange={handleInputChange}
+                        placeholder="State or province"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label">Country</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        name="country"
+                        value={formData.country}
+                        onChange={handleInputChange}
+                        placeholder="Country"
+                      />
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label">Postal Code</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        name="postal_code"
+                        value={formData.postal_code}
+                        onChange={handleInputChange}
+                        placeholder="ZIP or postal code"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Support Email</label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    name="support_email"
+                    value={formData.support_email}
+                    onChange={handleInputChange}
+                    placeholder="support@example.com"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Notes</label>
+              <textarea
+                className="form-control"
+                name="notes"
+                rows="3"
+                value={formData.notes}
+                onChange={handleInputChange}
+                placeholder="Additional notes about this client..."
+              />
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Company Logo</label>
+              <input
+                type="file"
+                className="form-control"
+                name="logo"
+                accept="image/*"
+                onChange={handleInputChange}
+              />
+              <div className="form-text">
+                Optional: Upload company logo (PNG, JPG, SVG, max 5MB)
+              </div>
+            </div>
+          </form>
+        </div>
+        
+        <div className="card-footer">
+          <div className="d-flex justify-content-between">
+            <button 
+              className="btn btn-secondary" 
+              onClick={onClose}
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button 
+              className="btn btn-primary" 
+              onClick={handleSubmit}
+              disabled={loading || !formData.name || !formData.contact || !formData.email || !formData.address_line1}
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={16} className="spinner me-2" />
+                  Saving...
+                </>
+              ) : (
+                'Save Client Company'
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Proposals List Modal Component
 const ProposalsModal = ({ 
   proposals, 
   loading, 
   onLoadProposal, 
   onDeleteProposal, 
+  onViewProposal,
   onClose 
 }) => {
   
@@ -1216,13 +1744,13 @@ const ProposalsModal = ({
     >
       <div
         className="card shadow"
-        style={{ width: "900px", maxHeight: "90vh", overflowY: "auto" }}
+        style={{ width: "1000px", maxHeight: "90vh", overflowY: "auto" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
           <h5 className="mb-0">
             <FileText size={20} className="me-2" />
-            Saved Proposals
+            Saved Proposals ({safeProposals.length})
           </h5>
           <button 
             className="btn-close btn-close-white" 
@@ -1305,6 +1833,13 @@ const ProposalsModal = ({
                             title="Load this proposal"
                           >
                             <Edit size={14} />
+                          </button>
+                          <button
+                            className="btn btn-outline-info"
+                            onClick={() => onViewProposal(proposal)}
+                            title="View this proposal"
+                          >
+                            <Eye size={14} />
                           </button>
                           <button
                             className="btn btn-outline-danger"
@@ -1398,6 +1933,7 @@ export default function ProposalGenerator() {
   const [savedProposals, setSavedProposals] = useState([]);
   const [showProposalsModal, setShowProposalsModal] = useState(false);
   const [currentProposalId, setCurrentProposalId] = useState(null);
+  const [viewingProposal, setViewingProposal] = useState(null);
 
   // Client Company Modal State
   const [showClientCompanyModal, setShowClientCompanyModal] = useState(false);
@@ -1833,6 +2369,11 @@ export default function ProposalGenerator() {
     });
   };
 
+  // View Proposal
+  const viewProposal = (proposal) => {
+    setViewingProposal(proposal);
+  };
+
   // Delete a proposal
   const deleteProposalHandler = async (proposalId) => {
     if (!confirm('Are you sure you want to delete this proposal?')) return;
@@ -1986,7 +2527,7 @@ export default function ProposalGenerator() {
   };
 
   // Handle full client company form submission
-  const handleCreateClientFromFullForm = async () => {
+  const handleCreateClientFromFullForm = async (formData) => {
     try {
       const tenantId = localStorage.getItem("tenant_id");
       if (!tenantId) {
@@ -1995,33 +2536,33 @@ export default function ProposalGenerator() {
       }
 
       const finalData = {
-        name: clientCompanyFormData.name || invoiceData.clientName,
-        contact: clientCompanyFormData.contact || invoiceData.clientName,
-        email: clientCompanyFormData.email || invoiceData.clientEmail,
-        phone: clientCompanyFormData.phone || invoiceData.clientPhone,
-        address_line1: clientCompanyFormData.address_line1 || invoiceData.clientAddress,
-        industry: clientCompanyFormData.industry,
-        website: clientCompanyFormData.website,
-        registration_number: clientCompanyFormData.registration_number,
-        tax_id: clientCompanyFormData.tax_id,
-        city: clientCompanyFormData.city,
-        state: clientCompanyFormData.state,
-        country: clientCompanyFormData.country,
-        postal_code: clientCompanyFormData.postal_code,
-        support_email: clientCompanyFormData.support_email,
-        notes: clientCompanyFormData.notes,
-        logo: clientCompanyFormData.logo
+        name: formData.name || invoiceData.clientName,
+        contact: formData.contact || invoiceData.clientName,
+        email: formData.email || invoiceData.clientEmail,
+        phone: formData.phone || invoiceData.clientPhone,
+        address_line1: formData.address_line1 || invoiceData.clientAddress,
+        industry: formData.industry,
+        website: formData.website,
+        registration_number: formData.registration_number,
+        tax_id: formData.tax_id,
+        city: formData.city,
+        state: formData.state,
+        country: formData.country,
+        postal_code: formData.postal_code,
+        support_email: formData.support_email,
+        notes: formData.notes,
+        logo: formData.logo
       };
 
-      const formData = new FormData();
+      const apiFormData = new FormData();
       Object.entries(finalData).forEach(([key, value]) => {
-        if (value !== null && value !== "") {
-          formData.append(key, value);
+        if (value !== null && value !== "" && value !== undefined) {
+          apiFormData.append(key, value);
         }
       });
-      formData.append("tenant", tenantId);
+      apiFormData.append("tenant", tenantId);
 
-      const newClient = await addClientCompany(formData);
+      const newClient = await addClientCompany(apiFormData);
       
       setInvoiceData(prev => ({
         ...prev,
@@ -2527,17 +3068,16 @@ export default function ProposalGenerator() {
                       onChange={(e) => setInvoiceData({ ...invoiceData, clientAddress: e.target.value })}
                       placeholder="Street, City, Country"
                     />
-                   <div className="mt-2">
-                    <button 
-                     type="button" 
-                     className="btn btn-outline-primary btn-sm"
-                     onClick={() => setShowClientCompanyModal(true)}
+                    <div className="mt-2">
+                      <button 
+                        type="button" 
+                        className="btn btn-outline-primary btn-sm"
+                        onClick={() => setShowClientCompanyModal(true)}
                       >
-                    📋 Add More Company Details
-                    </button>
-                   <small className="text-muted ms-2">Click to add full company information</small>
-                     </div>
-
+                        📋 Add More Company Details
+                      </button>
+                      <small className="text-muted ms-2">Click to add full company information</small>
+                    </div>
                   </div>
                 </div>
 
@@ -2918,47 +3458,28 @@ export default function ProposalGenerator() {
           loading={loading.proposals}
           onLoadProposal={loadProposal}
           onDeleteProposal={deleteProposalHandler}
+          onViewProposal={viewProposal}
           onClose={() => setShowProposalsModal(false)}
+        />
+      )}
+
+      {/* View Proposal Modal */}
+      {viewingProposal && (
+        <ViewProposalModal
+          proposal={viewingProposal}
+          onClose={() => setViewingProposal(null)}
         />
       )}
 
       {/* Client Company Modal */}
       {showClientCompanyModal && (
-        <div
-          className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-          style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1060 }}
-          onClick={() => setShowClientCompanyModal(false)}
-        >
-          <div
-            className="card shadow"
-            style={{ width: "700px", maxHeight: "90vh", overflowY: "auto" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
-              <h5 className="mb-0">🏢 Add Client Company Details</h5>
-              <button 
-                className="btn-close btn-close-white" 
-                onClick={() => setShowClientCompanyModal(false)}
-              ></button>
-            </div>
-            
-            <div className="card-body">
-              <div className="alert alert-info">
-                <small>
-                  <strong>Note:</strong> Basic information is pre-filled from the form above. 
-                  You can add additional details here.
-                </small>
-              </div>
-
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                handleCreateClientFromFullForm();
-              }}>
-                {/* ... (keep your existing client company form) ... */}
-              </form>
-            </div>
-          </div>
-        </div>
+        <ClientCompanyModal
+          show={showClientCompanyModal}
+          onClose={() => setShowClientCompanyModal(false)}
+          onSave={handleCreateClientFromFullForm}
+          initialData={invoiceData}
+          loading={loading.creatingClient}
+        />
       )}
 
       {/* Product/Service Creation Modal */}
