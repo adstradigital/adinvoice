@@ -191,7 +191,7 @@ const apiService = {
         console.error('Error fetching clients:', error);
         throw error;
       }
-    },
+    },  
 
     extractAddress(client) {
       if (client.address && typeof client.address === 'object') {
@@ -502,39 +502,65 @@ const apiService = {
   },
 
   proposals: {
-  async getAll() {
-    try {
-      const response = await getProposals();
-      console.log('🔍 Raw API response:', response);
-      
-      // Handle different response structures
-      let proposalsArray = [];
-      
-      if (Array.isArray(response)) {
-        proposalsArray = response;
-      } else if (response && Array.isArray(response.data)) {
-        proposalsArray = response.data;
-      } else if (response && Array.isArray(response.proposals)) {
-        proposalsArray = response.proposals;
-      } else if (response && Array.isArray(response.results)) {
-        proposalsArray = response.results;
-      } else if (response && Array.isArray(response.items)) {
-        proposalsArray = response.items;
-      } else if (response && typeof response === 'object') {
-        // If it's a single object, wrap it in array
-        proposalsArray = [response];
+    async getAll() {
+      try {
+        const response = await getProposals();
+        console.log('🔍 Raw API response for proposals:', response);
+        
+        // Handle different response structures
+        let proposalsArray = [];
+        
+        if (Array.isArray(response)) {
+          proposalsArray = response;
+        } else if (response && Array.isArray(response.data)) {
+          proposalsArray = response.data;
+        } else if (response && Array.isArray(response.proposals)) {
+          proposalsArray = response.proposals;
+        } else if (response && Array.isArray(response.results)) {
+          proposalsArray = response.results;
+        } else if (response && Array.isArray(response.items)) {
+          proposalsArray = response.items;
+        } else if (response && typeof response === 'object') {
+          // If it's a single object, wrap it in array
+          proposalsArray = [response];
+        }
+        
+        console.log('📊 Final proposals array:', proposalsArray);
+        console.log('✅ Array length:', proposalsArray.length);
+        
+        // Transform the proposals data to ensure consistency
+        const transformedProposals = proposalsArray.map(proposal => ({
+          id: proposal.id,
+          title: proposal.title,
+          proposal_number: proposal.proposal_number,
+          client_name: proposal.client_name,
+          client_email: proposal.client_email,
+          client_phone: proposal.client_phone,
+          client_address: proposal.client_address,
+          company_name: proposal.company_name,
+          company_email: proposal.company_email,
+          company_phone: proposal.company_phone,
+          company_address: proposal.company_address,
+          company_logo: proposal.company_logo,
+          items: Array.isArray(proposal.items) ? proposal.items : [],
+          subtotal: parseFloat(proposal.subtotal) || 0,
+          total_gst: parseFloat(proposal.total_gst) || 0,
+          grand_total: parseFloat(proposal.grand_total) || 0,
+          date: proposal.date,
+          due_date: proposal.due_date,
+          notes: proposal.notes,
+          template: proposal.template || 1, // Default to template 1 if not specified
+          status: proposal.status || 'draft',
+          _original: proposal
+        }));
+        
+        return { proposals: transformedProposals };
+      } catch (error) {
+        console.error('❌ Error fetching proposals:', error);
+        // Return empty array on error
+        return { proposals: [] };
       }
-      
-      console.log('📊 Final proposals array:', proposalsArray);
-      console.log('✅ Array length:', proposalsArray.length);
-      
-      return { proposals: proposalsArray };
-    } catch (error) {
-      console.error('❌ Error fetching proposals:', error);
-      // Return empty array on error
-      return { proposals: [] };
-    }
-  },
+    },
 
     async create(proposalData) {
       try {
@@ -592,7 +618,9 @@ const apiService = {
           tenant: localStorage.getItem("tenant_id")
         };
 
+        console.log('📤 Creating proposal with data:', apiData);
         const newProposal = await saveProposal(apiData);
+        console.log('✅ Proposal created:', newProposal);
         return newProposal;
       } catch (error) {
         console.error('Error creating proposal:', error);
@@ -1178,7 +1206,7 @@ const ProposalsModal = ({
   onClose 
 }) => {
   
-    const safeProposals = Array.isArray(proposals) ? proposals : [];
+  const safeProposals = Array.isArray(proposals) ? proposals : [];
 
   return (
     <div
@@ -1208,7 +1236,7 @@ const ProposalsModal = ({
               <Loader2 size={32} className="spinner" />
               <p className="mt-2">Loading proposals...</p>
             </div>
-          ) : proposals.length === 0 ? (
+          ) : safeProposals.length === 0 ? (
             <div className="text-center py-4">
               <FileText size={48} className="text-muted mb-3" />
               <p>No saved proposals found.</p>
@@ -1229,7 +1257,7 @@ const ProposalsModal = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {proposals.map(proposal => (
+                  {safeProposals.map(proposal => (
                     <tr key={proposal.id}>
                       <td>
                         <strong>{proposal.proposal_number}</strong>
@@ -1276,7 +1304,7 @@ const ProposalsModal = ({
                             onClick={() => onLoadProposal(proposal)}
                             title="Load this proposal"
                           >
-                            <FileText size={14} />
+                            <Edit size={14} />
                           </button>
                           <button
                             className="btn btn-outline-danger"
@@ -1298,7 +1326,7 @@ const ProposalsModal = ({
         <div className="card-footer">
           <div className="d-flex justify-content-between align-items-center">
             <small className="text-muted">
-              Showing {proposals.length} proposal{proposals.length !== 1 ? 's' : ''}
+              Showing {safeProposals.length} proposal{safeProposals.length !== 1 ? 's' : ''}
             </small>
             <button 
               className="btn btn-secondary"
@@ -1534,36 +1562,36 @@ export default function ProposalGenerator() {
 
   // Fetch Proposals from API
   const fetchProposals = async () => {
-  setLoading(prev => ({ ...prev, proposals: true }));
-  setError(prev => ({ ...prev, proposals: null }));
-  
-  try {
-    console.log('🔄 Starting to fetch proposals...');
-    const proposalsData = await apiService.proposals.getAll();
+    setLoading(prev => ({ ...prev, proposals: true }));
+    setError(prev => ({ ...prev, proposals: null }));
     
-    console.log('📦 Raw proposals API response:', proposalsData);
-    console.log('🔍 Proposals array:', proposalsData.proposals);
-    console.log('✅ Is array?', Array.isArray(proposalsData.proposals));
-    console.log('📊 Number of proposals:', proposalsData.proposals?.length || 0);
-    
-    if (proposalsData.proposals && proposalsData.proposals.length > 0) {
-      console.log('📝 First proposal sample:', proposalsData.proposals[0]);
+    try {
+      console.log('🔄 Starting to fetch proposals...');
+      const proposalsData = await apiService.proposals.getAll();
+      
+      console.log('📦 Raw proposals API response:', proposalsData);
+      console.log('🔍 Proposals array:', proposalsData.proposals);
+      console.log('✅ Is array?', Array.isArray(proposalsData.proposals));
+      console.log('📊 Number of proposals:', proposalsData.proposals?.length || 0);
+      
+      if (proposalsData.proposals && proposalsData.proposals.length > 0) {
+        console.log('📝 First proposal sample:', proposalsData.proposals[0]);
+      }
+      
+      setSavedProposals(proposalsData.proposals || []);
+      
+      console.log('💾 Saved to state:', proposalsData.proposals?.length || 0);
+      
+    } catch (err) {
+      console.error('❌ Error fetching proposals:', err);
+      const errorMessage = err.response?.data?.detail || err.message || 'Failed to fetch proposals';
+      setError(prev => ({ ...prev, proposals: errorMessage }));
+      console.error('Error fetching proposals:', err);
+      setSavedProposals([]);
+    } finally {
+      setLoading(prev => ({ ...prev, proposals: false }));
     }
-    
-    setSavedProposals(proposalsData.proposals || []);
-    
-    console.log('💾 Saved to state:', savedProposals.length);
-    
-  } catch (err) {
-    console.error('❌ Error fetching proposals:', err);
-    const errorMessage = err.response?.data?.detail || err.message || 'Failed to fetch proposals';
-    setError(prev => ({ ...prev, proposals: errorMessage }));
-    console.error('Error fetching proposals:', err);
-    setSavedProposals([]);
-  } finally {
-    setLoading(prev => ({ ...prev, proposals: false }));
-  }
-};
+  };
 
   // Search Clients
   const handleClientSearch = (searchTerm) => {
@@ -1735,8 +1763,8 @@ export default function ProposalGenerator() {
         alert('Proposal saved successfully!');
       }
       
-       console.log('🔄 Refreshing proposals list...');
-       await fetchProposals();
+      console.log('🔄 Refreshing proposals list...');
+      await fetchProposals();
       
     } catch (error) {
       console.error('Error saving proposal:', error);
@@ -1748,14 +1776,37 @@ export default function ProposalGenerator() {
     }
   };
 
-  // Load a saved proposal
+  // Load a saved proposal - FIXED VERSION
   const loadProposal = (proposal) => {
-    setInvoiceData({
-      companyName: proposal.company_name || "Your Company Name",
-      companyAddress: proposal.company_address || "123 Business Rd, City, Country",
-      companyPhone: proposal.company_phone || "+123456789",
-      companyEmail: proposal.company_email || "info@company.com",
-      companyLogo: proposal.company_logo || null,
+    console.log('🔄 Loading proposal:', proposal);
+    
+    // Find the correct template - handle both number and object formats
+    let templateId = proposal.template;
+    if (typeof templateId === 'object') {
+      templateId = templateId.id || 1;
+    }
+    
+    const template = TEMPLATES.find(t => t.id === templateId) || TEMPLATES[0];
+    
+    console.log('🎨 Selected template:', template);
+    console.log('📦 Proposal items:', proposal.items);
+
+    // Transform items to ensure they have the correct structure
+    const transformedItems = (proposal.items || []).map(item => ({
+      name: item.name || '',
+      description: item.description || '',
+      qty: item.quantity || item.qty || 1,
+      price: item.price || 0,
+      gst: item.gst_rate || item.gst || 0,
+      type: item.type || 'product'
+    }));
+
+    const newInvoiceData = {
+      companyName: proposal.company_name || companyDetails?.companyName || "Your Company Name",
+      companyAddress: proposal.company_address || companyDetails?.companyAddress || "123 Business Rd, City, Country",
+      companyPhone: proposal.company_phone || companyDetails?.companyPhone || "+123456789",
+      companyEmail: proposal.company_email || companyDetails?.companyEmail || "info@company.com",
+      companyLogo: proposal.company_logo || companyDetails?.companyLogo || null,
       clientName: proposal.client_name || "",
       clientAddress: proposal.client_address || "",
       clientPhone: proposal.client_phone || "",
@@ -1763,21 +1814,23 @@ export default function ProposalGenerator() {
       invoiceNumber: proposal.proposal_number || `PROP-${Date.now()}`,
       date: proposal.date || new Date().toISOString().split("T")[0],
       dueDate: proposal.due_date || "",
-      items: proposal.items?.map(item => ({
-        name: item.name,
-        description: item.description,
-        qty: item.quantity,
-        price: item.price,
-        gst: item.gst_rate,
-        type: item.type
-      })) || [],
+      items: transformedItems,
       notes: proposal.notes || "",
-      template: TEMPLATES.find(t => t.id === proposal.template) || TEMPLATES[0],
-    });
+      template: template,
+    };
+
+    console.log('📝 Setting invoice data:', newInvoiceData);
+    setInvoiceData(newInvoiceData);
     
     setCurrentProposalId(proposal.id);
     setShowProposalsModal(false);
-    alert('Proposal loaded successfully!');
+    
+    Swal.fire({
+      icon: 'success',
+      title: 'Proposal Loaded!',
+      text: 'Proposal has been loaded successfully. You can now edit it.',
+      timer: 2000
+    });
   };
 
   // Delete a proposal
@@ -1802,7 +1855,7 @@ export default function ProposalGenerator() {
 
   // Create new proposal (reset form)
   const createNewProposal = () => {
-    setInvoiceData({
+    const newInvoiceData = {
       companyName: companyDetails?.companyName || "Your Company Name",
       companyAddress: companyDetails?.companyAddress || "123 Business Rd, City, Country",
       companyPhone: companyDetails?.companyPhone || "+123456789",
@@ -1818,14 +1871,33 @@ export default function ProposalGenerator() {
       items: [],
       notes: "",
       template: TEMPLATES[0],
-    });
+    };
+    
+    setInvoiceData(newInvoiceData);
     setCurrentProposalId(null);
-    alert('New proposal created!');
+    
+    Swal.fire({
+      icon: 'success',
+      title: 'New Proposal Created!',
+      text: 'You can now create a new proposal.',
+      timer: 2000
+    });
   };
 
-  // Print Proposal
+  // Enhanced Print Proposal with Background Images
   const printProposal = () => {
+    if (invoiceData.items.length === 0) {
+      alert('Please add items to the proposal before printing.');
+      return;
+    }
+
     const invoicePages = document.querySelectorAll(".invoice-page, .explanation-page");
+    
+    if (invoicePages.length === 0) {
+      alert('No proposal content found to print. Please generate the proposal first.');
+      return;
+    }
+
     const printWindow = window.open('', '_blank');
     
     let printContent = `
@@ -1834,25 +1906,67 @@ export default function ProposalGenerator() {
       <head>
         <title>Proposal - ${invoiceData.invoiceNumber}</title>
         <style>
-          body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
-          .invoice-page { margin-bottom: 20px; page-break-after: always; }
-          .explanation-page { page-break-after: always; }
+          body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .invoice-page { 
+            width: 500px; 
+            min-height: 700px; 
+            margin: 0 auto 20px auto; 
+            padding: 20px; 
+            position: relative;
+            page-break-after: always;
+            background-size: cover;
+            background-repeat: no-repeat;
+          }
+          .explanation-page { 
+            width: 500px; 
+            min-height: 700px; 
+            margin: 0 auto 20px auto; 
+            padding: 20px; 
+            position: relative;
+            page-break-after: always;
+            background-size: cover;
+            background-repeat: no-repeat;
+          }
           table { width: 100%; border-collapse: collapse; margin: 10px 0; }
           th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
           th { background-color: #f5f5f5; }
           .totals { text-align: right; margin-top: 20px; }
           .header { text-align: center; margin-bottom: 30px; }
           @media print {
-            body { margin: 0; }
-            .invoice-page, .explanation-page { page-break-after: always; }
+            body { margin: 0; padding: 0; }
+            .invoice-page, .explanation-page { 
+              page-break-after: always; 
+              margin: 0 auto;
+            }
           }
         </style>
       </head>
       <body>
     `;
 
-    invoicePages.forEach(page => {
-      printContent += page.outerHTML;
+    invoicePages.forEach((page, index) => {
+      // Get the background image from the original page
+      const computedStyle = window.getComputedStyle(page);
+      const backgroundImage = computedStyle.backgroundImage;
+      
+      // Extract the image URL from the background-image property
+      const imageUrl = backgroundImage.replace(/url\(['"]?(.*?)['"]?\)/i, '$1');
+      
+      // Create a new div with the same content and background
+      const pageContent = page.innerHTML;
+      
+      printContent += `
+        <div class="${page.classList.contains('invoice-page') ? 'invoice-page' : 'explanation-page'}" 
+             style="background-image: url('${imageUrl}'); font-family: ${computedStyle.fontFamily}; font-size: ${computedStyle.fontSize}; color: ${computedStyle.color}; text-align: ${computedStyle.textAlign};">
+          ${pageContent}
+        </div>
+      `;
     });
 
     printContent += `
@@ -1864,7 +1978,10 @@ export default function ProposalGenerator() {
     printWindow.document.close();
     
     printWindow.onload = function() {
-      printWindow.print();
+      setTimeout(() => {
+        printWindow.print();
+        // printWindow.close(); // Uncomment if you want to auto-close after printing
+      }, 500);
     };
   };
 
@@ -1991,10 +2108,26 @@ export default function ProposalGenerator() {
   const itemChunks = chunkItems(invoiceData.items, 10);
 
   const downloadInvoice = async () => {
+    if (invoiceData.items.length === 0) {
+      alert('Please add items to the proposal before downloading.');
+      return;
+    }
+
     const invoicePages = document.querySelectorAll(".invoice-page, .explanation-page");
+    
+    if (invoicePages.length === 0) {
+      alert('No proposal content found to download. Please generate the proposal first.');
+      return;
+    }
+
     const pdf = new jsPDF("p", "pt", "a4");
     for (let i = 0; i < invoicePages.length; i++) {
-      const canvas = await html2canvas(invoicePages[i], { scale: 2 });
+      const canvas = await html2canvas(invoicePages[i], { 
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: null
+      });
       const imgData = canvas.toDataURL("image/png");
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
@@ -2627,6 +2760,8 @@ export default function ProposalGenerator() {
               textAlign: style.container.textAlign,
               position: "relative",
             }}>
+
+            
               
               {/* COMPANY HEADER & CLIENT INFO - Show only on FIRST page */}
               {isFirstPage && (
