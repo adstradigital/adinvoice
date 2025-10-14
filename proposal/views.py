@@ -8,7 +8,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Proposal, ProposalItem
-from .serializers import ProposalSerializer, ProposalListSerializer
+from clients.models import ClientCompany
+from .serializers import ProposalItemSerializer, ProposalSerializer, ProposalListSerializer
 import uuid
 
 # ✅ Create Proposal
@@ -112,6 +113,63 @@ def get_my_proposals(request):
         print(traceback.format_exc())
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+
+# Add this view to your Django backend for direct client filtering
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_proposals_by_client(request, client_id):
+    try:
+        tenant_id = request.GET.get("tenant")
+        if not tenant_id:
+            return Response(
+                {"error": "Tenant ID is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # ✅ Fetch tenant and determine DB alias
+        tenant = Tenant.objects.get(id=tenant_id)
+        db_alias = get_tenant_db(tenant)
+
+        # ✅ Get the client
+        client = ClientCompany.objects.using(db_alias).get(id=client_id)
+
+        # ✅ Fix: Use company_name instead of name
+        proposals = Proposal.objects.using(db_alias).filter(
+            client_name=client.name  # Changed from client.name to client.company_name
+        ).order_by('-created_at')
+
+        serializer = ProposalListSerializer(
+            proposals,
+            many=True,
+            context={"db_alias": db_alias, "tenant": tenant}
+        )
+
+        return Response({
+            "success": True,
+            "count": proposals.count(),
+            "proposals": serializer.data
+        }, status=status.HTTP_200_OK)
+
+    except ClientCompany.DoesNotExist:
+        return Response(
+            {"error": "Client not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Tenant.DoesNotExist:
+        return Response(
+            {"error": "Invalid tenant ID"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        print(traceback.format_exc())
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+
 # ✅ Get Single Proposal
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -151,6 +209,8 @@ def get_proposal_detail(request, pk):
     except Exception as e:
         print(traceback.format_exc())
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
 # ✅ Update Proposal
 @api_view(['PUT', 'PATCH'])
@@ -199,6 +259,8 @@ def update_proposal(request, pk):
         print(traceback.format_exc())
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+
 # ✅ Delete Proposal (Tenant-aware)
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
@@ -235,6 +297,8 @@ def delete_proposal(request, pk):
     except Exception as e:
         print(traceback.format_exc())
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
 # ✅ Update Proposal Status
 @api_view(['POST'])
@@ -287,6 +351,9 @@ def update_proposal_status(request, pk):
     except Exception as e:
         print(traceback.format_exc())
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+
 
 # ✅ Get Proposal Statistics
 @api_view(['POST'])

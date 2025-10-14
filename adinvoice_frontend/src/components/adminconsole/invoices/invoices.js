@@ -1,12 +1,14 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-import html2pdf from "html2pdf.js";
 import { motion, AnimatePresence } from "framer-motion";
-import { getClientsCompanies } from "../../../../Api/index"; // Adjust import path as needed
+import {
+  getClientsCompanies,
+  getProposalsByClient,
+  getProposalItems,
+} from "../../../../Api/index";
 
-// Theme (kept; we also introduce saffron/red accents in template CSS)
 const THEME = {
-  primary: "#16a34a", 
+  primary: "#16a34a",
   primarySoft: "#e8f7ee",
   dark: "#111827",
   muted: "#6b7280",
@@ -15,66 +17,7 @@ const THEME = {
 };
 
 export default function InvoiceBuilder() {
-  // Add new template: "saffron" for the red-accent layout like the image
   const [template, setTemplate] = useState("saffron");
-
-  // Dummy Data (fallback)
-  const dummyClients = [
-    { id: 1, name: "ABC Corporation" },
-    { id: 2, name: "TechWorld Pvt Ltd" },
-    { id: 3, name: "GreenLeaf Solutions" },
-  ];
-
-  const dummyProposals = {
-    1: [
-      { id: 101, title: "Website Revamp", status: "Approved" },
-      { id: 102, title: "SEO Retainer", status: "Pending" },
-    ],
-    2: [
-      { id: 201, title: "CRM Integration", status: "Approved" },
-      { id: 202, title: "Mobile App Prototype", status: "Draft" },
-    ],
-    3: [{ id: 301, title: "E-commerce Portal", status: "Approved" }],
-  };
-
-  const dummyItems = {
-    101: [
-      {
-        description: "Frontend design restructure",
-        quantity: 1,
-        price: 9999,
-        gst: 12,
-      },
-      { description: "Custom icon package", quantity: 2, price: 975, gst: 12 },
-      { description: "Gandhi mouse pad", quantity: 3, price: 99, gst: 12 },
-    ],
-    102: [
-      { description: "SEO Audit", quantity: 1, price: 6000, gst: 18 },
-      {
-        description: "Monthly Optimization",
-        quantity: 3,
-        price: 4000,
-        gst: 18,
-      },
-    ],
-    201: [
-      { description: "CRM Setup", quantity: 1, price: 12000, gst: 18 },
-      { description: "Training & Support", quantity: 1, price: 3000, gst: 18 },
-    ],
-    202: [
-      {
-        description: "App Wireframe Design",
-        quantity: 2,
-        price: 5000,
-        gst: 18,
-      },
-    ],
-    301: [
-      { description: "Shop Module", quantity: 1, price: 20000, gst: 18 },
-      { description: "Payment Integration", quantity: 1, price: 5000, gst: 18 },
-    ],
-  };
-
   const [clients, setClients] = useState([]);
   const [proposals, setProposals] = useState([]);
   const [selectedClient, setSelectedClient] = useState("");
@@ -90,28 +33,26 @@ export default function InvoiceBuilder() {
     setError("");
     try {
       const clientsData = await getClientsCompanies();
+      console.log("API Response (clients):", clientsData);
 
-      if (clientsData && clientsData.length > 0) {
-        // Transform API response to match expected format
+      if (Array.isArray(clientsData) && clientsData.length > 0) {
         const transformedClients = clientsData.map((client) => ({
           id: client.id,
           name: client.company_name || client.name || `Client ${client.id}`,
-          // Add other client properties as needed from your API response
-          address: client.address,
-          gstin: client.gstin,
-          email: client.email,
-          phone: client.phone,
+          address: client.address || "N/A",
+          gstin: client.gstin || "N/A",
+          email: client.email || "N/A",
+          phone: client.phone || "N/A",
+          company_name: client.company_name,
         }));
         setClients(transformedClients);
       } else {
-        // Fallback to dummy data if no clients from API
-        setClients(dummyClients);
-        console.log("No clients found, using dummy data");
+        console.warn("⚠️ No valid clients found.");
+        setError("No clients found. Please add clients first.");
       }
     } catch (err) {
-      console.error("Error fetching clients:", err);
-      setError("Failed to load clients. Using sample data.");
-      setClients(dummyClients); // Fallback to dummy data
+      console.error("❌ Error fetching clients:", err);
+      setError("Failed to load clients. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -125,26 +66,56 @@ export default function InvoiceBuilder() {
     }
 
     setLoading(true);
+    setError("");
+    
     try {
-      // Replace this with your actual API call for proposals
-      // const proposalsData = await getProposalsByClient(clientId);
+      console.log("🔍 Starting fetchProposals for client:", clientId);
+      
+      const response = await getProposalsByClient(clientId);
+      console.log("🔍 API Response:", response);
 
-      // For now, using dummy data - replace with actual API call
-      const clientProposals = dummyProposals[clientId] || [];
-      setProposals(clientProposals);
-
-      // Example of real API call (uncomment and implement):
-      /*
-      const proposalsData = await getProposalsByClient(clientId);
-      if (proposalsData && proposalsData.length > 0) {
-        setProposals(proposalsData);
-      } else {
-        setProposals([]);
+      // Handle the API response format
+      let proposalsData = [];
+      if (response.success && response.proposals) {
+        proposalsData = response.proposals;
+      } else if (Array.isArray(response)) {
+        proposalsData = response;
+      } else if (response.data && response.data.proposals) {
+        proposalsData = response.data.proposals;
       }
-      */
+
+      console.log("🔍 Processed proposals data:", proposalsData);
+
+      if (Array.isArray(proposalsData) && proposalsData.length > 0) {
+        // Transform API response to match expected format
+        const transformedProposals = proposalsData.map((proposal) => ({
+          id: proposal.id,
+          title: proposal.title || proposal.proposal_number || `Proposal ${proposal.id}`,
+          status: proposal.status ? 
+            proposal.status.charAt(0).toUpperCase() + proposal.status.slice(1) 
+            : "Draft",
+          client_id: clientId,
+          total_amount: proposal.grand_total || proposal.total_amount || 0,
+          created_at: proposal.created_at,
+          proposal_number: proposal.proposal_number,
+          client_name: proposal.client_name,
+        }));
+        
+        console.log("✅ Transformed proposals:", transformedProposals);
+        setProposals(transformedProposals);
+        setError(""); // Clear any previous errors
+      } else {
+        console.log("❌ No proposals found for this client");
+        setProposals([]);
+        setError("No proposals found for this client. Please create a proposal first.");
+      }
+
     } catch (err) {
-      console.error("Error fetching proposals:", err);
-      setProposals(dummyProposals[clientId] || []);
+      console.error("❌ Error in fetchProposals:", err);
+      
+      const errorMessage = err.response?.data?.error || err.message || "Failed to load proposals";
+      setError(`API Error: ${errorMessage}`);
+      setProposals([]);
     } finally {
       setLoading(false);
     }
@@ -158,26 +129,42 @@ export default function InvoiceBuilder() {
     }
 
     setLoading(true);
+    setError("");
+    
     try {
-      // Replace this with your actual API call for proposal items
-      // const itemsData = await getProposalItems(proposalId);
-
-      // For now, using dummy data - replace with actual API call
-      const proposalItems = dummyItems[proposalId] || [];
-      setInvoiceItems(proposalItems);
-
-      // Example of real API call (uncomment and implement):
-      /*
+      console.log("📦 Fetching items for proposal:", proposalId);
+      
       const itemsData = await getProposalItems(proposalId);
+      console.log("📦 Items data received:", itemsData);
+
       if (itemsData && itemsData.length > 0) {
-        setInvoiceItems(itemsData);
+        // Transform API response to match expected format
+        const transformedItems = itemsData.map((item) => ({
+          description: item.description || item.name || "Service Item",
+          quantity: Number(item.quantity) || 1,
+          price: Number(item.price) || Number(item.unit_price) || 0,
+          gst: Number(item.gst_rate) || Number(item.gst) || 18,
+          id: item.id,
+          unit: item.unit || "pc",
+          item_type: item.item_type || "service",
+        }));
+        setInvoiceItems(transformedItems);
+        console.log("✅ Transformed items:", transformedItems);
+        setError(""); // Clear any previous errors
       } else {
         setInvoiceItems([]);
+        console.log("❌ No items found for this proposal");
+        setError("No items found for this proposal. You can add items manually.");
       }
-      */
     } catch (err) {
-      console.error("Error fetching proposal items:", err);
-      setInvoiceItems(dummyItems[proposalId] || []);
+      console.error("❌ Error fetching proposal items:", err);
+
+      const errorMessage =
+        err.response?.data?.detail ||
+        err.message ||
+        "Failed to load proposal items";
+      setError(`API Error: ${errorMessage}`);
+      setInvoiceItems([]);
     } finally {
       setLoading(false);
     }
@@ -211,38 +198,75 @@ export default function InvoiceBuilder() {
     setInvoiceItems(updated);
   };
 
+  const addNewItem = () => {
+    setInvoiceItems([
+      ...invoiceItems,
+      {
+        description: "New Service Item",
+        quantity: 1,
+        price: 0,
+        gst: 18,
+        id: `temp-${Date.now()}`,
+      }
+    ]);
+  };
+
+  const removeItem = (index) => {
+    const updated = invoiceItems.filter((_, i) => i !== index);
+    setInvoiceItems(updated);
+  };
+
   const { subtotal, totalGST, grandTotal } = useMemo(() => {
     const sub = invoiceItems.reduce((s, it) => s + it.quantity * it.price, 0);
     const gst = invoiceItems.reduce(
       (s, it) => s + it.quantity * it.price * (it.gst / 100),
       0
     );
-    return { subtotal: sub, totalGST: gst, grandTotal: sub + gst };
+    return { 
+      subtotal: Math.round(sub * 100) / 100, 
+      totalGST: Math.round(gst * 100) / 100, 
+      grandTotal: Math.round((sub + gst) * 100) / 100 
+    };
   }, [invoiceItems]);
 
   const formatINR = (n) =>
     new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(Number.isFinite(n) ? n : 0);
 
-  const handleDownload = () => {
-    const el = document.getElementById("invoice-preview");
-    if (!el) return;
-    const opt = {
-      margin: [10, 10, 10, 10],
-      filename: `invoice-${Date.now()}.pdf`,
-      image: { type: "jpeg", quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        letterRendering: true,
-        backgroundColor: "#ffffff",
-      },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["css", "legacy", "avoid-all"] },
-    };
-    html2pdf().set(opt).from(el).save();
+  const handleDownload = async () => {
+    try {
+      // Dynamically import html2pdf only on client side
+      const html2pdf = (await import('html2pdf.js')).default;
+      
+      const el = document.getElementById("invoice-preview");
+      if (!el) {
+        setError("Invoice preview not found");
+        return;
+      }
+      
+      const opt = {
+        margin: [10, 10, 10, 10],
+        filename: `invoice-${Date.now()}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          letterRendering: true,
+          backgroundColor: "#ffffff",
+        },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["css", "legacy", "avoid-all"] },
+      };
+      
+      html2pdf().set(opt).from(el).save();
+    } catch (err) {
+      console.error("❌ Error generating PDF:", err);
+      setError("Failed to generate PDF. Please try again.");
+    }
   };
 
   const motionCard = {
@@ -253,13 +277,264 @@ export default function InvoiceBuilder() {
   return (
     <div className="container py-5" style={{ maxWidth: 980 }}>
       <style jsx global>{`
-        /* ... (keep all your existing CSS styles) */
+        :root {
+          --red: #e53935;
+          --red-deep: #c62828;
+          --grey-700: #374151;
+          --grey-600: #4b5563;
+          --grey-500: #6b7280;
+          --grey-300: #d1d5db;
+          --grey-200: #e5e7eb;
+          --grey-100: #f3f4f6;
+        }
+
+        .inv-card {
+          border: 1px solid ${THEME.border};
+          border-radius: 14px;
+          background: #fff;
+        }
+
+        /* Global table safety for PDF */
+        #invoice-preview table tr {
+          page-break-inside: avoid;
+        }
+
+        /* Print sizing */
+        @media print {
+          body {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .no-print {
+            display: none !important;
+          }
+          #invoice-preview {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0;
+          }
+        }
+        @page {
+          size: A4;
+          margin: 12mm 12mm 14mm 12mm;
+        }
+
+        /* Existing variants (kept) */
+        .inv-preview.classic .table thead th {
+          background: ${THEME.dark};
+          color: #fff;
+        }
+        .inv-preview.minimal .table thead th {
+          background: #f3f4f6;
+          color: #111827;
+        }
+        .inv-preview.modern .table thead th {
+          background: ${THEME.primary};
+          color: #fff;
+        }
+
+        /* SAFFRON variant — red accent like the image */
+        .inv-preview.saffron {
+          background: #fff;
+        }
+        .inv-preview.saffron .sheet {
+          position: relative;
+          padding: 32px 32px 40px 32px;
+        }
+        .inv-preview.saffron .left-rail {
+          position: absolute;
+          top: 24px;
+          bottom: 24px;
+          left: 0;
+          width: 56px;
+          background: transparent;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .inv-preview.saffron .left-rail .vertical-tag {
+          writing-mode: vertical-rl;
+          transform: rotate(180deg);
+          color: var(--red);
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          font-size: 18px;
+        }
+        .inv-preview.saffron .content {
+          margin-left: 72px;
+        }
+        .inv-preview.saffron .brand-row {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+        }
+        .inv-preview.saffron .brand-title {
+          color: #d84315;
+          font-weight: 600;
+          font-size: 18px;
+        }
+        .inv-preview.saffron .brand-address {
+          color: var(--grey-600);
+          font-size: 12px;
+          line-height: 1.4;
+          margin-top: 4px;
+        }
+        .inv-preview.saffron .logo-circle {
+          width: 64px;
+          height: 64px;
+          border-radius: 50%;
+          background: #bdbdbd;
+          color: #fff;
+          display: grid;
+          place-items: center;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+        }
+        .inv-preview.saffron .red-rule {
+          border-top: 2px solid var(--red);
+          margin: 16px 0;
+        }
+
+        .inv-preview.saffron .meta-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px 24px;
+          margin-bottom: 10px;
+        }
+        .inv-preview.saffron .meta-box {
+          font-size: 12px;
+          line-height: 1.5;
+        }
+        .inv-preview.saffron .meta-title {
+          color: var(--red);
+          font-weight: 700;
+          margin-bottom: 6px;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          font-size: 12px;
+        }
+        .inv-preview.saffron .meta-line {
+          color: var(--grey-700);
+        }
+        .inv-preview.saffron .meta-right {
+          display: grid;
+          grid-template-columns: 120px 1fr;
+          row-gap: 6px;
+          font-size: 12px;
+          color: var(--grey-700);
+        }
+        .inv-preview.saffron .meta-right .label {
+          color: var(--grey-600);
+        }
+
+        .inv-preview.saffron .items table {
+          width: 100%;
+          border-collapse: collapse;
+          border: 1px solid var(--grey-300);
+        }
+        .inv-preview.saffron .items thead th {
+          background: var(--red);
+          color: #fff;
+          font-size: 12px;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          padding: 8px 10px;
+          border-right: 1px solid var(--grey-300);
+        }
+        .inv-preview.saffron .items thead th:last-child {
+          border-right: 0;
+        }
+        .inv-preview.saffron .items tbody td {
+          font-size: 13px;
+          padding: 8px 10px;
+          border-right: 1px solid var(--grey-300);
+          border-top: 1px solid var(--grey-300);
+        }
+        .inv-preview.saffron .items tbody td:last-child {
+          border-right: 0;
+        }
+        .inv-preview.saffron .items .col-qty {
+          width: 60px;
+          text-align: center;
+        }
+        .inv-preview.saffron .items .col-unit,
+        .inv-preview.saffron .items .col-amount {
+          width: 140px;
+          text-align: right;
+        }
+
+        .inv-preview.saffron .totals {
+          width: 100%;
+          margin-top: 12px;
+          display: grid;
+          grid-template-columns: 1fr 260px;
+        }
+        .inv-preview.saffron .totals .right {
+          border: 1px solid var(--grey-300);
+          padding: 10px 12px;
+        }
+        .inv-preview.saffron .totals-row {
+          display: grid;
+          grid-template-columns: 1fr auto;
+          gap: 12px;
+          font-size: 13px;
+          color: var(--grey-700);
+          padding: 4px 0;
+        }
+        .inv-preview.saffron .grand {
+          font-weight: 700;
+          font-size: 16px;
+          color: #111;
+          padding-top: 6px;
+        }
+
+        .inv-preview.saffron .signature-wrap {
+          display: flex;
+          justify-content: flex-end;
+          margin-top: 18px;
+        }
+        .inv-preview.saffron .signature {
+          height: 56px;
+          width: 220px;
+          background: linear-gradient(90deg, #0000, #0001 10%, #0000 20%);
+          color: #111;
+          font-family: "Segoe Script", "Brush Script MT", cursive;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 22px;
+        }
+
+        .inv-preview.saffron .terms {
+          margin-top: 24px;
+          border-top: 1px solid var(--grey-200);
+          padding-top: 10px;
+        }
+        .inv-preview.saffron .terms-title {
+          color: var(--red);
+          font-weight: 700;
+          font-size: 12px;
+          margin-bottom: 6px;
+        }
+        .inv-preview.saffron .terms-text {
+          font-size: 12px;
+          color: var(--grey-700);
+          margin-bottom: 8px;
+        }
+        .inv-preview.saffron .bank {
+          font-size: 12px;
+          color: var(--grey-700);
+          line-height: 1.5;
+        }
       `}</style>
 
       {/* Error Alert */}
       {error && (
         <motion.div {...motionCard} className="alert alert-warning mb-3">
-          {error}
+          <div className="d-flex align-items-center">
+            <i className="bi bi-exclamation-triangle me-2"></i>
+            <span>{error}</span>
+          </div>
         </motion.div>
       )}
 
@@ -338,7 +613,7 @@ export default function InvoiceBuilder() {
           <select
             className="form-select"
             value={selectedClient}
-            onChange={(e) => setSelectedClient(Number(e.target.value) || "")}
+            onChange={(e) => setSelectedClient(e.target.value)}
             disabled={loading}
           >
             <option value="">-- Choose Client --</option>
@@ -352,24 +627,25 @@ export default function InvoiceBuilder() {
       </motion.div>
 
       {/* Proposal */}
-      {selectedClient && (
+      {selectedClient && proposals.length > 0 && (
         <motion.div {...motionCard} className="inv-card mb-3">
           <div className="p-3">
             <h6 className="fw-semibold mb-2" style={{ color: "#6b7280" }}>
-              Step 2: Select Proposal
+              Step 2: Select Proposal ({proposals.length} found)
             </h6>
             <select
               className="form-select"
               value={selectedProposal}
-              onChange={(e) =>
-                setSelectedProposal(Number(e.target.value) || "")
-              }
+              onChange={(e) => {
+                console.log("Selected proposal:", e.target.value);
+                setSelectedProposal(e.target.value);
+              }}
               disabled={loading}
             >
               <option value="">-- Choose Proposal --</option>
               {proposals.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.title} ({p.status})
+                  {p.title} ({p.status}) - {formatINR(p.total_amount)}
                 </option>
               ))}
             </select>
@@ -377,105 +653,159 @@ export default function InvoiceBuilder() {
         </motion.div>
       )}
 
+      {selectedClient && proposals.length === 0 && !loading && (
+        <motion.div {...motionCard} className="inv-card mb-3">
+          <div className="p-3">
+            <div className="alert alert-info mb-0">
+              <i className="bi bi-info-circle me-2"></i>
+              No proposals found for this client. Please create a proposal first.
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Items editor */}
-      {invoiceItems.length > 0 && !previewMode && (
+      {selectedProposal && !previewMode && (
         <motion.div {...motionCard} className="inv-card">
           <div className="p-3 p-md-4">
-            <h6 className="fw-semibold mb-3" style={{ color: "#6b7280" }}>
-              Step 3: Edit Items
-            </h6>
-            <div className="table-responsive">
-              <table className="table table-bordered align-middle">
-                <thead className="table-light">
-                  <tr>
-                    <th>Description</th>
-                    <th width="10%">Qty</th>
-                    <th width="15%">Price</th>
-                    <th width="10%">GST %</th>
-                    <th width="15%">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoiceItems.map((item, i) => {
-                    const rowTotal =
-                      item.price * item.quantity * (1 + item.gst / 100);
-                    return (
-                      <tr key={i}>
-                        <td>
-                          <input
-                            type="text"
-                            className="form-control"
-                            value={item.description}
-                            onChange={(e) =>
-                              updateItem(i, "description", e.target.value)
-                            }
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="number"
-                            min={0}
-                            className="form-control text-center"
-                            value={item.quantity}
-                            onChange={(e) =>
-                              updateItem(i, "quantity", Number(e.target.value))
-                            }
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="number"
-                            min={0}
-                            className="form-control text-end"
-                            value={item.price}
-                            onChange={(e) =>
-                              updateItem(i, "price", Number(e.target.value))
-                            }
-                          />
-                        </td>
-                        <td>
-                          <input
-                            type="number"
-                            min={0}
-                            className="form-control text-center"
-                            value={item.gst}
-                            onChange={(e) =>
-                              updateItem(i, "gst", Number(e.target.value))
-                            }
-                          />
-                        </td>
-                        <td className="fw-semibold text-end">
-                          {formatINR(rowTotal)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="d-flex justify-content-end mt-3">
-              <div className="text-end">
-                <div className="text-muted small">Subtotal</div>
-                <div className="fs-5">{formatINR(subtotal)}</div>
-                <div className="text-muted small mt-2">Total GST</div>
-                <div className="fs-6">{formatINR(totalGST)}</div>
-                <hr className="my-2" />
-                <div className="fs-4" style={{ color: "#e53935" }}>
-                  Grand Total:{" "}
-                  <span className="fw-bold">{formatINR(grandTotal)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="text-end mt-4">
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <h6 className="fw-semibold mb-0" style={{ color: "#6b7280" }}>
+                Step 3: Edit Invoice Items
+                {invoiceItems.length > 0 && ` (${invoiceItems.length} items)`}
+              </h6>
               <button
-                className="btn btn-danger px-4"
-                onClick={() => setPreviewMode(true)}
+                className="btn btn-primary btn-sm"
+                onClick={addNewItem}
+                disabled={loading}
               >
-                👁 Preview Invoice
+                + Add Item
               </button>
             </div>
+            
+            {invoiceItems.length > 0 ? (
+              <>
+                <div className="table-responsive">
+                  <table className="table table-bordered align-middle">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Description</th>
+                        <th width="10%">Qty</th>
+                        <th width="15%">Price</th>
+                        <th width="10%">GST %</th>
+                        <th width="15%">Total</th>
+                        <th width="5%"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {invoiceItems.map((item, i) => {
+                        const rowTotal = item.price * item.quantity * (1 + item.gst / 100);
+                        return (
+                          <tr key={item.id || i}>
+                            <td>
+                              <input
+                                type="text"
+                                className="form-control"
+                                value={item.description}
+                                onChange={(e) =>
+                                  updateItem(i, "description", e.target.value)
+                                }
+                                disabled={loading}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                min={0}
+                                className="form-control text-center"
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  updateItem(i, "quantity", Number(e.target.value))
+                                }
+                                disabled={loading}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                className="form-control text-end"
+                                value={item.price}
+                                onChange={(e) =>
+                                  updateItem(i, "price", Number(e.target.value))
+                                }
+                                disabled={loading}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="number"
+                                min={0}
+                                step="0.1"
+                                className="form-control text-center"
+                                value={item.gst}
+                                onChange={(e) =>
+                                  updateItem(i, "gst", Number(e.target.value))
+                                }
+                                disabled={loading}
+                              />
+                            </td>
+                            <td className="fw-semibold text-end">
+                              {formatINR(rowTotal)}
+                            </td>
+                            <td>
+                              <button
+                                className="btn btn-outline-danger btn-sm"
+                                onClick={() => removeItem(i)}
+                                disabled={invoiceItems.length === 1 || loading}
+                              >
+                                ×
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="d-flex justify-content-end mt-3">
+                  <div className="text-end">
+                    <div className="text-muted small">Subtotal</div>
+                    <div className="fs-5">{formatINR(subtotal)}</div>
+                    <div className="text-muted small mt-2">Total GST</div>
+                    <div className="fs-6">{formatINR(totalGST)}</div>
+                    <hr className="my-2" />
+                    <div className="fs-4" style={{ color: "#e53935" }}>
+                      Grand Total:{" "}
+                      <span className="fw-bold">{formatINR(grandTotal)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-end mt-4">
+                  <button
+                    className="btn btn-danger px-4"
+                    onClick={() => setPreviewMode(true)}
+                    disabled={loading || invoiceItems.length === 0}
+                  >
+                    👁 Preview Invoice
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="alert alert-warning">
+                <div className="d-flex align-items-center">
+                  <i className="bi bi-exclamation-triangle me-2"></i>
+                  <div>
+                    <strong>No items found for this proposal.</strong>
+                    <div className="small mt-1">
+                      Click "Add Item" to start creating your invoice.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </motion.div>
       )}
@@ -493,8 +823,6 @@ export default function InvoiceBuilder() {
               className={`inv-card inv-preview ${template} shadow-lg p-0 rounded-4`}
               style={{ fontFamily: "Inter, Arial, sans-serif" }}
             >
-              {/* ... (keep all your existing preview JSX) */}
-
               {template === "saffron" ? (
                 <div className="sheet">
                   <div className="left-rail">
@@ -505,7 +833,7 @@ export default function InvoiceBuilder() {
                     <div className="brand-row">
                       <div>
                         <div className="brand-title">
-                          Wiseway Real Estate Pvt. Ltd.
+                          CUBE Real Estate Pvt. Ltd.
                         </div>
                         <div className="brand-address">
                           Flat No. 006, Shivam Apartment
@@ -515,7 +843,7 @@ export default function InvoiceBuilder() {
                           GSTIN: 27AAACC1234F1Z5 | PAN: AAACC1234F
                         </div>
                       </div>
-                      <div className="logo-circle">WW</div>
+                      <div className="logo-circle">CR</div>
                     </div>
 
                     <div className="red-rule" />
@@ -528,13 +856,15 @@ export default function InvoiceBuilder() {
                           {clients.find((c) => c.id == selectedClient)?.name ||
                             "Client Name"}
                           <br />
-                          27, DLF City Phase 4<br />
-                          Gurgaon, Haryana - 122002
+                          {clients.find((c) => c.id == selectedClient)?.address ||
+                            "Client Address"}
                         </div>
                       </div>
                       <div className="meta-box">
                         <div className="meta-title">Ship To</div>
-                        <div className="meta-line">Same as billing address</div>
+                        <div className="meta-line">
+                          Same as billing address
+                        </div>
                       </div>
 
                       <div className="meta-right">
@@ -572,7 +902,7 @@ export default function InvoiceBuilder() {
                           {invoiceItems.map((it, i) => {
                             const amount = it.quantity * it.price;
                             return (
-                              <tr key={i}>
+                              <tr key={it.id || i}>
                                 <td className="col-qty">{it.quantity}</td>
                                 <td>{it.description}</td>
                                 <td className="col-unit">
@@ -670,23 +1000,29 @@ export default function InvoiceBuilder() {
                   >
                     <div className="d-flex justify-content-between align-items-center">
                       <div className="d-flex align-items-center">
-                        <img
-                          src="/logo.png"
-                          alt="Logo"
-                          width="56"
-                          height="56"
+                        <div
                           className="me-3"
                           style={{
+                            width: 56,
+                            height: 56,
                             borderRadius: 8,
                             border: `1px solid ${THEME.border}`,
+                            backgroundColor: THEME.primary,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontWeight: 'bold'
                           }}
-                        />
+                        >
+                          CR
+                        </div>
                         <div>
                           <h3
                             className="fw-bold mb-0 brand-title"
                             style={{ color: THEME.dark }}
                           >
-                            Wiseway Real Estate Pvt. Ltd.
+                            CUBE Real Estate Pvt. Ltd.
                           </h3>
                           <div
                             className="mt-1"
@@ -741,7 +1077,7 @@ export default function InvoiceBuilder() {
                           </div>
                           <div className="small">GSTIN: 27AAACC1234F1Z5</div>
                           <div className="small">
-                            Email: accounts@wisewayrealestate.com
+                            Email: accounts@cuberealestate.com
                           </div>
                         </div>
                       </div>
@@ -824,7 +1160,7 @@ export default function InvoiceBuilder() {
                             const rowTotal =
                               item.price * item.quantity * (1 + item.gst / 100);
                             return (
-                              <tr key={i}>
+                              <tr key={item.id || i}>
                                 <td>{item.description}</td>
                                 <td>{item.quantity}</td>
                                 <td>{formatINR(item.price)}</td>

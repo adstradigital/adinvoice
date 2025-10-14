@@ -30,15 +30,12 @@ export const loginUser = async (credentials) => {
     });
 
     if (res.data.access) {
-    
       localStorage.setItem("access_token", res.data.access);
       localStorage.setItem("refresh_token", res.data.refresh);
 
-  
       if (res.data.tenant_id) {
         localStorage.setItem("tenant_id", res.data.tenant_id);
-        console.log( res.data.tenant_id)
-        
+        console.log(res.data.tenant_id);
       }
     }
 
@@ -60,7 +57,10 @@ export const getUsers = async () => {
     const res = await API.get("/users/", { headers: getAuthHeaders() });
     return res.data;
   } catch (error) {
-    console.error("Error fetching users:", error.response?.data || error.message);
+    console.error(
+      "Error fetching users:",
+      error.response?.data || error.message
+    );
     return [];
   }
 };
@@ -91,12 +91,13 @@ export const getClientsCompanies = async () => {
     });
     return res.data;
   } catch (error) {
-    console.error("Error fetching client companies:", error.response?.data || error.message);
+    console.error(
+      "Error fetching client companies:",
+      error.response?.data || error.message
+    );
     return [];
   }
 };
-
-
 
 // Add client company
 export const addClientCompany = async (formData) => {
@@ -109,7 +110,10 @@ export const addClientCompany = async (formData) => {
     });
     return res.data;
   } catch (error) {
-    console.error("Error adding client company:", error.response?.data || error.message);
+    console.error(
+      "Error adding client company:",
+      error.response?.data || error.message
+    );
     throw error.response?.data || { detail: "Failed to add client company" };
   }
 };
@@ -122,24 +126,30 @@ export const updateClientCompany = async (clientId, formData) => {
         ...getAuthHeaders(),
         "Content-Type": "multipart/form-data",
       },
-      params: { _method: "PUT" },  // Tell Django this is actually a PUT
+      params: { _method: "PUT" }, // Tell Django this is actually a PUT
     });
     return res.data;
   } catch (error) {
-    console.error("Error updating client company:", error.response?.data || error.message);
+    console.error(
+      "Error updating client company:",
+      error.response?.data || error.message
+    );
     throw error.response?.data || { detail: "Failed to update client company" };
   }
 };
 
-
-
 // Delete client company
 export const deleteClientCompany = async (clientId) => {
   try {
-    const res = await API.delete(`/clients/delete/${clientId}/`, { headers: getAuthHeaders() });
+    const res = await API.delete(`/clients/delete/${clientId}/`, {
+      headers: getAuthHeaders(),
+    });
     return res.data;
   } catch (error) {
-    console.error("Error deleting client company:", error.response?.data || error.message);
+    console.error(
+      "Error deleting client company:",
+      error.response?.data || error.message
+    );
     throw error.response?.data || { detail: "Failed to delete client company" };
   }
 };
@@ -164,10 +174,15 @@ export const toggleClientStatus = async (clientId, tenantId) => {
 // ===== OWN COMPANY =====
 export const getOwnCompanyDetails = async () => {
   try {
-    const res = await API.get("/users/own-company/", { headers: getAuthHeaders() });
+    const res = await API.get("/users/own-company/", {
+      headers: getAuthHeaders(),
+    });
     return res.data;
   } catch (error) {
-    console.error("Error fetching own company details:", error.response?.data || error.message);
+    console.error(
+      "Error fetching own company details:",
+      error.response?.data || error.message
+    );
     return null;
   }
 };
@@ -175,7 +190,7 @@ export const getOwnCompanyDetails = async () => {
 // New API for updating all fields
 export const updateCompanyDetails = async (companyData) => {
   try {
-    const res = await API.patch("/users/own-company/update/", companyData, { 
+    const res = await API.patch("/users/own-company/update/", companyData, {
       headers: getAuthHeaders(),
       // withCredentials: true, // uncomment if backend uses session auth
     });
@@ -189,6 +204,56 @@ export const updateCompanyDetails = async (companyData) => {
   }
 };
 
+// ===== PROPOSALS =====
+export const getAllProposals = async () => {
+  const tenantId = localStorage.getItem("tenant_id");
+  if (!tenantId) {
+    console.error("Tenant ID not found. Please login again.");
+    return [];
+  }
+
+  try {
+    const res = await API.post(
+      "/proposals/get_my_proposals/",
+      { tenant: tenantId },
+      { headers: getAuthHeaders() }
+    );
+    return res.data.proposals || [];
+  } catch (error) {
+    console.error(
+      "Error fetching proposals:",
+      error.response?.data || error.message
+    );
+    throw error;
+  }
+};
+
+
+// Updated API function for direct client filtering
+export const getProposalsByClient = async (clientId) => {
+  const tenantId = localStorage.getItem("tenant_id");
+
+  if (!tenantId) {
+    console.error("Tenant ID not found. Please login again.");
+    return [];
+  }
+
+  try {
+    const res = await API.get(`/proposal/client/${clientId}/`, {
+      headers: getAuthHeaders(),
+      params: { tenant: tenantId }, // ✅ send tenant in query params
+    });
+
+    console.log("✅ Proposals by Client:", res.data.proposals);
+    return res.data.proposals || [];
+  } catch (error) {
+    console.error(
+      "❌ Error fetching proposals by client:",
+      error.response?.data || error.message
+    );
+    return [];
+  }
+};
 
 
 // ✅ Upload Document
@@ -199,12 +264,16 @@ export async function uploadDocument(file, docType) {
     formData.append("document_file", file);
     formData.append("doc_type", docType);
 
-    const res = await axios.post(`${API_URL}/users/own-company/upload-document/`, formData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    const res = await axios.post(
+      `${API_URL}/users/own-company/upload-document/`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
 
     return res.data;
   } catch (err) {
@@ -213,16 +282,18 @@ export async function uploadDocument(file, docType) {
   }
 }
 
-
 // Delete document API
 export const deleteDocument = async (docId) => {
   try {
     const token = localStorage.getItem("access_token");
-    const res = await axios.delete(`${API_URL}/users/own-company/delete-document/${docId}/`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const res = await axios.delete(
+      `${API_URL}/users/own-company/delete-document/${docId}/`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
     return res.data;
   } catch (err) {
     console.error("Delete failed:", err);
@@ -230,14 +301,18 @@ export const deleteDocument = async (docId) => {
   }
 };
 
-
 // ===== MERCHANTS =====
 export const getPendingMerchants = async () => {
   try {
-    const res = await API.get("/users/pending-users/", { headers: getAuthHeaders() });
+    const res = await API.get("/users/pending-users/", {
+      headers: getAuthHeaders(),
+    });
     return res.data;
   } catch (error) {
-    console.error("Error fetching pending merchants:", error.response?.data || error.message);
+    console.error(
+      "Error fetching pending merchants:",
+      error.response?.data || error.message
+    );
     throw error;
   }
 };
@@ -251,7 +326,10 @@ export const updateMerchantStatus = async (id, action) => {
     );
     return res.data;
   } catch (error) {
-    console.error("Error updating merchant status:", error.response?.data || error.message);
+    console.error(
+      "Error updating merchant status:",
+      error.response?.data || error.message
+    );
     throw error;
   }
 };
@@ -272,14 +350,14 @@ export const getProductsServices = async () => {
   const tenant_id = localStorage.getItem("tenant_id"); // get tenant_id from localStorage
   try {
     const res = await API.post(
-      "/products/my/", 
-      { tenant: tenant_id },       // send tenant_id in body
+      "/products/my/",
+      { tenant: tenant_id }, // send tenant_id in body
       { headers: getAuthHeaders() } // include auth headers
     );
     return res.data.items || [];
   } catch (error) {
     console.error(
-      "Error fetching products/services:", 
+      "Error fetching products/services:",
       error.response?.data || error.message
     );
     return [];
@@ -295,10 +373,15 @@ export const addProduct = async (productData) => {
   const payload = { ...productData, tenant: tenantId };
 
   try {
-    const res = await API.post("/products/create/", payload, { headers: getAuthHeaders() });
+    const res = await API.post("/products/create/", payload, {
+      headers: getAuthHeaders(),
+    });
     return res.data.item;
   } catch (error) {
-    console.error("Error adding product:", error.response?.data || error.message);
+    console.error(
+      "Error adding product:",
+      error.response?.data || error.message
+    );
     throw error.response?.data || { detail: "Failed to add product/service" };
   }
 };
@@ -311,14 +394,20 @@ export const updateProduct = async (id, productData) => {
   const payload = { ...productData, tenant: tenantId };
 
   try {
-    const res = await API.put(`/products/${id}/update/`, payload, { headers: getAuthHeaders() });
+    const res = await API.put(`/products/${id}/update/`, payload, {
+      headers: getAuthHeaders(),
+    });
     return res.data.item;
   } catch (error) {
-    console.error("Error updating product/service:", error.response?.data || error.message);
-    throw error.response?.data || { detail: "Failed to update product/service" };
+    console.error(
+      "Error updating product/service:",
+      error.response?.data || error.message
+    );
+    throw (
+      error.response?.data || { detail: "Failed to update product/service" }
+    );
   }
 };
-
 
 // Delete Product/Service
 export const deleteProduct = async (id) => {
@@ -330,8 +419,13 @@ export const deleteProduct = async (id) => {
     });
     return res.data;
   } catch (error) {
-    console.error("Error deleting product/service:", error.response?.data || error.message);
-    throw error.response?.data || { detail: "Failed to delete product/service" };
+    console.error(
+      "Error deleting product/service:",
+      error.response?.data || error.message
+    );
+    throw (
+      error.response?.data || { detail: "Failed to delete product/service" }
+    );
   }
 };
 
@@ -344,21 +438,20 @@ export const submitSupportTicket = async (formData, file) => {
   if (!tenantId) throw new Error("Tenant ID not found. Please re-login.");
 
   const payload = new FormData();
-  payload.append("tenant", tenantId);              // ✅ include tenant
+  payload.append("tenant", tenantId); // ✅ include tenant
   payload.append("subject", formData.subject);
   payload.append("description", formData.description);
   if (file) payload.append("file", file);
 
   const response = await axios.post(`${API_URL}/support/tickets/`, payload, {
     headers: {
-      "Authorization": `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "multipart/form-data",
     },
   });
 
   return response.data;
 };
-
 
 // ===== CATEGORIES =====
 export const listCategories = async () => {
@@ -370,7 +463,10 @@ export const listCategories = async () => {
     });
     return res.data.items || [];
   } catch (error) {
-    console.error("Error fetching categories:", error.response?.data || error.message);
+    console.error(
+      "Error fetching categories:",
+      error.response?.data || error.message
+    );
     return [];
   }
 };
@@ -385,11 +481,13 @@ export const createCategory = async (name) => {
     );
     return res.data.item;
   } catch (error) {
-    console.error("Error creating category:", error.response?.data || error.message);
+    console.error(
+      "Error creating category:",
+      error.response?.data || error.message
+    );
     throw error.response?.data || { detail: "Failed to create category" };
   }
 };
-
 
 // Interceptor for session expiry
 API.interceptors.response.use(
@@ -417,19 +515,24 @@ export const saveProposal = async (proposalData) => {
     const formattedData = {
       ...proposalData,
       date: formatDateForAPI(proposalData.date),
-      due_date: proposalData.due_date ? formatDateForAPI(proposalData.due_date) : null,
-      tenant: tenantId
+      due_date: proposalData.due_date
+        ? formatDateForAPI(proposalData.due_date)
+        : null,
+      tenant: tenantId,
     };
 
-    console.log('📤 Saving proposal:', formattedData);
+    console.log("📤 Saving proposal:", formattedData);
 
-    const res = await API.post("/proposal/create/", formattedData, { 
-      headers: getAuthHeaders() 
+    const res = await API.post("/proposal/create/", formattedData, {
+      headers: getAuthHeaders(),
     });
-    
+
     return res.data;
   } catch (error) {
-    console.error("Error saving proposal:", error.response?.data || error.message);
+    console.error(
+      "Error saving proposal:",
+      error.response?.data || error.message
+    );
     throw error.response?.data || { detail: "Failed to save proposal" };
   }
 };
@@ -440,23 +543,30 @@ export const getProposals = async () => {
   if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
 
   try {
-    console.log('📥 Fetching proposals for tenant:', tenantId);
-    
-    const res = await API.post("/proposal/list/", {
-      tenant: tenantId
-    }, { 
-      headers: getAuthHeaders() 
-    });
-    
+    console.log("📥 Fetching proposals for tenant:", tenantId);
+
+    const res = await API.post(
+      "/proposal/list/",
+      {
+        tenant: tenantId,
+      },
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+
     return res.data;
   } catch (error) {
-    console.error("Error fetching proposals:", error.response?.data || error.message);
-    
+    console.error(
+      "Error fetching proposals:",
+      error.response?.data || error.message
+    );
+
     // Return empty array instead of throwing to prevent UI break
     return {
       success: "Proposals fetched successfully (fallback)",
       count: 0,
-      proposals: []
+      proposals: [],
     };
   }
 };
@@ -467,16 +577,23 @@ export const updateProposal = async (id, proposalData) => {
   if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
 
   try {
-    const res = await API.put(`/proposal/${id}/update/`, {
-      ...proposalData,
-      tenant: tenantId
-    }, { 
-      headers: getAuthHeaders() 
-    });
-    
+    const res = await API.put(
+      `/proposal/${id}/update/`,
+      {
+        ...proposalData,
+        tenant: tenantId,
+      },
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+
     return res.data;
   } catch (error) {
-    console.error("Error updating proposal:", error.response?.data || error.message);
+    console.error(
+      "Error updating proposal:",
+      error.response?.data || error.message
+    );
     throw error.response?.data || { detail: "Failed to update proposal" };
   }
 };
@@ -489,12 +606,15 @@ export const deleteProposal = async (id) => {
   try {
     const res = await API.delete(`/proposal/${id}/delete/`, {
       headers: getAuthHeaders(),
-      data: { tenant: tenantId }
+      data: { tenant: tenantId },
     });
-    
+
     return res.data;
   } catch (error) {
-    console.error("Error deleting proposal:", error.response?.data || error.message);
+    console.error(
+      "Error deleting proposal:",
+      error.response?.data || error.message
+    );
     throw error.response?.data || { detail: "Failed to delete proposal" };
   }
 };
@@ -502,23 +622,23 @@ export const deleteProposal = async (id) => {
 // Helper function to format dates for API
 const formatDateForAPI = (dateString) => {
   if (!dateString) return null;
-  
+
   // If it's already in YYYY-MM-DD format, return as is
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
     return dateString;
   }
-  
+
   // Convert from other formats to YYYY-MM-DD
   const date = new Date(dateString);
   if (isNaN(date.getTime())) {
-    console.error('Invalid date:', dateString);
+    console.error("Invalid date:", dateString);
     return null;
   }
-  
+
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
   return `${year}-${month}-${day}`;
 };
 
@@ -528,13 +648,21 @@ export const getProposalDetail = async (id) => {
   if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
 
   try {
-    const res = await API.post(`/proposal/${id}/`, { // ✅ Changed to singular
-      tenant: tenantId
-    }, { headers: getAuthHeaders() });
-    
+    const res = await API.post(
+      `/proposal/${id}/`,
+      {
+        // ✅ Changed to singular
+        tenant: tenantId,
+      },
+      { headers: getAuthHeaders() }
+    );
+
     return res.data;
   } catch (error) {
-    console.error("Error fetching proposal:", error.response?.data || error.message);
+    console.error(
+      "Error fetching proposal:",
+      error.response?.data || error.message
+    );
     throw error.response?.data || { detail: "Failed to fetch proposal" };
   }
 };
@@ -545,15 +673,25 @@ export const updateProposalStatus = async (id, status) => {
   if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
 
   try {
-    const res = await API.post(`/proposal/${id}/status/`, { // ✅ Changed to singular
-      tenant: tenantId,
-      status: status
-    }, { headers: getAuthHeaders() });
-    
+    const res = await API.post(
+      `/proposal/${id}/status/`,
+      {
+        // ✅ Changed to singular
+        tenant: tenantId,
+        status: status,
+      },
+      { headers: getAuthHeaders() }
+    );
+
     return res.data;
   } catch (error) {
-    console.error("Error updating proposal status:", error.response?.data || error.message);
-    throw error.response?.data || { detail: "Failed to update proposal status" };
+    console.error(
+      "Error updating proposal status:",
+      error.response?.data || error.message
+    );
+    throw (
+      error.response?.data || { detail: "Failed to update proposal status" }
+    );
   }
 };
 
@@ -563,13 +701,21 @@ export const getProposalStats = async () => {
   if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
 
   try {
-    const res = await API.post("/proposal/stats/", { // ✅ Changed to singular
-      tenant: tenantId
-    }, { headers: getAuthHeaders() });
-    
+    const res = await API.post(
+      "/proposal/stats/",
+      {
+        // ✅ Changed to singular
+        tenant: tenantId,
+      },
+      { headers: getAuthHeaders() }
+    );
+
     return res.data;
   } catch (error) {
-    console.error("Error fetching proposal stats:", error.response?.data || error.message);
+    console.error(
+      "Error fetching proposal stats:",
+      error.response?.data || error.message
+    );
     throw error.response?.data || { detail: "Failed to fetch proposal stats" };
   }
 };

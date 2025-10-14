@@ -10,4 +10,5 @@ urlpatterns = [
     path('<uuid:pk>/delete/', views.delete_proposal, name='delete-proposal'),
     path('<uuid:pk>/status/', views.update_proposal_status, name='update-proposal-status'),
     path('stats/', views.get_proposal_stats, name='proposal-stats'),
+    path('client/<uuid:client_id>/', views.get_proposals_by_client, name='proposal-stats'),
 ]

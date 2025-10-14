@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from tenants.models import Tenant
+from clients.models import ClientCompany
 import uuid
 
 class Proposal(models.Model):
@@ -28,6 +29,7 @@ class Proposal(models.Model):
     client_email = models.EmailField(blank=True, null=True)
     client_phone = models.CharField(max_length=20, blank=True, null=True)
     client_address = models.TextField(blank=True, null=True)
+    client = models.ForeignKey(ClientCompany, on_delete=models.CASCADE, related_name="proposals", null=True, blank=True)
     
     # Company Information
     company_name = models.CharField(max_length=255)
