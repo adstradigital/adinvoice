@@ -1,3 +1,4 @@
+import traceback
 from tenants.models import Tenant
 from users.serializers import UserSerializer
 from django.contrib.auth.hashers import check_password
@@ -274,7 +275,9 @@ def signin(request):
         if user.role == "admin" and user.application_status != "approved":
             return Response({"error": f"Application {user.application_status}. Please wait for approval."}, status=status.HTTP_403_FORBIDDEN)
         
+        print(user.id)
         tenant = Tenant.objects.get(owner_id=user.id)
+        print(tenant)
         
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
@@ -289,6 +292,7 @@ def signin(request):
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
+        print(traceback.format_exc())
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

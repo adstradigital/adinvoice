@@ -5,7 +5,10 @@ import {
   getClientsCompanies,
   getProposalsByClient,
   getProposalItems,
-  saveInvoice, // ✅ ADD THIS IMPORT
+  saveInvoice,
+  getInvoices,
+  getInvoiceById,
+  updateInvoice,
 } from "../../../../Api/index";
 
 const THEME = {
@@ -29,6 +32,12 @@ export default function InvoiceBuilder() {
   const [error, setError] = useState("");
   const [selectedProposalData, setSelectedProposalData] = useState(null);
   
+  // ✅ INVOICE STATUS STATE
+  const [invoiceStatus, setInvoiceStatus] = useState('draft');
+  
+  // ✅ DRAFT INVOICES STATE
+  const [draftInvoices, setDraftInvoices] = useState([]);
+  
   // ✅ PRINT-RELATED STATES
   const [printOptions, setPrintOptions] = useState({
     showPrices: true,
@@ -40,6 +49,41 @@ export default function InvoiceBuilder() {
   });
   
   const [showPrintDialog, setShowPrintDialog] = useState(false);
+
+  // ✅ EDIT INVOICE STATES
+  const [editingInvoice, setEditingInvoice] = useState(null);
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dueDate, setDueDate] = useState(
+    new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  );
+
+  // ✅ DEBUG FUNCTION FOR SAVE BUTTON
+  const debugSaveButton = () => {
+    console.group("🔍 DEBUG SAVE BUTTON STATUS");
+    console.log("editingInvoice:", editingInvoice);
+    console.log("loading:", loading);
+    console.log("selectedProposal:", selectedProposal);
+    console.log("selectedClient:", selectedClient);
+    console.log("invoiceItems.length:", invoiceItems.length);
+    console.log("previewMode:", previewMode);
+    
+    const conditions = {
+      hasSelectedClient: !!selectedClient,
+      hasSelectedProposal: !!selectedProposal,
+      hasInvoiceItems: invoiceItems.length > 0,
+      isNotLoading: !loading,
+      isInPreviewMode: previewMode
+    };
+    
+    console.log("Button Conditions:", conditions);
+    
+    const isDisabled = loading || invoiceItems.length === 0 || (!editingInvoice && !selectedProposal);
+    console.log("Button Disabled:", isDisabled);
+    console.groupEnd();
+    
+    return conditions;
+  };
 
   // Fetch clients from API
   const fetchClients = async () => {
@@ -70,6 +114,108 @@ export default function InvoiceBuilder() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ✅ FETCH DRAFT INVOICES
+  const fetchDraftInvoices = async () => {
+    try {
+      const invoicesData = await getInvoices();
+      if (invoicesData && invoicesData.invoices) {
+        const drafts = invoicesData.invoices.filter(invoice => invoice.status === 'draft');
+        setDraftInvoices(drafts);
+        console.log("📋 Draft invoices loaded:", drafts.length);
+      }
+    } catch (err) {
+      console.error("❌ Error fetching draft invoices:", err);
+    }
+  };
+
+  // ✅ FIXED: LOAD INVOICE FOR EDITING - IMPROVED VERSION
+  const loadInvoiceForEditing = async (invoiceId) => {
+  setLoading(true);
+  setError("");
+  
+  try {
+    console.log("📝 Loading invoice for editing:", invoiceId);
+    
+    const invoiceData = await getInvoiceById(invoiceId);
+    console.log("📝 Invoice data loaded:", invoiceData);
+    
+    if (invoiceData && invoiceData.invoice) {
+      const invoice = invoiceData.invoice;
+      
+      // Set editing state FIRST
+      setEditingInvoice(invoice.id);
+      
+      // Set basic invoice info
+      setInvoiceNumber(invoice.invoice_number || "");
+      setInvoiceDate(invoice.issue_date || new Date().toISOString().split('T')[0]);
+      setDueDate(invoice.due_date || new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+      setInvoiceStatus(invoice.status || 'draft');
+      setTemplate(invoice.template_used || 'saffron');
+      
+      // ✅ Load items
+      if (invoice.items && invoice.items.length > 0) {
+        console.log("📝 Using invoice items from database:", invoice.items);
+        const transformedItems = invoice.items.map((item, index) => ({
+          id: item.id || `invoice-item-${index}`,
+          description: item.description || "Service Item",
+          quantity: Number(item.quantity) || 1,
+          price: Number(item.price) || Number(item.unit_price) || 0,
+          gst: Number(item.gst_rate) || Number(item.gst) || 18,
+          unit: item.unit || "pc",
+          item_type: item.item_type || "service",
+        }));
+        setInvoiceItems(transformedItems);
+      }
+      
+      // ✅ CRITICAL FIX: Set client and proposal IMMEDIATELY from invoice data
+      if (invoice.client) {
+        console.log("👤 Setting client from invoice:", invoice.client);
+        setSelectedClient(invoice.client.toString());
+      }
+      
+      if (invoice.proposal_id) {
+        console.log("📄 Setting proposal from invoice:", invoice.proposal_id);
+        setSelectedProposal(invoice.proposal_id.toString());
+      }
+      
+      // Load proposals in background for the dropdown (optional)
+      if (invoice.client) {
+        setTimeout(async () => {
+          await fetchProposals(invoice.client.toString());
+          console.log("✅ Proposals loaded for dropdown");
+        }, 100);
+      }
+      
+      setPreviewMode(false);
+      setError(`✅ Editing invoice: ${invoice.invoice_number}`);
+      console.log("✅ Invoice loaded for editing successfully");
+      
+    } else {
+      throw new Error("Invalid invoice data received");
+    }
+    
+  } catch (err) {
+    console.error("❌ Error loading invoice for editing:", err);
+    setError("Failed to load invoice for editing. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // ✅ CANCEL EDITING
+  const cancelEditing = () => {
+    setEditingInvoice(null);
+    setInvoiceNumber("");
+    setInvoiceDate(new Date().toISOString().split('T')[0]);
+    setDueDate(new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
+    setSelectedClient("");
+    setSelectedProposal("");
+    setInvoiceItems([]);
+    setPreviewMode(false);
+    setError("");
+    console.log("❌ Editing cancelled");
   };
 
   // Fetch proposals for selected client
@@ -198,10 +344,11 @@ export default function InvoiceBuilder() {
 
   useEffect(() => {
     fetchClients();
+    fetchDraftInvoices(); // ✅ FETCH DRAFTS ON LOAD
   }, []);
 
   useEffect(() => {
-    if (selectedClient) {
+    if (selectedClient && !editingInvoice) {
       fetchProposals(selectedClient);
       setSelectedProposal("");
       setInvoiceItems([]);
@@ -209,7 +356,7 @@ export default function InvoiceBuilder() {
   }, [selectedClient]);
 
   useEffect(() => {
-    if (selectedProposal) {
+    if (selectedProposal && !editingInvoice) {
       fetchInvoiceItems(selectedProposal);
     }
   }, [selectedProposal]);
@@ -263,90 +410,125 @@ export default function InvoiceBuilder() {
       maximumFractionDigits: 2,
     }).format(Number.isFinite(n) ? n : 0);
 
-  // ✅ SAVE INVOICE FUNCTION
+  // ✅ FIXED SAVE/UPDATE INVOICE FUNCTION
   const handleSaveInvoice = async () => {
-    if (!selectedClient || !selectedProposal || invoiceItems.length === 0) {
-      setError("Please complete all steps before saving invoice");
-      return;
-    }
+  // Debug first to see what's happening
+  debugSaveButton();
+  
+  // ✅ FIXED VALIDATION: For editing, only require items and client
+  if (invoiceItems.length === 0) {
+    setError("Please add at least one item to the invoice");
+    return;
+  }
 
-    setLoading(true);
+  if (!selectedClient) {
+    setError("Please select a client");
+    return;
+  }
+
+  // ✅ Only require proposal for NEW invoices, not for editing
+  if (!editingInvoice && !selectedProposal) {
+    setError("Please select a proposal for new invoices");
+    return;
+  }
+
+  setLoading(true);
+  setError("");
+
+  try {
+    const client = clients.find(c => c.id == selectedClient);
+    
+    // Generate invoice data WITH STATUS
+    const invoiceData = {
+      // ✅ Use the proposal from the invoice if editing, otherwise from selection
+      proposal: editingInvoice ? selectedProposal : selectedProposal,
+      client: selectedClient,
+      issue_date: invoiceDate,
+      due_date: dueDate,
+      subtotal: subtotal,
+      total_gst: totalGST,
+      grand_total: grandTotal,
+      template_used: template,
+      status: invoiceStatus,
+      notes: "Thank you for your business! Payment due within 15 days.",
+      terms: "Late payments may attract 2% interest per month. All disputes subject to Pune jurisdiction.",
+      // Client information for record keeping
+      client_name: client?.name || "Client",
+      client_email: client?.email || "",
+      client_phone: client?.phone || "",
+      client_address: client?.address || "",
+      client_gstin: client?.gstin || "",
+      // Company information
+      company_name: "CUBE Real Estate Pvt. Ltd.",
+      company_email: "accounts@cuberealestate.com",
+      company_phone: "+91 9876543210",
+      company_address: "Flat No. 006, Shivam Apartment, Opp. Manipal Hospital, Pune - 411001",
+      company_gstin: "27AAACC1234F1Z5",
+      items: invoiceItems.map(item => ({
+        description: item.description,
+        quantity: item.quantity,
+        price: item.price,
+        gst_rate: item.gst,
+        total: item.quantity * item.price * (1 + item.gst / 100),
+        item_type: item.item_type || "service",
+        unit: item.unit || "pc"
+      }))
+    };
+
+    console.log("📤 Saving invoice data:", invoiceData);
+    
+    let result;
+    if (editingInvoice) {
+      // Update existing invoice
+      result = await updateInvoice(editingInvoice, invoiceData);
+    } else {
+      // Create new invoice
+      result = await saveInvoice(invoiceData);
+    }
+    
+    // Show success message
     setError("");
-
-    try {
-      const client = clients.find(c => c.id == selectedClient);
-      const proposal = proposals.find(p => p.id == selectedProposal);
+    
+    // Success alert with invoice number and status
+    if (result.invoice?.invoice_number) {
+      alert(`✅ Invoice ${editingInvoice ? 'updated' : 'saved'} successfully!\nInvoice Number: ${result.invoice.invoice_number}\nStatus: ${result.invoice.status}`);
       
-      // Generate invoice data
-      const invoiceData = {
-        proposal: selectedProposal,
-        client: selectedClient,
-        issue_date: new Date().toISOString().split('T')[0],
-        due_date: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        subtotal: subtotal,
-        total_gst: totalGST,
-        grand_total: grandTotal,
-        template_used: template,
-        notes: "Thank you for your business! Payment due within 15 days.",
-        terms: "Late payments may attract 2% interest per month. All disputes subject to Pune jurisdiction.",
-        // Client information for record keeping
-        client_name: client?.name || "Client",
-        client_email: client?.email || "",
-        client_phone: client?.phone || "",
-        client_address: client?.address || "",
-        client_gstin: client?.gstin || "",
-        // Company information
-        company_name: "CUBE Real Estate Pvt. Ltd.",
-        company_email: "accounts@cuberealestate.com",
-        company_phone: "+91 9876543210",
-        company_address: "Flat No. 006, Shivam Apartment, Opp. Manipal Hospital, Pune - 411001",
-        company_gstin: "27AAACC1234F1Z5",
-        items: invoiceItems.map(item => ({
-          description: item.description,
-          quantity: item.quantity,
-          price: item.price,
-          gst_rate: item.gst,
-          total: item.quantity * item.price * (1 + item.gst / 100),
-          item_type: item.item_type || "service",
-          unit: item.unit || "pc"
-        }))
-      };
-
-      console.log("📤 Saving invoice data:", invoiceData);
+      // ✅ REFRESH DRAFT INVOICES LIST AFTER SAVING
+      fetchDraftInvoices();
       
-      const result = await saveInvoice(invoiceData);
-      
-      // Show success message
-      setError("");
-      
-      // Success alert with invoice number
-      if (result.invoice?.invoice_number) {
-        alert(`✅ Invoice saved successfully!\nInvoice Number: ${result.invoice.invoice_number}\nStatus: ${result.invoice.status}`);
-      } else if (result.success) {
-        alert(`✅ ${result.success}`);
-      } else {
-        alert(`✅ Invoice saved successfully!`);
+      // If editing, reset editing state
+      if (editingInvoice) {
+        cancelEditing();
       }
-      
-      console.log("✅ Invoice save result:", result);
-      
-    } catch (err) {
-      console.error("❌ Error saving invoice:", err);
-      
-      // Handle specific error cases
-      if (err.detail) {
-        setError(`Failed to save invoice: ${err.detail}`);
-      } else if (err.error) {
-        setError(`Failed to save invoice: ${err.error}`);
-      } else if (err.message) {
-        setError(`Failed to save invoice: ${err.message}`);
-      } else {
-        setError("Failed to save invoice. Please check your connection and try again.");
-      }
-    } finally {
-      setLoading(false);
+    } else if (result.success) {
+      alert(`✅ ${result.success}`);
+      fetchDraftInvoices();
+      if (editingInvoice) cancelEditing();
+    } else {
+      alert(`✅ Invoice ${editingInvoice ? 'updated' : 'saved'} successfully!`);
+      fetchDraftInvoices();
+      if (editingInvoice) cancelEditing();
     }
-  };
+    
+    console.log("✅ Invoice save result:", result);
+    
+  } catch (err) {
+    console.error("❌ Error saving invoice:", err);
+    
+    // Handle specific error cases
+    if (err.detail) {
+      setError(`Failed to save invoice: ${err.detail}`);
+    } else if (err.error) {
+      setError(`Failed to save invoice: ${err.error}`);
+    } else if (err.message) {
+      setError(`Failed to save invoice: ${err.message}`);
+    } else {
+      setError("Failed to save invoice. Please check your connection and try again.");
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ✅ PRINT FUNCTIONALITY WITH BACKGROUND STYLING
   const handlePrint = (customOptions = {}) => {
@@ -604,20 +786,30 @@ export default function InvoiceBuilder() {
     handlePrint();
   };
 
+  // ✅ FIXED DOWNLOAD FUNCTION
   const handleDownload = async () => {
     try {
-      // Dynamically import html2pdf only on client side
-      const html2pdf = (await import('html2pdf.js')).default;
-      
       const el = document.getElementById("invoice-preview");
       if (!el) {
         setError("Invoice preview not found");
         return;
       }
+
+      // Try to import html2pdf, fallback to alternative if it fails
+      let html2pdf;
+      try {
+        const html2pdfModule = await import('html2pdf.js');
+        html2pdf = html2pdfModule.default;
+      } catch (importError) {
+        console.error("❌ html2pdf import failed:", importError);
+        setError("PDF generation library not available. Using print instead.");
+        handlePrint(); // Fallback to print
+        return;
+      }
       
       const opt = {
         margin: [10, 10, 10, 10],
-        filename: `invoice-${Date.now()}.pdf`,
+        filename: `invoice-${editingInvoice ? invoiceNumber : 'new'}-${Date.now()}.pdf`,
         image: { type: "jpeg", quality: 0.98 },
         html2canvas: {
           scale: 2,
@@ -632,7 +824,7 @@ export default function InvoiceBuilder() {
       html2pdf().set(opt).from(el).save();
     } catch (err) {
       console.error("❌ Error generating PDF:", err);
-      setError("Failed to generate PDF. Please try again.");
+      setError("Failed to generate PDF. Please try the print option instead.");
     }
   };
 
@@ -642,7 +834,7 @@ export default function InvoiceBuilder() {
   };
 
   return (
-    <div className="container py-5" style={{ maxWidth: 980 }}>
+    <div className="container-fluid py-4">
       <style jsx global>{`
         :root {
           --red: #e53935;
@@ -659,6 +851,23 @@ export default function InvoiceBuilder() {
           border: 1px solid ${THEME.border};
           border-radius: 14px;
           background: #fff;
+        }
+
+        .draft-invoice-item {
+          transition: all 0.2s ease;
+          border-left: 3px solid #6b7280;
+          cursor: pointer;
+        }
+
+        .draft-invoice-item:hover {
+          background-color: #f8f9fa;
+          border-left-color: #16a34a;
+          transform: translateX(2px);
+        }
+
+        .draft-invoice-item.editing {
+          border-left-color: #e53935;
+          background-color: #fff8f8;
         }
 
         /* Global table safety for PDF */
@@ -935,873 +1144,1049 @@ export default function InvoiceBuilder() {
         }
       `}</style>
 
-      {/* Error Alert */}
-      {error && (
-        <motion.div {...motionCard} className="alert alert-warning mb-3">
-          <div className="d-flex align-items-center">
-            <i className="bi bi-exclamation-triangle me-2"></i>
-            <span>{error}</span>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Loading Indicator */}
-      {loading && (
-        <motion.div {...motionCard} className="alert alert-info mb-3">
-          <div className="d-flex align-items-center">
-            <div
-              className="spinner-border spinner-border-sm me-2"
-              role="status"
-            >
-              <span className="visually-hidden">Loading...</span>
+      <div className="row">
+        {/* ✅ MAIN CONTENT - LEFT SIDE */}
+        <div className="col-lg-8">
+          {/* Debug Section */}
+          <motion.div {...motionCard} className="inv-card mb-3">
+            <div className="p-3">
+              <div className="d-flex justify-content-between align-items-center">
+                <h6 className="fw-semibold mb-0" style={{ color: "#6b7280" }}>
+                  Debug Save Button
+                </h6>
+                <button
+                  className="btn btn-outline-warning btn-sm"
+                  onClick={debugSaveButton}
+                >
+                  🔍 Check Save Status
+                </button>
+              </div>
+              <div className="mt-2 small text-muted">
+                <div>Client: {selectedClient ? "✓ Selected" : "✗ Missing"}</div>
+                <div>Proposal: {selectedProposal ? "✓ Selected" : "✗ Missing"}</div>
+                <div>Items: {invoiceItems.length > 0 ? `✓ ${invoiceItems.length} items` : "✗ None"}</div>
+                <div>Loading: {loading ? "✓ Yes" : "✗ No"}</div>
+                <div>Editing: {editingInvoice ? `✓ ${invoiceNumber}` : "✗ No"}</div>
+              </div>
             </div>
-            Loading...
-          </div>
-        </motion.div>
-      )}
+          </motion.div>
 
-      {/* Controls */}
-      <motion.div {...motionCard} className="inv-card mb-3">
-        <div className="p-3">
-          <div className="d-flex align-items-center justify-content-between">
-            <h6 className="fw-semibold mb-0" style={{ color: "#6b7280" }}>
-              Template
-            </h6>
-            <div className="d-flex gap-2">
-              <button
-                type="button"
-                className={`btn ${
-                  template === "saffron" ? "btn-danger" : "btn-outline-danger"
-                }`}
-                onClick={() => setTemplate("saffron")}
-              >
-                Saffron
-              </button>
-              <button
-                type="button"
-                className={`btn ${
-                  template === "classic" ? "btn-dark" : "btn-outline-dark"
-                }`}
-                onClick={() => setTemplate("classic")}
-              >
-                Classic
-              </button>
-              <button
-                type="button"
-                className={`btn ${
-                  template === "minimal"
-                    ? "btn-secondary"
-                    : "btn-outline-secondary"
-                }`}
-                onClick={() => setTemplate("minimal")}
-              >
-                Minimal
-              </button>
-              <button
-                type="button"
-                className={`btn ${
-                  template === "modern" ? "btn-success" : "btn-outline-success"
-                }`}
-                onClick={() => setTemplate("modern")}
-              >
-                Modern
-              </button>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Client */}
-      <motion.div {...motionCard} className="inv-card mb-3">
-        <div className="p-3">
-          <h6 className="fw-semibold mb-2" style={{ color: "#6b7280" }}>
-            Step 1: Select Client
-          </h6>
-          <select
-            className="form-select"
-            value={selectedClient}
-            onChange={(e) => setSelectedClient(e.target.value)}
-            disabled={loading}
-          >
-            <option value="">-- Choose Client --</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </motion.div>
-
-      {/* Proposal */}
-      {selectedClient && proposals.length > 0 && (
-        <motion.div {...motionCard} className="inv-card mb-3">
-          <div className="p-3">
-            <h6 className="fw-semibold mb-2" style={{ color: "#6b7280" }}>
-              Step 2: Select Proposal ({proposals.length} found)
-            </h6>
-            <select
-              className="form-select"
-              value={selectedProposal}
-              onChange={(e) => {
-                console.log("Selected proposal:", e.target.value);
-                setSelectedProposal(e.target.value);
-              }}
-              disabled={loading}
-            >
-              <option value="">-- Choose Proposal --</option>
-              {proposals.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.title} ({p.status}) - {formatINR(p.total_amount)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </motion.div>
-      )}
-
-      {selectedClient && proposals.length === 0 && !loading && (
-        <motion.div {...motionCard} className="inv-card mb-3">
-          <div className="p-3">
-            <div className="alert alert-info mb-0">
-              <i className="bi bi-info-circle me-2"></i>
-              No proposals found for this client. Please create a proposal first.
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Items editor */}
-      {selectedProposal && !previewMode && (
-        <motion.div {...motionCard} className="inv-card">
-          <div className="p-3 p-md-4">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h6 className="fw-semibold mb-0" style={{ color: "#6b7280" }}>
-                Step 3: Edit Invoice Items
-                {invoiceItems.length > 0 && ` (${invoiceItems.length} items)`}
-              </h6>
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={addNewItem}
-                disabled={loading}
-              >
-                + Add Item
-              </button>
-            </div>
-            
-            {invoiceItems.length > 0 ? (
-              <>
-                <div className="table-responsive">
-                  <table className="table table-bordered align-middle">
-                    <thead className="table-light">
-                      <tr>
-                        <th>Description</th>
-                        <th width="10%">Qty</th>
-                        <th width="15%">Price</th>
-                        <th width="10%">GST %</th>
-                        <th width="15%">Total</th>
-                        <th width="5%"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {invoiceItems.map((item, i) => {
-                        const rowTotal = item.price * item.quantity * (1 + item.gst / 100);
-                        return (
-                          <tr key={item.id || i}>
-                            <td>
-                              <input
-                                type="text"
-                                className="form-control"
-                                value={item.description}
-                                onChange={(e) =>
-                                  updateItem(i, "description", e.target.value)
-                                }
-                                disabled={loading}
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                min={0}
-                                className="form-control text-center"
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  updateItem(i, "quantity", Number(e.target.value))
-                                }
-                                disabled={loading}
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                className="form-control text-end"
-                                value={item.price}
-                                onChange={(e) =>
-                                  updateItem(i, "price", Number(e.target.value))
-                                }
-                                disabled={loading}
-                              />
-                            </td>
-                            <td>
-                              <input
-                                type="number"
-                                min={0}
-                                step="0.1"
-                                className="form-control text-center"
-                                value={item.gst}
-                                onChange={(e) =>
-                                  updateItem(i, "gst", Number(e.target.value))
-                                }
-                                disabled={loading}
-                              />
-                            </td>
-                            <td className="fw-semibold text-end">
-                              {formatINR(rowTotal)}
-                            </td>
-                            <td>
-                              <button
-                                className="btn btn-outline-danger btn-sm"
-                                onClick={() => removeItem(i)}
-                                disabled={invoiceItems.length === 1 || loading}
-                              >
-                                ×
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+          {/* Editing Banner */}
+          {editingInvoice && (
+            <motion.div {...motionCard} className="alert alert-info mb-3">
+              <div className="d-flex align-items-center justify-content-between">
+                <div className="d-flex align-items-center">
+                  <i className="bi bi-pencil-square me-2"></i>
+                  <strong>Editing Invoice: {invoiceNumber}</strong>
                 </div>
+                <button
+                  className="btn btn-outline-danger btn-sm"
+                  onClick={cancelEditing}
+                  disabled={loading}
+                >
+                  Cancel Edit
+                </button>
+              </div>
+            </motion.div>
+          )}
 
-                <div className="d-flex justify-content-end mt-3">
-                  <div className="text-end">
-                    <div className="text-muted small">Subtotal</div>
-                    <div className="fs-5">{formatINR(subtotal)}</div>
-                    <div className="text-muted small mt-2">Total GST</div>
-                    <div className="fs-6">{formatINR(totalGST)}</div>
-                    <hr className="my-2" />
-                    <div className="fs-4" style={{ color: "#e53935" }}>
-                      Grand Total:{" "}
-                      <span className="fw-bold">{formatINR(grandTotal)}</span>
-                    </div>
-                  </div>
+          {/* Error Alert */}
+          {error && (
+            <motion.div {...motionCard} className="alert alert-warning mb-3">
+              <div className="d-flex align-items-center">
+                <i className="bi bi-exclamation-triangle me-2"></i>
+                <span>{error}</span>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Loading Indicator */}
+          {loading && (
+            <motion.div {...motionCard} className="alert alert-info mb-3">
+              <div className="d-flex align-items-center">
+                <div
+                  className="spinner-border spinner-border-sm me-2"
+                  role="status"
+                >
+                  <span className="visually-hidden">Loading...</span>
                 </div>
+                Loading...
+              </div>
+            </motion.div>
+          )}
 
-                <div className="text-end mt-4">
+          {/* Controls */}
+          <motion.div {...motionCard} className="inv-card mb-3">
+            <div className="p-3">
+              <div className="d-flex align-items-center justify-content-between">
+                <h6 className="fw-semibold mb-0" style={{ color: "#6b7280" }}>
+                  Template
+                </h6>
+                <div className="d-flex gap-2">
                   <button
-                    className="btn btn-danger px-4"
-                    onClick={() => setPreviewMode(true)}
-                    disabled={loading || invoiceItems.length === 0}
+                    type="button"
+                    className={`btn ${
+                      template === "saffron" ? "btn-danger" : "btn-outline-danger"
+                    }`}
+                    onClick={() => setTemplate("saffron")}
                   >
-                    👁 Preview Invoice
+                    Saffron
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${
+                      template === "classic" ? "btn-dark" : "btn-outline-dark"
+                    }`}
+                    onClick={() => setTemplate("classic")}
+                  >
+                    Classic
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${
+                      template === "minimal"
+                        ? "btn-secondary"
+                        : "btn-outline-secondary"
+                    }`}
+                    onClick={() => setTemplate("minimal")}
+                  >
+                    Minimal
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${
+                      template === "modern" ? "btn-success" : "btn-outline-success"
+                    }`}
+                    onClick={() => setTemplate("modern")}
+                  >
+                    Modern
                   </button>
                 </div>
-              </>
-            ) : (
-              <div className="alert alert-warning">
-                <div className="d-flex align-items-center">
-                  <i className="bi bi-exclamation-triangle me-2"></i>
-                  <div>
-                    <strong>No items found for this proposal.</strong>
-                    <div className="small mt-1">
-                      Click "Add Item" to start creating your invoice.
-                    </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* ✅ INVOICE DATES (SHOW WHEN EDITING) */}
+          {editingInvoice && (
+            <motion.div {...motionCard} className="inv-card mb-3">
+              <div className="p-3">
+                <h6 className="fw-semibold mb-2" style={{ color: "#6b7280" }}>
+                  Invoice Dates
+                </h6>
+                <div className="row">
+                  <div className="col-md-6">
+                    <label className="form-label small">Invoice Date</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={invoiceDate}
+                      onChange={(e) => setInvoiceDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label small">Due Date</label>
+                    <input
+                      type="date"
+                      className="form-control"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                    />
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        </motion.div>
-      )}
+            </motion.div>
+          )}
 
-      {/* Preview */}
-      <AnimatePresence>
-        {previewMode && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-4"
-          >
-            <div
-              id="invoice-preview"
-              className={`inv-card inv-preview ${template} shadow-lg p-0 rounded-4`}
-              style={{ fontFamily: "Inter, Arial, sans-serif" }}
-            >
-              {template === "saffron" ? (
-                <div className="sheet">
-                  <div className="left-rail">
-                    <div className="vertical-tag">Invoice IN-001</div>
-                  </div>
-                  <div className="content">
-                    {/* Brand row */}
-                    <div className="brand-row">
-                      <div>
-                        <div className="brand-title">
-                          CUBE Real Estate Pvt. Ltd.
-                        </div>
-                        <div className="brand-address">
-                          Flat No. 006, Shivam Apartment
-                          <br />
-                          Opp. Manipal Hospital, Pune - 411001
-                          <br />
-                          GSTIN: 27AAACC1234F1Z5 | PAN: AAACC1234F
-                        </div>
-                      </div>
-                      <div className="logo-circle">CR</div>
-                    </div>
+          {/* Client */}
+          <motion.div {...motionCard} className="inv-card mb-3">
+            <div className="p-3">
+              <h6 className="fw-semibold mb-2" style={{ color: "#6b7280" }}>
+                Step 1: Select Client
+              </h6>
+              <select
+                className="form-select"
+                value={selectedClient}
+                onChange={(e) => setSelectedClient(e.target.value)}
+                disabled={loading}
+              >
+                <option value="">-- Choose Client --</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </motion.div>
 
-                    <div className="red-rule" />
+          {/* Proposal */}
+          {selectedClient && proposals.length > 0 && (
+            <motion.div {...motionCard} className="inv-card mb-3">
+              <div className="p-3">
+                <h6 className="fw-semibold mb-2" style={{ color: "#6b7280" }}>
+                  Step 2: Select Proposal ({proposals.length} found)
+                </h6>
+                <select
+                  className="form-select"
+                  value={selectedProposal}
+                  onChange={(e) => {
+                    console.log("Selected proposal:", e.target.value);
+                    setSelectedProposal(e.target.value);
+                  }}
+                  disabled={loading}
+                >
+                  <option value="">-- Choose Proposal --</option>
+                  {proposals.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title} ({p.status}) - {formatINR(p.total_amount)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </motion.div>
+          )}
 
-                    {/* Meta grid */}
-                    <div className="meta-grid">
-                      <div className="meta-box">
-                        <div className="meta-title">Bill To</div>
-                        <div className="meta-line">
-                          {clients.find((c) => c.id == selectedClient)?.name ||
-                            "Client Name"}
-                          <br />
-                          {clients.find((c) => c.id == selectedClient)?.address ||
-                            "Client Address"}
-                        </div>
-                      </div>
-                      <div className="meta-box">
-                        <div className="meta-title">Ship To</div>
-                        <div className="meta-line">
-                          Same as billing address
-                        </div>
-                      </div>
-
-                      <div className="meta-right">
-                        <div className="label">Invoice Date</div>
-                        <div>{new Date().toLocaleDateString()}</div>
-                        <div className="label">Invoice No</div>
-                        <div>
-                          INV-
-                          {String(Math.floor(Math.random() * 100000)).padStart(
-                            5,
-                            "0"
-                          )}
-                        </div>
-                        <div className="label">Due Date</div>
-                        <div>
-                          {new Date(
-                            Date.now() + 15 * 24 * 60 * 60 * 1000
-                          ).toLocaleDateString()}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Items */}
-                    <div className="items">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th className="col-qty">Qty</th>
-                            <th>Description</th>
-                            <th className="col-unit">Unit Price</th>
-                            <th className="col-amount">Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {invoiceItems.map((it, i) => {
-                            const amount = it.quantity * it.price;
-                            return (
-                              <tr key={it.id || i}>
-                                <td className="col-qty">{it.quantity}</td>
-                                <td>{it.description}</td>
-                                <td className="col-unit">
-                                  {formatINR(it.price)}
-                                </td>
-                                <td className="col-amount">
-                                  {formatINR(amount)}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                          <tr>
-                            <td
-                              colSpan={3}
-                              style={{ textAlign: "right", color: "#4b5563" }}
-                            >
-                              Subtotal
-                            </td>
-                            <td className="col-amount">
-                              {formatINR(subtotal)}
-                            </td>
-                          </tr>
-                          <tr>
-                            <td
-                              colSpan={3}
-                              style={{ textAlign: "right", color: "#4b5563" }}
-                            >
-                              GST ({invoiceItems[0]?.gst ?? 18}%)
-                            </td>
-                            <td className="col-amount">
-                              {formatINR(totalGST)}
-                            </td>
-                          </tr>
-                          <tr>
-                            <td
-                              colSpan={3}
-                              style={{
-                                textAlign: "right",
-                                fontWeight: 700,
-                                fontSize: 16,
-                              }}
-                            >
-                              Grand Total
-                            </td>
-                            <td
-                              className="col-amount"
-                              style={{ fontWeight: 700, fontSize: 16 }}
-                            >
-                              {formatINR(grandTotal)}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Bank Details & Terms */}
-                    <div className="mt-4">
-                      <div className="terms-title">Bank Details</div>
-                      <div className="bank">
-                        Bank Name: HDFC Bank
-                        <br />
-                        Account Number: 987654321012
-                        <br />
-                        IFSC Code: HDFC0001987
-                        <br />
-                        Branch: Koregaon Park, Pune
-                      </div>
-
-                      <div className="terms-title mt-3">Terms & Conditions</div>
-                      <div className="terms-text">
-                        Payment due within 15 days from invoice date.
-                        <br />
-                        Late payments may attract a 2% interest per month.
-                      </div>
-
-                      <div className="terms-title">Declaration</div>
-                      <div className="terms-text">
-                        We declare that the information stated above is true and
-                        correct to the best of our knowledge.
-                      </div>
-                    </div>
-
-                    {/* Signature */}
-                    <div className="signature-wrap">
-                      <div className="signature">Authorized Signatory</div>
-                    </div>
-                  </div>
+          {selectedClient && proposals.length === 0 && !loading && (
+            <motion.div {...motionCard} className="inv-card mb-3">
+              <div className="p-3">
+                <div className="alert alert-info mb-0">
+                  <i className="bi bi-info-circle me-2"></i>
+                  No proposals found for this client. Please create a proposal first.
                 </div>
-              ) : (
-                // Fallback: existing layout for other templates
-                <>
-                  <div
-                    className="p-4 pb-3 border-bottom"
-                    style={{ borderColor: THEME.border }}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ✅ FIXED: Items editor - SHOW WHEN EDITING OR WHEN PROPOSAL SELECTED */}
+          {(selectedProposal || editingInvoice) && !previewMode && (
+            <motion.div {...motionCard} className="inv-card">
+              <div className="p-3 p-md-4">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h6 className="fw-semibold mb-0" style={{ color: "#6b7280" }}>
+                    Step 3: Edit Invoice Items
+                    {invoiceItems.length > 0 && ` (${invoiceItems.length} items)`}
+                  </h6>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={addNewItem}
+                    disabled={loading}
                   >
-                    <div className="d-flex justify-content-between align-items-center">
-                      <div className="d-flex align-items-center">
-                        <div
-                          className="me-3"
-                          style={{
-                            width: 56,
-                            height: 56,
-                            borderRadius: 8,
-                            border: `1px solid ${THEME.border}`,
-                            backgroundColor: THEME.primary,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            fontWeight: 'bold'
-                          }}
-                        >
-                          CR
-                        </div>
-                        <div>
-                          <h3
-                            className="fw-bold mb-0 brand-title"
-                            style={{ color: THEME.dark }}
-                          >
-                            CUBE Real Estate Pvt. Ltd.
-                          </h3>
-                          <div
-                            className="mt-1"
-                            style={{ color: "#6b7280", fontSize: 12 }}
-                          >
-                            Invoice & Billing
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-end">
-                        <div
-                          className="d-inline-block mb-1"
-                          style={{
-                            background: "#111827",
-                            color: "#fff",
-                            padding: "4px 8px",
-                            borderRadius: 6,
-                            fontSize: 12,
-                          }}
-                        >
-                          INVOICE
-                        </div>
-                        <div className="small" style={{ color: "#6b7280" }}>
-                          {new Date().toLocaleDateString()}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-4">
-                    <div className="row g-3">
-                      <div className="col-md-6">
-                        <div
-                          className="p-3"
-                          style={{
-                            background: THEME.light,
-                            border: `1px solid ${THEME.border}`,
-                            borderRadius: 10,
-                          }}
-                        >
-                          <h6
-                            className="fw-bold mb-2"
-                            style={{ color: THEME.dark }}
-                          >
-                            Company Details
-                          </h6>
-                          <div className="small">
-                            Flat No. 006, Shivam Apartment
-                          </div>
-                          <div className="small">
-                            Opp. Manipal Hospital, Pune - 411001
-                          </div>
-                          <div className="small">GSTIN: 27AAACC1234F1Z5</div>
-                          <div className="small">
-                            Email: accounts@cuberealestate.com
-                          </div>
-                        </div>
-                      </div>
-                      <div className="col-md-6">
-                        <div
-                          className="p-3"
-                          style={{
-                            background: THEME.primarySoft,
-                            border: `1px solid ${THEME.border}`,
-                            borderRadius: 10,
-                          }}
-                        >
-                          <h6
-                            className="fw-bold mb-2"
-                            style={{ color: THEME.dark }}
-                          >
-                            Client & Invoice Info
-                          </h6>
-                          <div className="small">
-                            <span
-                              style={{ color: THEME.muted }}
-                              className="me-1"
-                            >
-                              Client:
-                            </span>
-                            {clients.find((c) => c.id == selectedClient)?.name}
-                          </div>
-                          <div className="small">
-                            <span
-                              style={{ color: THEME.muted }}
-                              className="me-1"
-                            >
-                              Proposal:
-                            </span>
-                            {
-                              proposals.find((p) => p.id == selectedProposal)
-                                ?.title
-                            }
-                          </div>
-                          <div className="small">
-                            <span
-                              style={{ color: THEME.muted }}
-                              className="me-1"
-                            >
-                              Invoice No:
-                            </span>
-                            INV-
-                            {String(
-                              Math.floor(Math.random() * 100000)
-                            ).padStart(5, "0")}
-                          </div>
-                          <div className="small">
-                            <span
-                              style={{ color: THEME.muted }}
-                              className="me-1"
-                            >
-                              Date:
-                            </span>
-                            {new Date().toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="px-4">
+                    + Add Item
+                  </button>
+                </div>
+                
+                {invoiceItems.length > 0 ? (
+                  <>
                     <div className="table-responsive">
-                      <table className="table table-striped table-bordered align-middle">
-                        <thead>
+                      <table className="table table-bordered align-middle">
+                        <thead className="table-light">
                           <tr>
                             <th>Description</th>
-                            <th>Qty</th>
-                            <th>Price</th>
-                            <th>GST</th>
-                            <th>Total</th>
+                            <th width="10%">Qty</th>
+                            <th width="15%">Price</th>
+                            <th width="10%">GST %</th>
+                            <th width="15%">Total</th>
+                            <th width="5%"></th>
                           </tr>
                         </thead>
                         <tbody>
                           {invoiceItems.map((item, i) => {
-                            const rowTotal =
-                              item.price * item.quantity * (1 + item.gst / 100);
+                            const rowTotal = item.price * item.quantity * (1 + item.gst / 100);
                             return (
                               <tr key={item.id || i}>
-                                <td>{item.description}</td>
-                                <td>{item.quantity}</td>
-                                <td>{formatINR(item.price)}</td>
-                                <td>{item.gst}%</td>
-                                <td>{formatINR(rowTotal)}</td>
+                                <td>
+                                  <input
+                                    type="text"
+                                    className="form-control"
+                                    value={item.description}
+                                    onChange={(e) =>
+                                      updateItem(i, "description", e.target.value)
+                                    }
+                                    disabled={loading}
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    className="form-control text-center"
+                                    value={item.quantity}
+                                    onChange={(e) =>
+                                      updateItem(i, "quantity", Number(e.target.value))
+                                    }
+                                    disabled={loading}
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    className="form-control text-end"
+                                    value={item.price}
+                                    onChange={(e) =>
+                                      updateItem(i, "price", Number(e.target.value))
+                                    }
+                                    disabled={loading}
+                                  />
+                                </td>
+                                <td>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step="0.1"
+                                    className="form-control text-center"
+                                    value={item.gst}
+                                    onChange={(e) =>
+                                      updateItem(i, "gst", Number(e.target.value))
+                                    }
+                                    disabled={loading}
+                                  />
+                                </td>
+                                <td className="fw-semibold text-end">
+                                  {formatINR(rowTotal)}
+                                </td>
+                                <td>
+                                  <button
+                                    className="btn btn-outline-danger btn-sm"
+                                    onClick={() => removeItem(i)}
+                                    disabled={invoiceItems.length === 1 || loading}
+                                  >
+                                    ×
+                                  </button>
+                                </td>
                               </tr>
                             );
                           })}
                         </tbody>
                       </table>
                     </div>
-                  </div>
 
-                  <div className="p-4 pt-0">
-                    <div
-                      className="d-flex justify-content-end p-3"
-                      style={{
-                        backgroundColor: THEME.light,
-                        border: `1px solid ${THEME.border}`,
-                        borderRadius: 12,
-                      }}
-                    >
+                    <div className="d-flex justify-content-end mt-3">
                       <div className="text-end">
-                        <div className="small" style={{ color: THEME.muted }}>
-                          Subtotal
-                        </div>
-                        <div className="fw-semibold">{formatINR(subtotal)}</div>
-                        <div
-                          className="small mt-2"
-                          style={{ color: THEME.muted }}
-                        >
-                          Total GST
-                        </div>
-                        <div className="fw-semibold">{formatINR(totalGST)}</div>
+                        <div className="text-muted small">Subtotal</div>
+                        <div className="fs-5">{formatINR(subtotal)}</div>
+                        <div className="text-muted small mt-2">Total GST</div>
+                        <div className="fs-6">{formatINR(totalGST)}</div>
                         <hr className="my-2" />
-                        <div className="fs-5" style={{ color: THEME.primary }}>
-                          Total Payable:{" "}
-                          <span className="fw-bold">
-                            {formatINR(grandTotal)}
-                          </span>
+                        <div className="fs-4" style={{ color: "#e53935" }}>
+                          Grand Total:{" "}
+                          <span className="fw-bold">{formatINR(grandTotal)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-end mt-4">
+                      <button
+                        className="btn btn-danger px-4"
+                        onClick={() => setPreviewMode(true)}
+                        disabled={loading || invoiceItems.length === 0}
+                      >
+                        👁 Preview Invoice
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="alert alert-warning">
+                    <div className="d-flex align-items-center">
+                      <i className="bi bi-exclamation-triangle me-2"></i>
+                      <div>
+                        <strong>No items found.</strong>
+                        <div className="small mt-1">
+                          Click "Add Item" to start creating your invoice.
                         </div>
                       </div>
                     </div>
                   </div>
-                </>
-              )}
-            </div>
+                )}
+              </div>
+            </motion.div>
+          )}
 
-            {/* ✅ PRINT OPTIONS MODAL */}
-            <AnimatePresence>
-              {showPrintDialog && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="modal fade show d-block"
-                  style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}
+          {/* Preview */}
+          <AnimatePresence>
+            {previewMode && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-4"
+              >
+                <div
+                  id="invoice-preview"
+                  className={`inv-card inv-preview ${template} shadow-lg p-0 rounded-4`}
+                  style={{ fontFamily: "Inter, Arial, sans-serif" }}
                 >
-                  <div className="modal-dialog modal-dialog-centered">
-                    <div className="modal-content">
-                      <div className="modal-header">
-                        <h5 className="modal-title">🖨 Print Options</h5>
-                        <button 
-                          type="button" 
-                          className="btn-close"
-                          onClick={() => setShowPrintDialog(false)}
-                        ></button>
+                  {template === "saffron" ? (
+                    <div className="sheet">
+                      <div className="left-rail">
+                        <div className="vertical-tag">
+                          {editingInvoice ? invoiceNumber : `Invoice IN-001`}
+                        </div>
                       </div>
-                      
-                      <div className="modal-body">
-                        <div className="row">
-                          <div className="col-12">
-                            <div className="mb-3 form-check">
-                              <input
-                                type="checkbox"
-                                className="form-check-input"
-                                id="showPrices"
-                                checked={printOptions.showPrices}
-                                onChange={(e) => setPrintOptions({
-                                  ...printOptions,
-                                  showPrices: e.target.checked
-                                })}
-                              />
-                              <label className="form-check-label" htmlFor="showPrices">
-                                Show Prices & Amounts
-                              </label>
+                      <div className="content">
+                        {/* Brand row */}
+                        <div className="brand-row">
+                          <div>
+                            <div className="brand-title">
+                              CUBE Real Estate Pvt. Ltd.
                             </div>
-                            
-                            <div className="mb-3 form-check">
-                              <input
-                                type="checkbox"
-                                className="form-check-input"
-                                id="includeTerms"
-                                checked={printOptions.includeTerms}
-                                onChange={(e) => setPrintOptions({
-                                  ...printOptions,
-                                  includeTerms: e.target.checked
-                                })}
-                              />
-                              <label className="form-check-label" htmlFor="includeTerms">
-                                Include Terms & Conditions
-                              </label>
+                            <div className="brand-address">
+                              Flat No. 006, Shivam Apartment
+                              <br />
+                              Opp. Manipal Hospital, Pune - 411001
+                              <br />
+                              GSTIN: 27AAACC1234F1Z5 | PAN: AAACC1234F
                             </div>
-                            
-                            <div className="mb-3 form-check">
-                              <input
-                                type="checkbox"
-                                className="form-check-input"
-                                id="includeBankDetails"
-                                checked={printOptions.includeBankDetails}
-                                onChange={(e) => setPrintOptions({
-                                  ...printOptions,
-                                  includeBankDetails: e.target.checked
-                                })}
-                              />
-                              <label className="form-check-label" htmlFor="includeBankDetails">
-                                Include Bank Details
-                              </label>
+                          </div>
+                          <div className="logo-circle">CR</div>
+                        </div>
+
+                        <div className="red-rule" />
+
+                        {/* Meta grid */}
+                        <div className="meta-grid">
+                          <div className="meta-box">
+                            <div className="meta-title">Bill To</div>
+                            <div className="meta-line">
+                              {clients.find((c) => c.id == selectedClient)?.name ||
+                                "Client Name"}
+                              <br />
+                              {clients.find((c) => c.id == selectedClient)?.address ||
+                                "Client Address"}
                             </div>
-                            
-                            <div className="mb-3 form-check">
-                              <input
-                                type="checkbox"
-                                className="form-check-input"
-                                id="showSignature"
-                                checked={printOptions.showSignature}
-                                onChange={(e) => setPrintOptions({
-                                  ...printOptions,
-                                  showSignature: e.target.checked
-                                })}
-                              />
-                              <label className="form-check-label" htmlFor="showSignature">
-                                Show Signature Area
-                              </label>
+                          </div>
+                          <div className="meta-box">
+                            <div className="meta-title">Ship To</div>
+                            <div className="meta-line">
+                              Same as billing address
                             </div>
-                            
-                            <div className="mb-3">
-                              <label className="form-label fw-semibold">Paper Size</label>
-                              <select
-                                className="form-select"
-                                value={printOptions.paperSize}
-                                onChange={(e) => setPrintOptions({
-                                  ...printOptions,
-                                  paperSize: e.target.value
-                                })}
+                          </div>
+
+                          <div className="meta-right">
+                            <div className="label">Invoice Date</div>
+                            <div>{new Date(invoiceDate).toLocaleDateString()}</div>
+                            <div className="label">Invoice No</div>
+                            <div>
+                              {editingInvoice ? invoiceNumber : `INV-${String(Math.floor(Math.random() * 100000)).padStart(5, "0")}`}
+                            </div>
+                            <div className="label">Due Date</div>
+                            <div>
+                              {new Date(dueDate).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Items */}
+                        <div className="items">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th className="col-qty">Qty</th>
+                                <th>Description</th>
+                                <th className="col-unit">Unit Price</th>
+                                <th className="col-amount">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {invoiceItems.map((it, i) => {
+                                const amount = it.quantity * it.price;
+                                return (
+                                  <tr key={it.id || i}>
+                                    <td className="col-qty">{it.quantity}</td>
+                                    <td>{it.description}</td>
+                                    <td className="col-unit">
+                                      {formatINR(it.price)}
+                                    </td>
+                                    <td className="col-amount">
+                                      {formatINR(amount)}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                              <tr>
+                                <td
+                                  colSpan={3}
+                                  style={{ textAlign: "right", color: "#4b5563" }}
+                                >
+                                  Subtotal
+                                </td>
+                                <td className="col-amount">
+                                  {formatINR(subtotal)}
+                                </td>
+                              </tr>
+                              <tr>
+                                <td
+                                  colSpan={3}
+                                  style={{ textAlign: "right", color: "#4b5563" }}
+                                >
+                                  GST ({invoiceItems[0]?.gst ?? 18}%)
+                                </td>
+                                <td className="col-amount">
+                                  {formatINR(totalGST)}
+                                </td>
+                              </tr>
+                              <tr>
+                                <td
+                                  colSpan={3}
+                                  style={{
+                                    textAlign: "right",
+                                    fontWeight: 700,
+                                    fontSize: 16,
+                                  }}
+                                >
+                                  Grand Total
+                                </td>
+                                <td
+                                  className="col-amount"
+                                  style={{ fontWeight: 700, fontSize: 16 }}
+                                >
+                                  {formatINR(grandTotal)}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Bank Details & Terms */}
+                        <div className="mt-4">
+                          <div className="terms-title">Bank Details</div>
+                          <div className="bank">
+                            Bank Name: HDFC Bank
+                            <br />
+                            Account Number: 987654321012
+                            <br />
+                            IFSC Code: HDFC0001987
+                            <br />
+                            Branch: Koregaon Park, Pune
+                          </div>
+
+                          <div className="terms-title mt-3">Terms & Conditions</div>
+                          <div className="terms-text">
+                            Payment due within 15 days from invoice date.
+                            <br />
+                            Late payments may attract a 2% interest per month.
+                          </div>
+
+                          <div className="terms-title">Declaration</div>
+                          <div className="terms-text">
+                            We declare that the information stated above is true and
+                            correct to the best of our knowledge.
+                          </div>
+                        </div>
+
+                        {/* Signature */}
+                        <div className="signature-wrap">
+                          <div className="signature">Authorized Signatory</div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    // Fallback: existing layout for other templates
+                    <>
+                      <div
+                        className="p-4 pb-3 border-bottom"
+                        style={{ borderColor: THEME.border }}
+                      >
+                        <div className="d-flex justify-content-between align-items-center">
+                          <div className="d-flex align-items-center">
+                            <div
+                              className="me-3"
+                              style={{
+                                width: 56,
+                                height: 56,
+                                borderRadius: 8,
+                                border: `1px solid ${THEME.border}`,
+                                backgroundColor: THEME.primary,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              CR
+                            </div>
+                            <div>
+                              <h3
+                                className="fw-bold mb-0 brand-title"
+                                style={{ color: THEME.dark }}
                               >
-                                <option value="a4">A4 (210mm × 297mm)</option>
-                                <option value="letter">Letter (8.5" × 11")</option>
-                                <option value="a5">A5 (148mm × 210mm)</option>
-                              </select>
+                                CUBE Real Estate Pvt. Ltd.
+                              </h3>
+                              <div
+                                className="mt-1"
+                                style={{ color: "#6b7280", fontSize: 12 }}
+                              >
+                                Invoice & Billing
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-end">
+                            <div
+                              className="d-inline-block mb-1"
+                              style={{
+                                background: "#111827",
+                                color: "#fff",
+                                padding: "4px 8px",
+                                borderRadius: 6,
+                                fontSize: 12,
+                              }}
+                            >
+                              INVOICE
+                            </div>
+                            <div className="small" style={{ color: "#6b7280" }}>
+                              {new Date(invoiceDate).toLocaleDateString()}
                             </div>
                           </div>
                         </div>
                       </div>
-                      
-                      <div className="modal-footer">
-                        <button
-                          type="button"
-                          className="btn btn-outline-secondary"
-                          onClick={() => setShowPrintDialog(false)}
-                        >
-                          Cancel
-                        </button>
-                        
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          onClick={() => {
-                            handlePrint();
-                            setShowPrintDialog(false);
+
+                      <div className="p-4">
+                        <div className="row g-3">
+                          <div className="col-md-6">
+                            <div
+                              className="p-3"
+                              style={{
+                                background: THEME.light,
+                                border: `1px solid ${THEME.border}`,
+                                borderRadius: 10,
+                              }}
+                            >
+                              <h6
+                                className="fw-bold mb-2"
+                                style={{ color: THEME.dark }}
+                              >
+                                Company Details
+                              </h6>
+                              <div className="small">
+                                Flat No. 006, Shivam Apartment
+                              </div>
+                              <div className="small">
+                                Opp. Manipal Hospital, Pune - 411001
+                              </div>
+                              <div className="small">GSTIN: 27AAACC1234F1Z5</div>
+                              <div className="small">
+                                Email: accounts@cuberealestate.com
+                              </div>
+                            </div>
+                          </div>
+                          <div className="col-md-6">
+                            <div
+                              className="p-3"
+                              style={{
+                                background: THEME.primarySoft,
+                                border: `1px solid ${THEME.border}`,
+                                borderRadius: 10,
+                              }}
+                            >
+                              <h6
+                                className="fw-bold mb-2"
+                                style={{ color: THEME.dark }}
+                              >
+                                Client & Invoice Info
+                              </h6>
+                              <div className="small">
+                                <span
+                                  style={{ color: THEME.muted }}
+                                  className="me-1"
+                                >
+                                  Client:
+                                </span>
+                                {clients.find((c) => c.id == selectedClient)?.name}
+                              </div>
+                              <div className="small">
+                                <span
+                                  style={{ color: THEME.muted }}
+                                  className="me-1"
+                                >
+                                  Proposal:
+                                </span>
+                                {
+                                  proposals.find((p) => p.id == selectedProposal)
+                                    ?.title
+                                }
+                              </div>
+                              <div className="small">
+                                <span
+                                  style={{ color: THEME.muted }}
+                                  className="me-1"
+                                >
+                                  Invoice No:
+                                </span>
+                                {editingInvoice ? invoiceNumber : `INV-${String(Math.floor(Math.random() * 100000)).padStart(5, "0")}`}
+                              </div>
+                              <div className="small">
+                                <span
+                                  style={{ color: THEME.muted }}
+                                  className="me-1"
+                                >
+                                  Date:
+                                </span>
+                                {new Date(invoiceDate).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="px-4">
+                        <div className="table-responsive">
+                          <table className="table table-striped table-bordered align-middle">
+                            <thead>
+                              <tr>
+                                <th>Description</th>
+                                <th>Qty</th>
+                                <th>Price</th>
+                                <th>GST</th>
+                                <th>Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {invoiceItems.map((item, i) => {
+                                const rowTotal =
+                                  item.price * item.quantity * (1 + item.gst / 100);
+                                return (
+                                  <tr key={item.id || i}>
+                                    <td>{item.description}</td>
+                                    <td>{item.quantity}</td>
+                                    <td>{formatINR(item.price)}</td>
+                                    <td>{item.gst}%</td>
+                                    <td>{formatINR(rowTotal)}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div className="p-4 pt-0">
+                        <div
+                          className="d-flex justify-content-end p-3"
+                          style={{
+                            backgroundColor: THEME.light,
+                            border: `1px solid ${THEME.border}`,
+                            borderRadius: 12,
                           }}
                         >
-                          🖨 Print with Options
-                        </button>
-                        
-                        <button
-                          type="button"
-                          className="btn btn-success"
-                          onClick={handleQuickPrint}
+                          <div className="text-end">
+                            <div className="small" style={{ color: THEME.muted }}>
+                              Subtotal
+                            </div>
+                            <div className="fw-semibold">{formatINR(subtotal)}</div>
+                            <div
+                              className="small mt-2"
+                              style={{ color: THEME.muted }}
+                            >
+                              Total GST
+                            </div>
+                            <div className="fw-semibold">{formatINR(totalGST)}</div>
+                            <hr className="my-2" />
+                            <div className="fs-5" style={{ color: THEME.primary }}>
+                              Total Payable:{" "}
+                              <span className="fw-bold">
+                                {formatINR(grandTotal)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* ✅ FIXED ACTION BUTTONS IN PREVIEW MODE */}
+                <div className="text-end mt-3 no-print">
+                  <div>
+                    {/* ✅ FIXED: Relaxed disabled condition for editing */}
+                    <button 
+                     className="btn btn-success me-2"
+                     onClick={handleSaveInvoice}
+                       disabled={
+                       loading || 
+                        invoiceItems.length === 0 || 
+                          !selectedClient ||  // Client is always required
+                           (!editingInvoice && !selectedProposal) // Proposal only required for NEW invoices
+                                    }
+                           title={
+                            loading ? "Loading..." :
+                             invoiceItems.length === 0 ? "Add at least one item" :
+                             !selectedClient ? "Select a client" :
+                              !selectedProposal && !editingInvoice ? "Select a proposal" :
+                                     "Ready to save"
+                                       }
+                                     >
+                                    {loading ? (
+                                  <>
+                                   <span className="spinner-border spinner-border-sm me-2" role="status">
+                                   <span className="visually-hidden">Saving...</span>
+                                   </span>
+                                   {editingInvoice ? 'Updating...' : 'Saving...'}
+                                     </>
+                                      ) : (
+                                     editingInvoice ? '💾 Update Invoice' : '💾 Save Invoice'
+                                                    )}
+                    </button>
+
+                    {/* ✅ STATUS SELECTOR */}
+                    <div className="d-inline-block me-2">
+                      <select
+                        className="form-select"
+                        value={invoiceStatus}
+                        onChange={(e) => setInvoiceStatus(e.target.value)}
+                        disabled={loading}
+                        style={{ width: 'auto', display: 'inline-block' }}
+                      >
+                        <option value="draft">📝 Draft</option>
+                        <option value="sent">📤 Sent</option>
+                        <option value="paid">✅ Paid</option>
+                        <option value="overdue">⚠️ Overdue</option>
+                        <option value="cancelled">❌ Cancelled</option>
+                        <option value="partially_paid">💰 Partially Paid</option>
+                      </select>
+                    </div>
+
+                    <button 
+                      className="btn btn-primary me-2"
+                      onClick={() => setShowPrintDialog(true)}
+                    >
+                      🖨 Print Options
+                    </button>
+
+                    <button 
+                      className="btn btn-info me-2"
+                      onClick={handleQuickPrint}
+                    >
+                      ⚡ Quick Print
+                    </button>
+
+                    {/* ✅ FIXED DOWNLOAD BUTTON */}
+                    <button 
+                      className="btn btn-danger me-2" 
+                      onClick={handleDownload}
+                      disabled={loading}
+                    >
+                      ⬇ Download PDF
+                    </button>
+                    
+                    <button
+                      className="btn btn-outline-dark"
+                      onClick={() => setPreviewMode(false)}
+                    >
+                      ✏ Edit Invoice
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* ✅ DRAFT INVOICES PANEL - RIGHT SIDE */}
+        <div className="col-lg-4">
+          <motion.div {...motionCard} className="inv-card sticky-top" style={{ top: '20px' }}>
+            <div className="p-3">
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h6 className="fw-semibold mb-0" style={{ color: "#6b7280" }}>
+                  📋 Draft Invoices ({draftInvoices.length})
+                </h6>
+                <button
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={fetchDraftInvoices}
+                  disabled={loading}
+                  title="Refresh drafts"
+                >
+                  🔄
+                </button>
+              </div>
+
+              {draftInvoices.length > 0 ? (
+                <div className="draft-list" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                  {draftInvoices.map((invoice) => (
+                    <div 
+                      key={invoice.id} 
+                      className={`draft-invoice-item p-3 mb-2 rounded border ${editingInvoice === invoice.id ? 'editing' : ''}`}
+                      onClick={() => loadInvoiceForEditing(invoice.id)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className="d-flex justify-content-between align-items-start mb-2">
+                        <strong className="text-dark">{invoice.invoice_number}</strong>
+                        <span className="badge bg-warning text-dark">Draft</span>
+                      </div>
+                      <div className="small text-muted mb-1">
+                        {invoice.client_name}
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <span className="fw-semibold">{formatINR(invoice.grand_total)}</span>
+                        <span className="small text-muted">
+                          {new Date(invoice.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {invoice.proposal_title && (
+                        <div className="small text-muted mt-1">
+                          Proposal: {invoice.proposal_title}
+                        </div>
+                      )}
+                      {editingInvoice === invoice.id && (
+                        <div className="small text-success mt-1">
+                          <i className="bi bi-pencil-square me-1"></i>
+                          Currently editing
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <div className="text-muted mb-2">
+                    <i className="bi bi-file-earmark-text" style={{ fontSize: '2rem' }}></i>
+                  </div>
+                  <p className="text-muted small mb-0">No draft invoices found</p>
+                  <p className="text-muted small">Create and save invoices as drafts to see them here</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* ✅ PRINT OPTIONS MODAL */}
+      <AnimatePresence>
+        {showPrintDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="modal fade show d-block"
+            style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}
+          >
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">🖨 Print Options</h5>
+                  <button 
+                    type="button" 
+                    className="btn-close"
+                    onClick={() => setShowPrintDialog(false)}
+                  ></button>
+                </div>
+                
+                <div className="modal-body">
+                  <div className="row">
+                    <div className="col-12">
+                      <div className="mb-3 form-check">
+                        <input
+                          type="checkbox"
+                          className="form-check-input"
+                          id="showPrices"
+                          checked={printOptions.showPrices}
+                          onChange={(e) => setPrintOptions({
+                            ...printOptions,
+                            showPrices: e.target.checked
+                          })}
+                        />
+                        <label className="form-check-label" htmlFor="showPrices">
+                          Show Prices & Amounts
+                        </label>
+                      </div>
+                      
+                      <div className="mb-3 form-check">
+                        <input
+                          type="checkbox"
+                          className="form-check-input"
+                          id="includeTerms"
+                          checked={printOptions.includeTerms}
+                          onChange={(e) => setPrintOptions({
+                            ...printOptions,
+                            includeTerms: e.target.checked
+                          })}
+                        />
+                        <label className="form-check-label" htmlFor="includeTerms">
+                          Include Terms & Conditions
+                        </label>
+                      </div>
+                      
+                      <div className="mb-3 form-check">
+                        <input
+                          type="checkbox"
+                          className="form-check-input"
+                          id="includeBankDetails"
+                          checked={printOptions.includeBankDetails}
+                          onChange={(e) => setPrintOptions({
+                            ...printOptions,
+                            includeBankDetails: e.target.checked
+                          })}
+                        />
+                        <label className="form-check-label" htmlFor="includeBankDetails">
+                          Include Bank Details
+                        </label>
+                      </div>
+                      
+                      <div className="mb-3 form-check">
+                        <input
+                          type="checkbox"
+                          className="form-check-input"
+                          id="showSignature"
+                          checked={printOptions.showSignature}
+                          onChange={(e) => setPrintOptions({
+                            ...printOptions,
+                            showSignature: e.target.checked
+                          })}
+                        />
+                        <label className="form-check-label" htmlFor="showSignature">
+                          Show Signature Area
+                        </label>
+                      </div>
+                      
+                      <div className="mb-3">
+                        <label className="form-label fw-semibold">Paper Size</label>
+                        <select
+                          className="form-select"
+                          value={printOptions.paperSize}
+                          onChange={(e) => setPrintOptions({
+                            ...printOptions,
+                            paperSize: e.target.value
+                          })}
                         >
-                          ⚡ Quick Print
-                        </button>
+                          <option value="a4">A4 (210mm × 297mm)</option>
+                          <option value="letter">Letter (8.5" × 11")</option>
+                          <option value="a5">A5 (148mm × 210mm)</option>
+                        </select>
                       </div>
                     </div>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* ✅ UPDATED ACTION BUTTONS WITH SAVE FUNCTIONALITY */}
-            <div className="text-end mt-3 no-print">
-              <button 
-                className="btn btn-success me-2"
-                onClick={handleSaveInvoice}
-                disabled={loading || !selectedProposal || invoiceItems.length === 0}
-              >
-                {loading ? (
-                  <>
-                    <span className="spinner-border spinner-border-sm me-2" role="status">
-                      <span className="visually-hidden">Saving...</span>
-                    </span>
-                    Saving...
-                  </>
-                ) : (
-                  '💾 Save Invoice'
-                )}
-              </button>
-
-              <button 
-                className="btn btn-primary me-2"
-                onClick={() => setShowPrintDialog(true)}
-              >
-                🖨 Print Options
-              </button>
-
-              <button 
-                className="btn btn-info me-2"
-                onClick={handleQuickPrint}
-              >
-                ⚡ Quick Print
-              </button>
-
-              <button className="btn btn-danger me-2" onClick={handleDownload}>
-                ⬇ Download PDF
-              </button>
-              
-              <button
-                className="btn btn-outline-dark"
-                onClick={() => setPreviewMode(false)}
-              >
-                ✏ Edit Invoice
-              </button>
+                </div>
+                
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    onClick={() => setShowPrintDialog(false)}
+                  >
+                    Cancel
+                  </button>
+                  
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => {
+                      handlePrint();
+                      setShowPrintDialog(false);
+                    }}
+                  >
+                    🖨 Print with Options
+                  </button>
+                  
+                  <button
+                    type="button"
+                    className="btn btn-success"
+                    onClick={handleQuickPrint}
+                  >
+                    ⚡ Quick Print
+                  </button>
+                </div>
+              </div>
             </div>
-
           </motion.div>
         )}
       </AnimatePresence>

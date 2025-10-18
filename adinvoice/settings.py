@@ -54,7 +54,18 @@ INSTALLED_APPS = [
     'clients',
     'support',
     'proposal',
+    'receipts',
 ]
+
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),   # default is 5 minutes
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30), # default is 1 day
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+}
+
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",

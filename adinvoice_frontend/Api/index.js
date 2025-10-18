@@ -766,21 +766,48 @@ export const saveInvoice = async (invoiceData) => {
 };
 
 
-// Get All Invoices
+// Get All Invoices - FIXED VERSION
 export const getInvoices = async () => {
   const tenantId = localStorage.getItem("tenant_id");
   if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
 
   try {
-    const res = await API.post("/invoices/list/", {
-      tenant: tenantId
-    }, {
+    console.log("📋 Fetching invoices for tenant:", tenantId);
+    
+    // ✅ CHANGE FROM POST TO GET
+    const res = await API.get("/invoices/list/", {
+      params: { tenant: tenantId }, // Send tenant as query parameter
       headers: getAuthHeaders()
     });
     
-    return res.data;
+    console.log("📋 Invoices API response:", res.data);
+    
+    // Handle different response formats
+    if (res.data && res.data.invoices) {
+      return res.data;
+    } else if (res.data && Array.isArray(res.data)) {
+      // If response is directly an array
+      return { invoices: res.data };
+    } else if (res.data && res.data.success) {
+      // If response has success structure
+      return res.data;
+    } else {
+      console.warn("⚠️ Unexpected API response format:", res.data);
+      return { invoices: [] };
+    }
+    
   } catch (error) {
-    console.error("Error fetching invoices:", error.response?.data || error.message);
+    console.error("❌ Error fetching invoices:", error);
+    
+    // More detailed error logging
+    if (error.response) {
+      console.error("📋 Response error:", error.response.status, error.response.data);
+    } else if (error.request) {
+      console.error("📋 Request error:", error.request);
+    } else {
+      console.error("📋 Error message:", error.message);
+    }
+    
     throw error.response?.data || { detail: "Failed to fetch invoices" };
   }
 };
@@ -818,5 +845,238 @@ export const updateInvoiceStatus = async (invoiceId, status) => {
   } catch (error) {
     console.error("Error updating invoice status:", error.response?.data || error.message);
     throw error.response?.data || { detail: "Failed to update invoice status" };
+  }
+};
+
+// ✅ FIXED FETCH DRAFT INVOICES FUNCTION
+const fetchDraftInvoices = async () => {
+  try {
+    console.log("🔄 Fetching draft invoices...");
+    
+    const invoicesData = await getInvoices();
+    console.log("📋 Raw invoices data:", invoicesData);
+    
+    let invoices = [];
+    
+    // Handle different response formats
+    if (invoicesData && invoicesData.invoices) {
+      invoices = invoicesData.invoices;
+    } else if (invoicesData && Array.isArray(invoicesData)) {
+      invoices = invoicesData;
+    } else if (invoicesData && invoicesData.data) {
+      invoices = invoicesData.data.invoices || invoicesData.data || [];
+    }
+    
+    console.log("📋 Processed invoices:", invoices);
+    
+    // Filter for draft invoices
+    const drafts = invoices.filter(invoice => {
+      // Handle case where status might be undefined or null
+      const status = invoice.status || 'draft';
+      return status.toLowerCase() === 'draft';
+    });
+    
+    console.log("📋 Draft invoices found:", drafts.length);
+    setDraftInvoices(drafts);
+    
+  } catch (err) {
+    console.error("❌ Error fetching draft invoices:", err);
+    
+    // More detailed error information
+    if (err.response) {
+      console.error("📋 Server responded with:", err.response.status, err.response.data);
+    } else if (err.request) {
+      console.error("📋 No response received:", err.request);
+    } else {
+      console.error("📋 Error details:", err.message);
+    }
+    
+    // Set empty array to avoid breaking the UI
+    setDraftInvoices([]);
+  }
+};
+
+
+// In Api/index.js - Add these functions
+
+// ✅ FIXED GET INVOICE BY ID - Using consistent axios approach
+export const getInvoiceById = async (invoiceId) => {
+  try {
+    const tenantId = localStorage.getItem("tenant_id");
+    if (!tenantId) {
+      throw new Error("Tenant ID not found. Please login again.");
+    }
+
+    console.log(`🔍 Fetching invoice ${invoiceId} for tenant:`, tenantId);
+    
+    const res = await API.get(`/invoices/${invoiceId}/`, {
+      headers: getAuthHeaders(),
+      params: { tenant: tenantId }
+    });
+    
+    console.log("✅ Invoice data received:", res.data);
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error fetching invoice:", error);
+    
+    if (error.response?.status === 401) {
+      // Clear invalid tokens
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      throw new Error("Authentication failed. Please log in again.");
+    }
+    
+    throw error.response?.data || { detail: "Failed to fetch invoice" };
+  }
+};
+
+
+// In your Api/index.js - Update the updateInvoice function
+export const updateInvoice = async (invoiceId, invoiceData) => {
+  try {
+    const tenantId = localStorage.getItem("tenant_id");
+    if (!tenantId) {
+      throw new Error("Tenant ID not found. Please login again.");
+    }
+
+    const dataToSend = {
+      ...invoiceData,
+      tenant: tenantId
+    };
+
+    console.log("📤 Updating invoice:", invoiceId);
+    
+    // ✅ MOST LIKELY CORRECT PATTERN:
+    const res = await API.put(`/invoices/${invoiceId}/update/`, dataToSend, {
+      headers: getAuthHeaders()
+    });
+    
+    console.log("✅ Invoice updated successfully:", res.data);
+    return res.data;
+    
+  } catch (error) {
+    console.error("❌ Error updating invoice:", error);
+    
+    if (error.response?.status === 404) {
+      // Get the base URL for debugging
+      const baseURL = API.defaults.baseURL || 'http://localhost:8000';
+      throw new Error(`Update endpoint not found. Tried: ${baseURL}/api/invoices/${invoiceId}/update/\n\nPlease check:\n1. Main urls.py includes\n2. Invoice app URL patterns\n3. Backend server is running`);
+    }
+    
+    throw error.response?.data || { detail: "Failed to update invoice" };
+  }
+};
+
+
+// In your Api/index.js - Add receipt functions
+
+// Create Receipt
+// In your Api/index.js - Add these multi-tenant receipt functions
+export const createReceipt = async (receiptData) => {
+  try {
+    const tenantId = localStorage.getItem("tenant_id");
+    if (!tenantId) {
+      throw new Error("Tenant ID not found. Please login again.");
+    }
+
+    const dataToSend = {
+      ...receiptData,
+      tenant: tenantId  // ✅ ADD TENANT ID LIKE PROPOSALS
+    };
+
+    console.log("📤 Creating receipt with tenant:", dataToSend);
+    
+    const res = await API.post("/receipts/create/", dataToSend, {
+      headers: getAuthHeaders()
+    });
+    
+    console.log("✅ Receipt created successfully:", res.data);
+    return res.data;
+    
+  } catch (error) {
+    console.error("❌ Error creating receipt:", error);
+    throw error.response?.data || { detail: "Failed to create receipt" };
+  }
+};
+
+export const getReceipts = async () => {
+  const tenantId = localStorage.getItem("tenant_id");
+  if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
+
+  try {
+    const res = await API.get("/receipts/list/", {
+      tenant: tenantId  // ✅ ADD TENANT ID LIKE PROPOSALS
+    }, {
+      headers: getAuthHeaders()
+    });
+    
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error fetching receipts:", error);
+    throw error.response?.data || { detail: "Failed to fetch receipts" };
+  }
+};
+
+// Get Receipt by ID
+export const getReceiptById = async (receiptId) => {
+  try {
+    const tenantId = localStorage.getItem("tenant_id");
+    if (!tenantId) {
+      throw new Error("Tenant ID not found. Please login again.");
+    }
+
+    const res = await API.get(`/receipts/${receiptId}/`, {
+      headers: getAuthHeaders(),
+      params: { tenant: tenantId }
+    });
+    
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error fetching receipt:", error);
+    throw error.response?.data || { detail: "Failed to fetch receipt" };
+  }
+};
+
+// Update Receipt
+export const updateReceipt = async (receiptId, receiptData) => {
+  try {
+    const tenantId = localStorage.getItem("tenant_id");
+    if (!tenantId) {
+      throw new Error("Tenant ID not found. Please login again.");
+    }
+
+    const dataToSend = {
+      ...receiptData,
+      tenant: tenantId
+    };
+
+    const res = await API.put(`/receipts/${receiptId}/update/`, dataToSend, {
+      headers: getAuthHeaders()
+    });
+    
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error updating receipt:", error);
+    throw error.response?.data || { detail: "Failed to update receipt" };
+  }
+};
+
+// Delete Receipt
+export const deleteReceipt = async (receiptId) => {
+  try {
+    const tenantId = localStorage.getItem("tenant_id");
+    if (!tenantId) {
+      throw new Error("Tenant ID not found. Please login again.");
+    }
+
+    const res = await API.delete(`/receipts/${receiptId}/delete/`, {
+      headers: getAuthHeaders(),
+      data: { tenant: tenantId }
+    });
+    
+    return res.data;
+  } catch (error) {
+    console.error("❌ Error deleting receipt:", error);
+    throw error.response?.data || { detail: "Failed to delete receipt" };
   }
 };

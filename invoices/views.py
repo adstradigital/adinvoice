@@ -2,16 +2,19 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from invoices.serializers import InvoiceSerializer
+from .serializers import InvoiceItemSerializer, InvoiceSerializer
 from common.decorators import role_required
-from .models import Invoice, InvoiceItem, Receipt, ProposalItem
-from proposal.models import Proposal
+from proposal.models import Proposal, ProposalItem
 from tenants.models import Tenant
 from tenants.db_utils import get_tenant_db
 import traceback
 from django.utils import timezone
 import random
 from django.shortcuts import get_object_or_404
+from datetime import datetime  # Add this import at the top of your views.py
+from django.utils import timezone
+from decimal import Decimal
+from .models import Invoice, InvoiceItem
 
 # ------------------- INVOICE -------------------
 
@@ -21,7 +24,7 @@ from django.shortcuts import get_object_or_404
 def create_invoice(request):
     try:
         data = request.data.copy()
-        print(data)
+        # print(data)
 
         # Generate invoice number if not provided
         if not data.get('invoice_number'):
@@ -48,6 +51,7 @@ def create_invoice(request):
                 "invoice": InvoiceSerializer(invoice).data
             }, status=status.HTTP_201_CREATED)
         else:
+            print(serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     except Exception as e:
@@ -183,6 +187,7 @@ def update_invoice_status(request, invoice_id):
         db_alias = get_tenant_db(tenant)
 
         invoice = Invoice.objects.using(db_alias).get(id=invoice_id)
+        print(invoice)
         valid_statuses = ['draft', 'sent', 'paid', 'overdue', 'cancelled', 'partially_paid']
         
         if new_status not in valid_statuses:
@@ -209,18 +214,6 @@ def update_invoice_status(request, invoice_id):
         print(traceback.format_exc())
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# ------------------- PROPOSAL -------------------
-
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-@role_required(["admin", "staff"])  # both admin and staff can create proposals
-def create_proposal(request):
-    try:
-        data = request.data
-        # Your existing proposal creation logic
-        return Response({"success": "Proposal created", "data": data}, status=status.HTTP_201_CREATED)
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # ------------------- RECEIPT -------------------
 
@@ -276,16 +269,149 @@ def create_receipt(request):
         print(traceback.format_exc())
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# Helper function to recalculate invoice totals
 def recalculate_invoice_totals(invoice, db_alias):
-    items = InvoiceItem.objects.using(db_alias).filter(invoice=invoice)
-    
-    subtotal = sum(float(item.quantity) * float(item.price) for item in items)
-    total_gst = sum(float(item.quantity) * float(item.price) * (float(item.gst_rate) / 100) for item in items)
-    grand_total = subtotal + total_gst
-    
-    invoice.subtotal = subtotal
-    invoice.total_gst = total_gst
-    invoice.grand_total = grand_total
-    invoice.balance_due = grand_total - invoice.amount_paid
-    invoice.save(using=db_alias)
+    """
+    Recalculate invoice totals based on items
+    """
+    try:
+        items = InvoiceItem.objects.using(db_alias).filter(invoice=invoice)
+        
+        subtotal = Decimal('0')
+        total_gst = Decimal('0')
+        
+        for item in items:
+            # Convert all to Decimal to ensure type consistency
+            quantity = Decimal(str(item.quantity))
+            price = Decimal(str(item.price))
+            gst_rate = Decimal(str(item.gst_rate))
+            
+            base_amount = quantity * price
+            gst_amount = base_amount * (gst_rate / Decimal('100'))
+            
+            subtotal += base_amount
+            total_gst += gst_amount
+        
+        grand_total = subtotal + total_gst
+        
+        # Update invoice
+        invoice.subtotal = subtotal
+        invoice.total_gst = total_gst
+        invoice.grand_total = grand_total
+        invoice.balance_due = grand_total - Decimal(str(invoice.amount_paid))
+        
+        invoice.save(using=db_alias)
+        
+    except Exception as e:
+        print(f"❌ Error in recalculate_invoice_totals: {str(e)}")
+        raise
+
+
+@api_view(["PUT", "PATCH"])
+@permission_classes([IsAuthenticated])
+@role_required(["admin", "staff"])
+def update_invoice(request, invoice_id):
+    try:
+        data = request.data.copy()
+        print("📝 Update invoice data:", data)
+
+        tenant_id = data.get('tenant')
+        if not tenant_id:
+            return Response({"error": "Tenant ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        tenant = Tenant.objects.get(id=tenant_id)
+        db_alias = get_tenant_db(tenant)
+
+        # Get existing invoice
+        invoice = Invoice.objects.using(db_alias).get(id=invoice_id)
+        
+        # Handle items separately
+        items_data = data.pop('items', [])
+        
+        # Convert date fields from string to date objects
+        date_fields = ['issue_date', 'due_date']
+        for field in date_fields:
+            if field in data and data[field]:
+                try:
+                    if isinstance(data[field], str):
+                        data[field] = datetime.strptime(data[field], '%Y-%m-%d').date()
+                except (ValueError, TypeError) as e:
+                    print(f"⚠️ Error parsing {field}: {data[field]}, error: {e}")
+                    return Response({"error": f"Invalid date format for {field}. Use YYYY-MM-DD."}, 
+                                  status=status.HTTP_400_BAD_REQUEST)
+        
+        # ✅ FIX: Handle proposal field completely before serializer
+        if 'proposal' in data:
+            if data['proposal'] and isinstance(data['proposal'], str) and len(data['proposal']) == 36:
+                # It's a UUID string
+                try:
+                    proposal = Proposal.objects.using(db_alias).get(id=data['proposal'])
+                    invoice.proposal = proposal  # Set directly on instance
+                except Proposal.DoesNotExist:
+                    return Response({"error": "Proposal not found"}, status=status.HTTP_400_BAD_REQUEST)
+            elif data['proposal'] is None or data['proposal'] == '':
+                # Allow setting proposal to None
+                invoice.proposal = None
+            
+            # Remove proposal from data so serializer doesn't try to validate it
+            del data['proposal']
+        
+        # Remove client field since model doesn't have it
+        if 'client' in data:
+            del data['client']
+        
+        # Convert numeric fields to Decimal
+        numeric_fields = ['subtotal', 'total_gst', 'grand_total', 'amount_paid']
+        for field in numeric_fields:
+            if field in data and data[field] is not None:
+                data[field] = Decimal(str(data[field]))
+        
+        # Use serializer for validation and update (without proposal field)
+        serializer = InvoiceSerializer(
+            invoice, 
+            data=data, 
+            partial=True,
+            context={"db_alias": db_alias}
+        )
+        
+        if not serializer.is_valid():
+            print("❌ Serializer errors:", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Save the invoice
+        invoice = serializer.save()
+        
+        # Handle items update if provided
+        if items_data:
+            # Delete existing items
+            InvoiceItem.objects.using(db_alias).filter(invoice=invoice).delete()
+            
+            # Create new items using serializer 
+            for item_data in items_data:
+                item_serializer = InvoiceItemSerializer(data=item_data)
+                if item_serializer.is_valid():
+                    InvoiceItem.objects.using(db_alias).create(
+                        invoice=invoice,
+                        **item_serializer.validated_data
+                    )
+                else:
+                    print(f"❌ Item validation error: {item_serializer.errors}")
+                    return Response(
+                        {"error": f"Invalid item data: {item_serializer.errors}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+        
+        # Recalculate totals
+        recalculate_invoice_totals(invoice, db_alias)
+        
+        # Refresh and return updated invoice
+        updated_serializer = InvoiceSerializer(invoice, context={"db_alias": db_alias})
+        
+        return Response({
+            "success": "Invoice updated successfully",
+            "invoice": updated_serializer.data
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print("❌ Error in update_invoice:")
+        print(traceback.format_exc())
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
