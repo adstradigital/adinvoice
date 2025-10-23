@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Table, Button, Badge, Spinner } from "react-bootstrap";
-import { getPendingMerchants, updateMerchantStatus } from "../../../../Api/index";
+import { getPendingMerchants, updateMerchantStatus } from "../../../../Api/api_clientadmin";
 
 export default function MerchantApproval() {
   const [merchants, setMerchants] = useState([]);

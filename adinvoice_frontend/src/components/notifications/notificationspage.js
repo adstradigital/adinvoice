@@ -1,61 +1,107 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Bell,
   Trash2,
   AlertCircle,
-  CheckCircle2,
   Info,
   Megaphone,
   Calendar,
   User,
 } from "lucide-react";
+import { fetchClientAdminNotifications } from "@../../../Api/api_clientadmin";
 
 export default function NotificationsPage() {
-  const notifications = []; // Empty array, ready for API data
-  const announcements = []; // Empty array, ready for API data
+  const [notifications, setNotifications] = useState([]);
+  const [filter, setFilter] = useState("ALL"); // ALL, ANNOUNCEMENT, UPDATE
+
+  // ✅ Load notifications from API
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const response = await fetchClientAdminNotifications();
+        const data = response.items || []; // ✅ extract items array
+        setNotifications(data);
+      } catch (err) {
+        console.error("Failed to fetch notifications:", err);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const deleteNotification = (id) => {
-    // Placeholder function for future API delete
     console.log("Delete notification:", id);
+    // TODO: call API to delete notification
   };
 
   const getIcon = (type) => {
-    switch (type) {
-      case "success":
-        return <CheckCircle2 className="text-success me-2" />;
-      case "warning":
+    switch (type.toLowerCase()) {
+      case "alert":
         return <AlertCircle className="text-warning me-2" />;
-      case "info":
+      case "announcement":
+        return <Megaphone className="text-warning me-2" />;
+      case "update":
+        return <Info className="text-primary me-2" />;
       default:
         return <Info className="text-primary me-2" />;
     }
   };
 
+  // ✅ Filter notifications based on selected type
+  const filteredNotifications =
+    filter === "ALL"
+      ? notifications
+      : notifications.filter((n) => n.notification_type.toUpperCase() === filter);
+
   return (
     <div className="card shadow p-4">
-      {/* Notifications Section */}
+      {/* Header */}
       <h4 className="mb-3 d-flex align-items-center border-bottom pb-2">
         <Bell className="me-2 text-primary" /> Notifications
       </h4>
 
-      {notifications.length === 0 ? (
-        <p className="text-muted text-center">No new notifications.</p>
+      {/* Filter buttons */}
+      <div className="mb-3 d-flex gap-2">
+        <button
+          className={`btn btn-sm ${filter === "ALL" ? "btn-primary" : "btn-outline-primary"}`}
+          onClick={() => setFilter("ALL")}
+        >
+          All
+        </button>
+        <button
+          className={`btn btn-sm ${filter === "ANNOUNCEMENT" ? "btn-warning" : "btn-outline-warning"}`}
+          onClick={() => setFilter("ANNOUNCEMENT")}
+        >
+          Announcements
+        </button>
+        <button
+          className={`btn btn-sm ${filter === "UPDATE" ? "btn-info" : "btn-outline-info"}`}
+          onClick={() => setFilter("UPDATE")}
+        >
+          Updates
+        </button>
+      </div>
+
+      {/* Notifications List */}
+      {filteredNotifications.length === 0 ? (
+        <p className="text-muted text-center">No notifications available.</p>
       ) : (
-        <ul className="list-group mb-4">
-          {notifications.map((n) => (
+        <ul className="list-group">
+          {filteredNotifications.map((n) => (
             <li
               key={n.id}
-              className="list-group-item d-flex justify-content-between align-items-center"
+              className="list-group-item d-flex justify-content-between align-items-start"
             >
               <div className="d-flex align-items-start">
-                {getIcon(n.type)}
+                {getIcon(n.notification_type)}
                 <div>
-                  <div className="fw-bold">{n.title}</div>
+                  <div className="fw-bold">{n.notification_type}</div>
                   <div className="text-muted small">{n.message}</div>
-                  <div className="text-muted small">
-                    <Calendar size={14} className="me-1" /> {n.date} 
-                    <span className="ms-3">⚡ Priority: {n.priority}</span>
+                  <div className="text-muted small d-flex align-items-center mt-1">
+                    <Calendar size={14} className="me-1" />
+                    {new Date(n.created_at).toLocaleString()}
+                    <User size={14} className="ms-3 me-1" /> {n.sender_type.replace("_", " ")}
                   </div>
                 </div>
               </div>
@@ -66,28 +112,6 @@ export default function NotificationsPage() {
               >
                 <Trash2 size={16} />
               </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {/* Announcements Section */}
-      <h4 className="mb-3 d-flex align-items-center border-bottom pb-2">
-        <Megaphone className="me-2 text-warning" /> Announcements
-      </h4>
-
-      {announcements.length === 0 ? (
-        <p className="text-muted text-center">No announcements available.</p>
-      ) : (
-        <ul className="list-group">
-          {announcements.map((a) => (
-            <li key={a.id} className="list-group-item d-flex flex-column">
-              <div className="fw-bold">{a.title}</div>
-              <div className="text-muted small">{a.message}</div>
-              <div className="text-muted small d-flex align-items-center mt-1">
-                <Calendar size={14} className="me-1" /> {a.date}
-                <User size={14} className="ms-3 me-1" /> {a.by}
-              </div>
             </li>
           ))}
         </ul>

@@ -7,7 +7,18 @@ import Modal from "react-bootstrap/Modal";
 import Form from "react-bootstrap/Form";
 import axios from "axios";
 
-const API_URL = "http://127.0.0.1:8000/api/enquiries/"; // replace with your endpoint
+const API_URL = "http://127.0.0.1:8000/api/enquiries/"; // Backend enquiry endpoint
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("access_token");
+  if (!token) throw new Error("User not authenticated");
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+};
+
+
 
 export default function CommonEnquiries() {
   const [enquiries, setEnquiries] = useState([]);
@@ -21,22 +32,27 @@ export default function CommonEnquiries() {
   }, []);
 
   const fetchEnquiries = async () => {
-    try {
-      const response = await axios.get(API_URL);
-      setEnquiries(response.data); // expects an array
-    } catch (error) {
-      console.error("Error fetching enquiries:", error);
-    }
-  };
+  try {
+    const token = localStorage.getItem("access_token"); // or wherever you store the JWT
+    const response = await axios.get(API_URL, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    setEnquiries(response.data); // expects an array
+  } catch (error) {
+    console.error("Error fetching enquiries:", error);
+  }
+};
 
-  // Handle Reply Modal
+  // 📬 Handle reply modal open
   const handleReply = (enquiry) => {
     setSelectedEnquiry(enquiry);
     setReply("");
     setShowModal(true);
   };
 
-  // Send reply to API
+  // 📤 Send reply (optional if backend supports)
   const handleSendReply = async () => {
     if (!selectedEnquiry) return;
     try {
@@ -49,23 +65,28 @@ export default function CommonEnquiries() {
     }
   };
 
-  // Mark enquiry as resolved via API
-  const handleResolve = async (id) => {
-    try {
-      await axios.patch(`${API_URL}${id}/`, { status: "Resolved" });
-      setEnquiries((prev) =>
-        prev.map((e) => (e.id === id ? { ...e, status: "Resolved" } : e))
-      );
-    } catch (error) {
-      console.error("Error resolving enquiry:", error);
-      alert("Failed to mark as resolved.");
-    }
-  };
+  // ✅ Mark enquiry as resolved
+ const handleResolve = async (id) => {
+  try {
+    await axios.patch(
+      `${API_URL}${id}/`,
+      { status: "resolved" },
+      { headers: getAuthHeaders() } // ✅ Add this
+    );
 
+    setEnquiries((prev) =>
+      prev.map((e) => (e.id === id ? { ...e, status: "resolved" } : e))
+    );
+  } catch (err) {
+    console.error("Error updating ticket status:", err.response?.data || err.message);
+  }
+};
+
+
+  // 🎨 Badge color based on status
   const getStatusVariant = (status) => {
-    if (status === "Resolved") return "success";
-    if (status === "In Progress") return "warning";
-    return "danger";
+    if (status === "resolved") return "success";
+    return "danger"; // pending
   };
 
   return (
@@ -79,44 +100,54 @@ export default function CommonEnquiries() {
             <th>#</th>
             <th>Name</th>
             <th>Email</th>
-            <th>Question</th>
+            <th>Subject</th>
+            <th>Message</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {enquiries.map((enquiry, index) => (
-            <tr key={enquiry.id}>
-              <td>{index + 1}</td>
-              <td>{enquiry.name}</td>
-              <td>{enquiry.email}</td>
-              <td>{enquiry.question}</td>
-              <td>
-                <Badge bg={getStatusVariant(enquiry.status)}>
-                  {enquiry.status}
-                </Badge>
-              </td>
-              <td>
-                <Button
-                  variant="info"
-                  size="sm"
-                  className="me-2"
-                  onClick={() => handleReply(enquiry)}
-                >
-                  Reply
-                </Button>
-                {enquiry.status !== "Resolved" && (
-                  <Button
-                    variant="success"
-                    size="sm"
-                    onClick={() => handleResolve(enquiry.id)}
-                  >
-                    Resolve
-                  </Button>
-                )}
+          {enquiries.length === 0 ? (
+            <tr>
+              <td colSpan="7" className="text-center text-muted">
+                No enquiries found
               </td>
             </tr>
-          ))}
+          ) : (
+            enquiries.map((enquiry, index) => (
+              <tr key={enquiry.id}>
+                <td>{index + 1}</td>
+                <td>{enquiry.name}</td>
+                <td>{enquiry.email}</td>
+                <td>{enquiry.subject}</td>
+                <td>{enquiry.message}</td>
+                <td>
+                  <Badge bg={getStatusVariant(enquiry.status)}>
+                    {enquiry.status}
+                  </Badge>
+                </td>
+                <td>
+                  <Button
+                    variant="info"
+                    size="sm"
+                    className="me-2"
+                    onClick={() => handleReply(enquiry)}
+                  >
+                    Reply
+                  </Button>
+                  {enquiry.status !== "resolved" && (
+                    <Button
+                      variant="success"
+                      size="sm"
+                      onClick={() => handleResolve(enquiry.id)}
+                    >
+                      Resolve
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </Table>
 

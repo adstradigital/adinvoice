@@ -14,6 +14,10 @@ urlpatterns = [
 
     path('api/invoices/', include('invoices.urls')),
     path('api/receipts/', include('receipts.urls')),
+    path('api/notifications/', include('notifications.urls')),
+    path('api/superadmin/', include('superadmin.urls')),
+    path('api/',include('common_enquiries.urls')),
+
 ]
 
 # Serve media files during development

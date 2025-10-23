@@ -3,6 +3,8 @@ from copy import deepcopy
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+
+from users.models import User
 from .models import Tenant
 from .serializers import TenantSerializer
 from common.permissions import role_required
@@ -47,6 +49,7 @@ def create_tenant(request):
 def list_tenants(request):
     try:
         tenants = Tenant.objects.all()
+
         serializer = TenantSerializer(tenants, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Exception as e:

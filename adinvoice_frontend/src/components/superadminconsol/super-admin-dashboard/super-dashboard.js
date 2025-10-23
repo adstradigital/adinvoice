@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   FaHome,
   FaUser,
@@ -13,7 +14,7 @@ import {
   FaFileInvoice,
   FaQuestionCircle,
 } from "react-icons/fa";
-import "./super-dashboard.css";
+
 import AnalyticsPage from "../analytics-and-reports/analytics";
 import UserManagement from "../user-management/user-management";
 import MerchantManagement from "../merchant-management/merchant-management";
@@ -23,12 +24,23 @@ import BulkNotificationSender from "../bulk-notification-sender/bulk-notificatio
 import MerchantApproval from "../merchant-approvel/merchchant-approval";
 import InvoiceTemplateImageManage from "../invoice-template-image-manage/invoice-template-image-manage";
 import CommonEnquiries from "../common-enqueries/common-enqueries";
-import { Home } from "lucide-react";
 import SuperAdminHome from "../super-admin-home/super-admin-home";
 
+import "./super-dashboard.css";
+
+// A simple session check utility
+const checkSession = () => {
+  const token = localStorage.getItem("access_token");
+  if (!token) {
+    return { expired: true, message: "Session expired. Please login again." };
+  }
+  return { expired: false };
+};
 
 export default function Dashboard() {
   const [activeMenu, setActiveMenu] = useState("Home");
+  const [sessionMessage, setSessionMessage] = useState("");
+  const router = useRouter();
 
   const menuItems = [
     { name: "Home", icon: <FaHome /> },
@@ -42,6 +54,20 @@ export default function Dashboard() {
     { name: "Invoice Template Image Manage", icon: <FaFileInvoice /> },
     { name: "Common Enquiries", icon: <FaQuestionCircle /> },
   ];
+
+  // Check session on component mount
+  useEffect(() => {
+    const session = checkSession();
+    if (session.expired) {
+      setSessionMessage(session.message);
+      localStorage.removeItem("access_token");
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    router.push("/super-admin-signin");
+  };
 
   const renderContent = () => {
     switch (activeMenu) {
@@ -70,6 +96,16 @@ export default function Dashboard() {
     }
   };
 
+  // Show session expired message if token is missing
+  if (sessionMessage) {
+    return (
+      <div className="session-expired">
+        <h3>{sessionMessage}</h3>
+        <button onClick={handleLogout}>Go to Login</button>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-container">
       {/* Sidebar */}
@@ -83,15 +119,21 @@ export default function Dashboard() {
           >
             <div className="icon">{item.icon}</div>
             <span>{item.name}</span>
-            {item.name === "Notifications" && (
-              <span className="badge">3</span>
-            )}
           </div>
         ))}
       </div>
 
       {/* Content Area */}
-      <div className="content-area">{renderContent()}</div>
+      <div className="content-area">
+        {/* Logout button at top-right */}
+        <div className="logout-container">
+          <button className="logout-btn" onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
+
+        {renderContent()}
+      </div>
     </div>
   );
 }

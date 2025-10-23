@@ -20,7 +20,7 @@ import {
   getProposals,
   updateProposal,
   deleteProposal
-} from "./../../../Api/index";
+} from "../../../Api/api_clientadmin";
 
 // Helper function to handle address objects
 const renderAddress = (address) => {

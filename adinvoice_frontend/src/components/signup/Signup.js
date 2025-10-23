@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { signupUser } from "../../../Api"; // <-- API helper
+import { signupUser } from "../../../Api/api_clientadmin"; // <-- API helper
 import "./Signup.css";
 
 export default function SignUp() {

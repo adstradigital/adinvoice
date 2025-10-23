@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { loginUser } from "../../../Api/index";
+import { loginUser } from "../../../Api/api_clientadmin";
 import "./SignIn.css";
 
 export default function SignIn() {

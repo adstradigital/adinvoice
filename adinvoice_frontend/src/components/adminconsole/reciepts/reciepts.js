@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState, useRef } from "react";
 import { Pencil, Trash2, Download, Mail, Printer, Save, Search, Receipt } from "lucide-react";
-import { getInvoices, getInvoiceById, createReceipt, getReceipts, updateReceipt, deleteReceipt } from "../../../../Api/index";
+import { getInvoices, getInvoiceById, createReceipt, getReceipts, updateReceipt, deleteReceipt } from "../../../../Api/api_clientadmin";
 
 export default function ReceiptsPage() {
   const [invoices, setInvoices] = useState([]);

@@ -19,7 +19,7 @@ API.interceptors.request.use((config) => {
 
 
 // Add request interceptor to attach token
-api.interceptors.request.use(
+API.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token"); // or tenant_id if needed
     if (token) {

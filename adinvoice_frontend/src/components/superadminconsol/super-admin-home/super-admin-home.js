@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { useRouter } from "next/navigation";
 import {
   LineChart,
   Line,
@@ -17,6 +18,8 @@ import {
 import "./super-admin-home.css";
 
 export default function SuperAdminHome() {
+  const router = useRouter();
+
   const salesData = [
     { month: "Jan", sales: 4000, profit: 2400 },
     { month: "Feb", sales: 3000, profit: 1398 },
@@ -36,9 +39,18 @@ export default function SuperAdminHome() {
 
   const COLORS = ["#4f46e5", "#3b82f6", "#10b981", "#f59e0b"];
 
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    router.push("/super-admin-signin");
+  };
+
   return (
     <div className="container mt-4">
-      <h2 className="mb-4">📊 Super Admin Dashboard</h2>
+      {/* Top bar with Logout */}
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h2>📊 Super Admin Dashboard</h2>
+      </div>
+
       <div className="row">
         {/* Line Chart */}
         <div className="col-md-6 mb-4">

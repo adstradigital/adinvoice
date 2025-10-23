@@ -9,7 +9,7 @@ import {
   getInvoices,
   getInvoiceById,
   updateInvoice,
-} from "../../../../Api/index";
+} from "../../../../Api/api_clientadmin";
 
 const THEME = {
   primary: "#16a34a",

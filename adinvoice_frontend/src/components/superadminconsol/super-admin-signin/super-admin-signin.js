@@ -1,87 +1,77 @@
 "use client";
 
 import React, { useState } from "react";
-import { Form, Button, Spinner, Alert } from "react-bootstrap";
-import { loginUser } from "../../Api/index"; // Adjust path based on your folder structure
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation"; // Import router
+import { superAdminLogin } from "@../../../Api/api_superadmin";
+import "./super-admin-signin.css";
 
 export default function SuperAdminSignin() {
-  const [username, setUsername] = useState("");
+  const router = useRouter(); // Initialize router
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const router = useRouter();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-
-    if (!username || !password) {
-      setError("Please enter both username and password.");
-      return;
-    }
+    setLoading(true);
 
     try {
-      setLoading(true);
-      const response = await loginUser({ username, password });
+      const response = await superAdminLogin(email, password);
+      console.log("✅ Super Admin Logged in:", response);
 
-      // ✅ Check role if you want to restrict only super-admins
-      if (response.role && response.role !== "superadmin") {
-        setError("You are not authorized as Super Admin.");
+      if (!response.is_superuser) {
+        setError("Access denied: You are not a super admin.");
         setLoading(false);
         return;
       }
 
-      // Redirect to super-admin dashboard
-      router.push("/super-admin-dashboard"); // adjust your path
+      if (response.access) {
+        localStorage.setItem("access_token", response.access);
+      }
+     
+      
+      alert("Super Admin login successful!");
+      
+      print("jasgiugsauidgsauo",response.access)
+      // Redirect to dashboard
+      router.push("/super-admin-dashboard");
     } catch (err) {
-      console.error(err);
-      setError(err.detail || "Login failed. Please check credentials.");
+      console.error("❌ Login failed:", err);
+      setError(err.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div
-      className="d-flex justify-content-center align-items-center"
-      style={{ minHeight: "100vh", backgroundColor: "#f8f9fa" }}
-    >
-      <div
-        className="p-4 bg-white shadow rounded"
-        style={{ width: "400px", maxWidth: "90%" }}
-      >
-        <h2 className="mb-4 text-center">Super Admin Sign In</h2>
+    <div className="signin-container">
+      <div className="signin-card">
+        <h2>Super Admin Sign In</h2>
+        <form onSubmit={handleSubmit}>
+          <input
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
 
-        {error && <Alert variant="danger">{error}</Alert>}
+          <input
+            type="password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
-        <Form onSubmit={handleSubmit}>
-          <Form.Group className="mb-3" controlId="formUsername">
-            <Form.Label>Username</Form.Label>
-            <Form.Control
-              type="text"
-              placeholder="Enter username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={loading}
-            />
-          </Form.Group>
+          <button type="submit" disabled={loading}>
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
 
-          <Form.Group className="mb-3" controlId="formPassword">
-            <Form.Label>Password</Form.Label>
-            <Form.Control
-              type="password"
-              placeholder="Enter password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-            />
-          </Form.Group>
-
-          <Button variant="primary" type="submit" className="w-100" disabled={loading}>
-            {loading ? <Spinner animation="border" size="sm" /> : "Sign In"}
-          </Button>
-        </Form>
+          {error && <p className="error">{error}</p>}
+        </form>
       </div>
     </div>
   );

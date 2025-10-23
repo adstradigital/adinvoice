@@ -7,7 +7,7 @@ import {
   updateCompanyDetails,
   uploadDocument,
   deleteDocument,
-} from "../../../../Api/index";
+} from "../../../../Api/api_clientadmin";
 
 // Chart imports
 import { Pie } from "react-chartjs-2";

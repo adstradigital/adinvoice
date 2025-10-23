@@ -1,91 +1,108 @@
-"use client";
-import { useState } from "react";
-import { FaPaperPlane } from "react-icons/fa";
-import "./bulk-notification-sender.css";
+// bulk-notification-sender.js
+import { useState, useEffect } from "react";
+import { createNotificationSuperAdmin } from "../../../../Api/api_superadmin";
+import { fetchClientAdminNotifications } from "../../../../Api/api_clientadmin";
 
-export default function BulkNotificationSender() {
-  const [form, setForm] = useState({
-    title: "",
-    type: "Email",
-    message: "",
-  });
+const BulkNotificationSender = () => {
+  const [form, setForm] = useState({ message: "", type: "announcement" });
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const [status, setStatus] = useState("");
+  // Load existing notifications
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        const data = await fetchClientAdminNotifications();
+        setNotifications(data);
+      } catch (err) {
+        console.error("❌ Failed to fetch notifications:", err);
+        setError(err.detail || "Failed to load notifications");
+      }
+    };
 
+    loadNotifications();
+  }, []);
+
+  // Handle form input changes
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  // Handle form submission
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError(null);
 
-    if (!form.title || !form.message) {
-      setStatus("⚠️ Please fill in all fields.");
-      return;
+    try {
+      await createNotificationSuperAdmin({
+        message: form.message,
+        notification_type: form.type,
+      });
+      alert("✅ Notification sent successfully!");
+      setForm({ message: "", type: "announcement" });
+
+      // Refresh notifications after sending
+      const updated = await fetchClientAdminNotifications();
+      setNotifications(updated);
+    } catch (err) {
+      console.error("❌ Error sending notification:", err);
+      setError(err.detail || "You are not authorized to perform this action.");
+    } finally {
+      setLoading(false);
     }
-
-    // Simulated API call
-    setTimeout(() => {
-      setStatus(`✅ Notification sent successfully via ${form.type}`);
-      setForm({ title: "", type: "Email", message: "" });
-    }, 1000);
   };
 
   return (
-    <div className="sender-container">
-      <h2>✉️ Bulk Notification Sender</h2>
+    <div className="p-4 max-w-md mx-auto">
+      <h2 className="text-xl font-bold mb-4">Send Bulk Notification</h2>
 
-      <div className="sender-content">
-        {/* Left side - Form */}
-        <form className="sender-form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Notification Title</label>
-            <input
-              type="text"
-              name="title"
-              value={form.title}
-              onChange={handleChange}
-              placeholder="Enter notification title"
-            />
-          </div>
+      {error && <p className="text-red-500 mb-2">{error}</p>}
 
-          <div className="form-group">
-            <label>Notification Type</label>
-            <select name="type" value={form.type} onChange={handleChange}>
-              <option value="Email">Email</option>
-              <option value="SMS">SMS</option>
-              <option value="Push">Push</option>
-            </select>
-          </div>
+      <form onSubmit={handleSubmit} className="mb-6">
+        <textarea
+          name="message"
+          value={form.message}
+          onChange={handleChange}
+          placeholder="Enter message..."
+          className="w-full p-2 border rounded mb-2"
+          required
+        />
+        <select
+          name="type"
+          value={form.type}
+          onChange={handleChange}
+          className="w-full p-2 border rounded mb-2"
+        >
+          <option value="announcement">Announcement</option>
+          <option value="update">Update</option>
+          <option value="alert">Alert</option>
+        </select>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-blue-500 text-white p-2 rounded"
+        >
+          {loading ? "Sending..." : "Send Notification"}
+        </button>
+      </form>
 
-          <div className="form-group">
-            <label>Message</label>
-            <textarea
-              name="message"
-              value={form.message}
-              onChange={handleChange}
-              rows="5"
-              placeholder="Write your message here..."
-            />
-          </div>
-
-          <button type="submit" className="send-btn">
-            <FaPaperPlane /> Send Notification
-          </button>
-        </form>
-
-        {/* Right side - Preview */}
-        <div className="preview-panel">
-          <h3>🔎 Live Preview</h3>
-          <div className="preview-box">
-            <h4>{form.title || "Notification Title"}</h4>
-            <p className="preview-type">Type: {form.type}</p>
-            <p>{form.message || "Your message will appear here..."}</p>
-          </div>
-        </div>
-      </div>
-
-      {status && <div className="status-message">{status}</div>}
+      <h3 className="text-lg font-semibold mb-2">Previous Notifications</h3>
+      <ul className="list-disc pl-5">
+        {notifications.length > 0 ? (
+          notifications.map((n) => (
+            <li key={n.id}>
+              [{n.notification_type}] {n.message}
+            </li>
+          ))
+        ) : (
+          <li>No notifications yet.</li>
+        )}
+      </ul>
     </div>
   );
-}
+};
+
+export default BulkNotificationSender;

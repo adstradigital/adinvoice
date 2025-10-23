@@ -429,30 +429,6 @@ export const deleteProduct = async (id) => {
   }
 };
 
-// Function to submit a support ticket
-export const submitSupportTicket = async (formData, file) => {
-  const token = localStorage.getItem("access_token");
-  const tenantId = localStorage.getItem("tenant_id"); // ✅ must include tenant
-
-  if (!token) throw new Error("User not authenticated. Please login.");
-  if (!tenantId) throw new Error("Tenant ID not found. Please re-login.");
-
-  const payload = new FormData();
-  payload.append("tenant", tenantId); // ✅ include tenant
-  payload.append("subject", formData.subject);
-  payload.append("description", formData.description);
-  if (file) payload.append("file", file);
-
-  const response = await axios.post(`${API_URL}/support/tickets/`, payload, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "multipart/form-data",
-    },
-  });
-
-  return response.data;
-};
-
 // ===== CATEGORIES =====
 export const listCategories = async () => {
   try {
@@ -1080,3 +1056,63 @@ export const deleteReceipt = async (receiptId) => {
     throw error.response?.data || { detail: "Failed to delete receipt" };
   }
 };
+
+//  Fetch all notifications for the current client admin tenant
+
+export const fetchClientAdminNotifications = async () => {
+  try {
+    // ✅ Get JWT token from localStorage
+    const token = localStorage.getItem("access_token");
+    if (!token) throw new Error("User not authenticated");
+
+    // Axios GET request with Authorization header
+    const response = await axios.get(`${API_URL}/notifications/list/`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`, // ✅ Include token
+      },
+    });
+
+    console.log("✅ Notifications fetched:", response.data);
+    return response.data;
+  } catch (error) {
+    console.error("❌ Failed to fetch notifications:", error);
+
+    if (error.response) {
+      console.error("Status:", error.response.status);
+      console.error("Data:", error.response.data);
+    }
+
+    throw error.response?.data || { detail: "Failed to fetch notifications" };
+  }
+};
+
+// Tenant Support Ticket submission
+export const submitSupportTicket = async (formData, file = null) => {
+  try {
+    const token = localStorage.getItem("access_token");
+    if (!token) throw new Error("User not authenticated");
+
+    const data = new FormData();
+    data.append("subject", formData.subject);
+    data.append("description", formData.description);
+    if (file) data.append("file", file);
+
+    const response = await axios.post(
+      `${API_URL}/support/create/`, // Make sure this URL is correct
+      data,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          Authorization: `Bearer ${token}`, // ✅ send token
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Error submitting ticket:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to submit ticket" };
+  }
+};
+

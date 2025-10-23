@@ -55,6 +55,9 @@ INSTALLED_APPS = [
     'support',
     'proposal',
     'receipts',
+    'notifications',
+    'superadmin',
+    'common_enquiries',
 ]
 
 from datetime import timedelta

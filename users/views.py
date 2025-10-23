@@ -1,4 +1,5 @@
 import traceback
+from tenants.serializers import TenantSerializer
 from tenants.models import Tenant
 from users.serializers import UserSerializer
 from django.contrib.auth.hashers import check_password
@@ -98,80 +99,6 @@ def verify_sms_otp(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
-
-
-# Endpoint: Register Entrepreneur
-# @api_view(['POST'])
-# @permission_classes([AllowAny])
-# def register_entrepreneur(request):
-#     try:
-#         data = request.data
-
-#         # Collect entrepreneur details
-#         first_name = data.get("first_name")
-#         last_name = data.get("last_name")
-#         email = data.get("email")
-#         phone = data.get("phone")
-#         address = data.get("address")
-#         date_of_birth = data.get("date_of_birth")
-#         company_name = data.get("company_name")
-
-
-#         # Basic validation
-#         if not first_name or not last_name or not email or not phone:
-#             return Response({"error": "First name, last name, email and phone are required"},
-#                             status=status.HTTP_400_BAD_REQUEST)
-
-#         if User.objects.filter(email=email).exists():
-#             return Response({"error": "Email already exists"}, status=status.HTTP_400_BAD_REQUEST)
-
-#         if User.objects.filter(phone=phone).exists():
-#             return Response({"error": "Phone number already exists"}, status=status.HTTP_400_BAD_REQUEST)
-
-#         # Create user in 'pending' status
-#         user = User.objects.create(
-#             username=f"pending_{email}",   # temp username until approved
-#             email=email,
-#             first_name=first_name,
-#             last_name=last_name,
-#             role="admin",  # set role
-#             is_active=False,  # cannot login yet
-#             application_status="pending"
-#         )
-
-#         # Save entrepreneur-specific fields
-#         user.phone = phone
-#         user.address_line1 = address
-#         user.date_of_birth = date_of_birth
-#         user.company_name = company_name
-#         user.save()
-
-#         # Check OTP verification
-#         if not user.sms_verified:
-#             return Response({
-#                 "warning": "SMS verification pending. Please verify your phone number.",
-#                 "application_id": user.id,
-#                 "status": user.application_status
-#             }, status=status.HTTP_202_ACCEPTED)
-
-#         if not user.email_verified:
-#             return Response({
-#                 "warning": "Email verification pending. Please verify your email.",
-#                 "application_id": user.id,
-#                 "status": user.application_status
-#             }, status=status.HTTP_202_ACCEPTED)
-
-#         return Response({
-#             "success": "Application submitted successfully. Wait for admin approval.",
-#             "application_id": user.id,
-#             "status": user.application_status
-#         }, status=status.HTTP_201_CREATED)
-
-#     except Exception as e:
-#         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Endpoint: Register Entrepreneur
@@ -486,5 +413,62 @@ def pending_users(request):
         if not pending_user:
             return Response({"error":"user not found"})
         return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+@api_view(['POST'])
+def superadmin_login(request):
+    try:
+        email = request.data.get('email')
+        password = request.data.get('password')
+
+        if not email or not password:
+            return Response({
+                "success": False,
+                "error": "Email and password are required"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        user = authenticate(username=email, password=password)
+        if user is None:
+            return Response({
+                "success": False,
+                "error": "Invalid email or password"
+            }, status=status.HTTP_401_UNAUTHORIZED)
+
+        if not user.is_superuser:
+            return Response({
+                "success": False,
+                "error": "You are not authorized to access this panel"
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            "success": True,
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+            "email": user.email,
+            "username": user.username,
+            "is_superuser": user.is_superuser
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        print("❌ Super Admin login error:", str(e))
+        return Response({
+            "success": False,
+            "error": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def merchant_list(request):
+    try:
+        tenants = Tenant.objects.select_related("owner").all()  # fetch tenants + owner in one query
+
+        serializer = TenantSerializer(tenants, many=True)
+        print(serializer.data)  # ✅ here you'll get tenant data + owner/user data
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

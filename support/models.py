@@ -1,20 +1,20 @@
 from django.db import models
-from django.conf import settings
-from tenants.models import Tenant  # your multi-tenant model
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class SupportTicket(models.Model):
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
-    )
     subject = models.CharField(max_length=255)
     description = models.TextField()
-    file = models.FileField(upload_to='support_files/', null=True, blank=True)
-    status = models.CharField(max_length=20, default='Open')
+    file = models.FileField(upload_to='support_files/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # merchant = models.ForeignKey(User, on_delete=models.CASCADE)  # Tenant user who submitted
+    
+    merchant = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+
+
+    status = models.CharField(max_length=50, default='Pending')  # Pending / Resolved
+
     def __str__(self):
-        return self.subject
+        return f"{self.subject} - {self.merchant.username}"

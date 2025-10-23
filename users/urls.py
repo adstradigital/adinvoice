@@ -14,6 +14,9 @@ urlpatterns = [
     path("own-company/upload-document/", views.upload_document, name="upload_document"),
     path("own-company/delete-document/<int:doc_id>/", views.delete_document, name="delete_document"),
     path('pending-users/', views.pending_users, name='pending-users'),
+    path('login/', views.superadmin_login, name='superadmin-login'),
+    path("merchants/", views.merchant_list, name="merchant-list"),
+
     
 ]
     

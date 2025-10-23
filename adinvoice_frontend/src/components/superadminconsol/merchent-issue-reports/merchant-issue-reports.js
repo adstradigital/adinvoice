@@ -1,116 +1,98 @@
 "use client";
-import { useState, useEffect } from "react";
-import { FaSearch, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
-import axios from "axios";
-import "./merchant-issue-reports.css";
-
-const API_URL = "http://127.0.0.1:8000/api/merchant-issues/"; // replace with your actual endpoint
+import React, { useEffect, useState } from "react";
+import { fetchTicketsSuperAdmin, updateTicketStatus } from "@../../../Api/api_superadmin";
+import "./merchant-issue-reports.css"; // Import your CSS file
 
 export default function MerchantIssueReports() {
-  const [issues, setIssues] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  // 📌 Fetch issues from API on mount
-  useEffect(() => {
-    fetchIssues();
-  }, []);
-
-  const fetchIssues = async () => {
+  const loadTickets = async () => {
+    setLoading(true);
+    setError("");
     try {
-      // const response = await axios.get(API_URL);
-      setIssues(response.data); // expects an array from API
-    } catch (error) {
-      console.error("Error fetching issues:", error);
+      const data = await fetchTicketsSuperAdmin();
+      setTickets(data.tickets || data || []);
+    } catch (err) {
+      console.error("Failed to fetch tickets:", err);
+      setError(err.detail || "Failed to load tickets");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 📌 Mark issue as resolved
-  const handleResolve = async (id) => {
+  const handleStatusChange = async (ticketId, status) => {
     try {
-      await axios.put(`${API_URL}${id}/`, { status: "Resolved" });
-      // Refresh issues after update
-      fetchIssues();
-    } catch (error) {
-      console.error("Error resolving issue:", error);
+      await updateTicketStatus(ticketId, status);
+      // Update the ticket locally without reload
+      setTickets((prev) =>
+        prev.map((t) => (t.id === ticketId ? { ...t, status } : t))
+      );
+    } catch (err) {
+      alert(err.message || "Failed to update status");
     }
   };
-
-  // Filter issues based on search term
-  const filteredIssues = issues.filter(
-    (item) =>
-      item.merchant.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.issue.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <div className="issue-container">
-      <h2>⚠️ Merchant Issue Reports</h2>
+      <h3>Merchant Issue Reports</h3>
 
-      {/* Top bar */}
-      <div className="issue-actions">
-        <div className="search-bar">
-          <FaSearch />
-          <input
-            type="text"
-            placeholder="Search issues..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </div>
+      {loading && <p>Loading tickets...</p>}
+      {error && <p className="text-red-500">{error}</p>}
+      {!loading && !error && tickets.length === 0 && <p>No tickets found.</p>}
 
-      {/* Table */}
-      <table className="issue-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Merchant</th>
-            <th>Issue</th>
-            <th>Date</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredIssues.length > 0 ? (
-            filteredIssues.map((item, index) => (
-              <tr key={item.id}>
-                <td>{index + 1}</td>
-                <td>{item.merchant}</td>
-                <td>{item.issue}</td>
-                <td>{item.date}</td>
+      {!loading && tickets.length > 0 && (
+        <table className="issue-table">
+          <thead>
+            <tr>
+              <th>Tenant</th>
+              <th>Subject</th>
+              <th>Description</th>
+              <th>Created At</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tickets.map((ticket) => (
+              <tr key={ticket.id}>
+                <td>{ticket.tenant || "N/A"}</td>
+                <td>{ticket.subject}</td>
+                <td>{ticket.description}</td>
+                <td>{new Date(ticket.created_at).toLocaleString()}</td>
                 <td>
-                  {item.status === "Resolved" ? (
-                    <span className="status resolved">
-                      <FaCheckCircle /> {item.status}
-                    </span>
-                  ) : (
-                    <span className="status pending">
-                      <FaTimesCircle /> {item.status}
-                    </span>
-                  )}
+                  <span className={`status ${ticket.status}`}>
+                    {ticket.status}
+                  </span>
                 </td>
-                <td>
-                  {item.status !== "Resolved" && (
+                <td className="issue-actions">
+                  {ticket.status !== "resolved" && (
                     <button
                       className="resolve-btn"
-                      onClick={() => handleResolve(item.id)}
+                      onClick={() => handleStatusChange(ticket.id, "resolved")}
                     >
-                      Resolve
+                      Mark Resolved
+                    </button>
+                  )}
+                  {ticket.status !== "pending" && (
+                    <button
+                      className="resolve-btn"
+                      onClick={() => handleStatusChange(ticket.id, "pending")}
+                    >
+                      Mark Pending
                     </button>
                   )}
                 </td>
               </tr>
-            ))
-          ) : (
-            <tr>
-              <td colSpan={6} style={{ textAlign: "center", padding: "10px" }}>
-                No issues found
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <button className="resolve-btn" onClick={loadTickets} style={{ marginTop: "15px" }}>
+        Refresh Tickets
+      </button>
     </div>
   );
 }

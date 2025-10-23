@@ -8,7 +8,7 @@ import {
   deleteProduct,
   listCategories,
   createCategory,
-} from "../../../../Api/index";
+} from "../../../../Api/api_clientadmin";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
 
 export default function ProductsServices() {

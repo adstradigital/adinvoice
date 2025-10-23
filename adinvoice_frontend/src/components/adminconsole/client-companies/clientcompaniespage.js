@@ -6,7 +6,7 @@ import {
   addClientCompany,
   updateClientCompany,
   toggleClientStatus,
-} from "../../../../Api/index";
+} from "../../../../Api/api_clientadmin";
 
 export default function ClientCompanies() {
   const [companies, setCompanies] = useState([]);

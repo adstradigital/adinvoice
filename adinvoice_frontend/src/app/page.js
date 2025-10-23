@@ -17,7 +17,7 @@ export default function Page() {
       <Navbar />
 
       {/* Coming Soon Overlay */}
-      <div
+      {/* <div
         style={{
           zIndex: 9999,
           position: "fixed",
@@ -55,7 +55,7 @@ export default function Page() {
         >
           Powered by <span style={{ fontWeight: "700" }}>ADSTRA DIGITAL</span>
         </h1>
-      </div>
+      </div> */}
 
       {/* Other sections (hidden behind overlay until you remove it) */}
       <HeroPage />
