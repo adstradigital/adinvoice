@@ -129,8 +129,8 @@ export default function ClientAdminDashboard() {
         return <ClientCompanies />;
       case "Products & Services":
         return <ProductsServices />;
-      case "Report & Analytics":
-        return <ReportsAnalytics />;
+      // case "Report & Analytics":
+      //   return <ReportsAnalytics />;
       default:
         return <h3 className="fw-bold">{activePage}</h3>;
     }
@@ -149,7 +149,7 @@ export default function ClientAdminDashboard() {
             "Company details",
             "Receipts",
             "Proposal",
-            "Report & Analytics",
+            // "Report & Analytics",
             "Client Companies",
             "Products & Services",
             "Notifications",

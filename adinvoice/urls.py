@@ -17,6 +17,7 @@ urlpatterns = [
     path('api/notifications/', include('notifications.urls')),
     path('api/superadmin/', include('superadmin.urls')),
     path('api/',include('common_enquiries.urls')),
+    path('api/analytic/',include('report_and_analytics.urls')),
 
 ]
 

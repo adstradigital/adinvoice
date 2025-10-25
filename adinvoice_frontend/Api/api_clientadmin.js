@@ -1116,3 +1116,24 @@ export const submitSupportTicket = async (formData, file = null) => {
   }
 };
 
+export const fetchClientAdminAnalytics = async () => {
+  try {
+    const tenantId = localStorage.getItem("tenant_id");
+    if (!tenantId) throw new Error("Tenant ID not found");
+
+    const response = await axios.get(
+      `${API_URL}/analytic/client-admin/analytics/${tenantId}/`,
+      {
+        headers: {
+          ...getAuthHeaders()
+        },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching analytics:", error.response?.data || error.message);
+    throw error.response?.data || { detail: "Failed to fetch analytics" };
+  }
+};
+

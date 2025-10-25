@@ -19,3 +19,11 @@ class NotificationSerializer(serializers.ModelSerializer):
 
     def get_tenant_name(self, obj):
         return obj.tenant.name if obj.tenant else 'All'
+    
+
+
+class NotiNotificationSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Notification
+        fields = "__all__"

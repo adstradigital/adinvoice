@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'notifications',
     'superadmin',
     'common_enquiries',
+    'report_and_analytics',
 ]
 
 from datetime import timedelta

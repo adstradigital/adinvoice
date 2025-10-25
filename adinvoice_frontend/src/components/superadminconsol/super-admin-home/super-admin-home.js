@@ -1,143 +1,150 @@
 "use client";
-import React from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { Bar } from "react-chartjs-2";
 import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
   Tooltip,
   Legend,
-  ResponsiveContainer,
-} from "recharts";
-import "./super-admin-home.css";
+} from "chart.js";
+import { fetchSuperAdminAnalytics } from "../../../../Api/api_superadmin";
 
-export default function SuperAdminHome() {
-  const router = useRouter();
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
-  const salesData = [
-    { month: "Jan", sales: 4000, profit: 2400 },
-    { month: "Feb", sales: 3000, profit: 1398 },
-    { month: "Mar", sales: 2000, profit: 9800 },
-    { month: "Apr", sales: 2780, profit: 3908 },
-    { month: "May", sales: 1890, profit: 4800 },
-    { month: "Jun", sales: 2390, profit: 3800 },
-    { month: "Jul", sales: 3490, profit: 4300 },
-  ];
+const SuperAdminDashboard = () => {
+  const [merchantCount, setMerchantCount] = useState(0);
+  const [merchantApprovalCount, setMerchantApprovalCount] = useState(0);
+  const [commonEnquiryCount, setCommonEnquiryCount] = useState(0);
+  const [merchantIssueReportCount, setMerchantIssueReportCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
 
-  const pieData = [
-    { name: "Product A", value: 400 },
-    { name: "Product B", value: 300 },
-    { name: "Product C", value: 300 },
-    { name: "Product D", value: 200 },
-  ];
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const COLORS = ["#4f46e5", "#3b82f6", "#10b981", "#f59e0b"];
-
-  const handleLogout = () => {
-    localStorage.removeItem("access_token");
-    router.push("/super-admin-signin");
+  const loadAnalytics = async () => {
+    try {
+      const data = await fetchSuperAdminAnalytics();
+      if (data.success) {
+        setMerchantCount(data.merchant_count || 0);
+        setMerchantApprovalCount(data.merchant_approval_count || 0);
+        setCommonEnquiryCount(data.common_enquiry_count || 0);
+        setMerchantIssueReportCount(data.merchant_issue_report_count || 0);
+        setNotifications(data.notifications || []);
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Failed to fetch analytics");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  useEffect(() => {
+    loadAnalytics();
+  }, []);
+
+  const chartData = {
+    labels: ["Merchants", "Approvals", "Enquiries", "Issue Reports"],
+    datasets: [
+      {
+        label: "Count",
+        data: [
+          merchantCount,
+          merchantApprovalCount,
+          commonEnquiryCount,
+          merchantIssueReportCount,
+        ],
+        backgroundColor: ["#0d6efd", "#198754", "#ffc107", "#dc3545"],
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      title: { display: true, text: "Super Admin Dashboard Analytics", font: { size: 18 } },
+    },
+    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+  };
+
+  if (loading) return <p className="text-center mt-5">Loading dashboard...</p>;
+  if (error) return <p className="text-center mt-5 text-danger">{error}</p>;
+
   return (
-    <div className="container mt-4">
-      {/* Top bar with Logout */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>📊 Super Admin Dashboard</h2>
+    <div className="container py-5">
+      <h1 className="text-3xl font-bold mb-4">Super Admin Dashboard</h1>
+
+      {/* Metric Cards */}
+      <div className="row mb-5 g-4">
+        <div className="col-md-3">
+          <div className="card shadow-sm rounded border-0 text-center">
+            <div className="card-body">
+              <h5 className="card-title text-primary">Merchants</h5>
+              <p className="card-text fs-2">{merchantCount}</p>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card shadow-sm rounded border-0 text-center">
+            <div className="card-body">
+              <h5 className="card-title text-success">Approvals</h5>
+              <p className="card-text fs-2">{merchantApprovalCount}</p>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card shadow-sm rounded border-0 text-center">
+            <div className="card-body">
+              <h5 className="card-title text-warning">Enquiries</h5>
+              <p className="card-text fs-2">{commonEnquiryCount}</p>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-3">
+          <div className="card shadow-sm rounded border-0 text-center">
+            <div className="card-body">
+              <h5 className="card-title text-danger">Issue Reports</h5>
+              <p className="card-text fs-2">{merchantIssueReportCount}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="row">
-        {/* Line Chart */}
-        <div className="col-md-6 mb-4">
-          <div className="card shadow-sm p-3 chart-card">
-            <h5>Monthly Sales & Profit</h5>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={salesData}>
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="sales"
-                  stroke="#3b82f6"
-                  strokeWidth={3}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="profit"
-                  stroke="#10b981"
-                  strokeWidth={3}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+      {/* Chart and Notifications */}
+      <div className="row g-4">
+        <div className="col-md-6">
+          <div className="card p-3 shadow-sm rounded" style={{ height: "450px" }}>
+            <Bar data={chartData} options={chartOptions} />
           </div>
         </div>
 
-        {/* Bar Chart */}
-        <div className="col-md-6 mb-4">
-          <div className="card shadow-sm p-3 chart-card">
-            <h5>Sales by Month</h5>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={salesData}>
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="sales" fill="#6366f1" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Pie Chart */}
-        <div className="col-md-6 mb-4">
-          <div className="card shadow-sm p-3 chart-card">
-            <h5>Product Share</h5>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  label
-                  dataKey="value"
+        <div className="col-md-6">
+          <div className="card p-3 shadow-sm rounded" style={{ height: "450px", overflowY: "auto" }}>
+            <h5 className="card-title mb-3">Latest Notifications</h5>
+            <div className="d-flex flex-column gap-3">
+              {notifications.length === 0 && <p className="text-muted">No notifications found.</p>}
+              {notifications.slice(0, 5).map((item) => (
+                <div
+                  key={item.id}
+                  className="p-3 bg-light border-start border-4 border-primary rounded shadow-sm"
                 >
-                  {pieData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Profit Trend */}
-        <div className="col-md-6 mb-4">
-          <div className="card shadow-sm p-3 chart-card">
-            <h5>Profit Trend</h5>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={salesData}>
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="profit" fill="#10b981" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+                  <small className="text-muted">{item.sender_type || "Admin"}</small>
+                  <p className="mb-0 mt-1">{item.message}</p>
+                  <small className="text-muted">{new Date(item.created_at).toLocaleString()}</small>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default SuperAdminDashboard;

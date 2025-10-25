@@ -105,3 +105,21 @@ export const superAdminLogin = async (email, password) => {
   }
 };
 
+
+// Fetch Super Admin Analytics
+export const fetchSuperAdminAnalytics = async () => {
+  try {
+    const response = await axios.get(`${BASE_URL}analytic/superadmin/analytics/`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Error fetching super admin analytics:",
+      error.response?.data || error.message
+    );
+    throw error.response?.data || { detail: "Failed to fetch analytics" };
+  }
+};

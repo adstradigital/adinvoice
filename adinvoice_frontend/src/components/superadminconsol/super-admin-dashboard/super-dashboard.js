@@ -44,7 +44,7 @@ export default function Dashboard() {
 
   const menuItems = [
     { name: "Home", icon: <FaHome /> },
-    { name: "Analytics", icon: <FaChartBar /> },
+    // { name: "Analytics", icon: <FaChartBar /> },
     { name: "User Management", icon: <FaUsers /> },
     { name: "Merchant Management", icon: <FaStore /> },
     { name: "Merchant Issue Reports", icon: <FaExclamationTriangle /> },
@@ -73,8 +73,8 @@ export default function Dashboard() {
     switch (activeMenu) {
       case "Home":
         return <SuperAdminHome />;
-      case "Analytics":
-        return <AnalyticsPage />;
+      // case "Analytics":
+      //   return <AnalyticsPage />;
       case "User Management":
         return <UserManagement />;
       case "Merchant Management":
