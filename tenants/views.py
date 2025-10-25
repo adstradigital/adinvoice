@@ -6,7 +6,7 @@ from rest_framework import status
 
 from users.models import User
 from .models import Tenant
-from .serializers import TenantSerializer
+from .serializers import TenantSerializer, TenantsSerializer
 from common.permissions import role_required
 from django.conf import settings
 from django.core.management import call_command
@@ -19,7 +19,7 @@ from django.db import connections, connection
 # @role_required(["admin"])
 
 def create_tenant(request):
-    serializer = TenantSerializer(data=request.data)
+    serializer = TenantsSerializer(data=request.data)
     if serializer.is_valid():
         tenant = serializer.save()
 

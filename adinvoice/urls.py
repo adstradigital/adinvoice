@@ -18,6 +18,9 @@ urlpatterns = [
     path('api/superadmin/', include('superadmin.urls')),
     path('api/',include('common_enquiries.urls')),
     path('api/analytic/',include('report_and_analytics.urls')),
+    path('api/template-management/', include('template_management.urls')),
+    path('api/trashbin/', include('trashbin.urls'))
+
 
 ]
 
