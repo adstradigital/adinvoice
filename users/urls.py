@@ -16,7 +16,17 @@ urlpatterns = [
     path('pending-users/', views.pending_users, name='pending-users'),
     path('login/', views.superadmin_login, name='superadmin-login'),
     path("merchants/", views.merchant_list, name="merchant-list"),
-
     
+    path("user/<int:tenant_id>/", views.user_list, name="user-list"),
+    path("user/create/<int:tenant_id>/", views.user_create, name="user-create"),
+    path("user/<int:user_id>/", views.user_update, name="user-update"),
+    path("user/<int:user_id>/delete/", views.user_delete, name="user-delete"),
+    path("roles/<int:tenant_id>/", views.role_list_create, name="role-list-create"),
+    path("roles/<int:role_id>/update/", views.role_update, name="role-update"),
+    path("roles/<int:role_id>/delete/", views.role_delete, name="role-delete"),
+    path("permissions/", views.permission_list_create, name="permission-list-create"),
+    path("permissions/<int:perm_id>/", views.permission_update_delete, name="permission-update-delete"),
+    path("assign-role/", views.assign_role_to_user, name="assign-role"),
+    path("assign-permission/", views.assign_permission_to_role, name="assign-permission"),
+    path("user/<int:user_id>/roles-permissions/", views.user_roles_permissions, name="user-roles-permissions"),
 ]
-    

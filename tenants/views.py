@@ -6,8 +6,8 @@ from rest_framework import status
 
 from users.models import User
 from .models import Tenant
-from .serializers import TenantSerializer
-from common.permissions import role_required
+from .serializers import TenantSerializer, TenantsSerializer
+from utils.decorators import permission_required
 from django.conf import settings
 from django.core.management import call_command
 from django.db import connections, connection
@@ -16,10 +16,9 @@ from django.db import connections, connection
 
 # Endpoint: Create Tenant (Admin only)
 @api_view(['POST'])
-# @role_required(["admin"])
-
+# @permission_required("create_tenant")
 def create_tenant(request):
-    serializer = TenantSerializer(data=request.data)
+    serializer = TenantsSerializer(data=request.data)
     if serializer.is_valid():
         tenant = serializer.save()
 
@@ -45,7 +44,7 @@ def create_tenant(request):
 
 # Endpoint: List Tenants (Admin & Staff can view)
 @api_view(['GET'])
-@role_required(["admin", "staff"])
+@permission_required("list_tenant")
 def list_tenants(request):
     try:
         tenants = Tenant.objects.all()
@@ -61,7 +60,7 @@ def list_tenants(request):
 
 # Endpoint: Retrieve Tenant (Admin & Staff)
 @api_view(['GET'])
-@role_required(["admin", "staff"])
+@permission_required("get_tenant")
 def get_tenant(request, tenant_id):
     try:
         tenant = Tenant.objects.get(id=tenant_id)
@@ -76,7 +75,7 @@ def get_tenant(request, tenant_id):
 
 
 @api_view(['PUT'])
-@role_required(["admin"])
+@permission_required("update_tenant")
 def update_tenant(request, tenant_id):
     try:
         tenant = Tenant.objects.get(id=tenant_id)
@@ -121,7 +120,7 @@ def update_tenant(request, tenant_id):
 
 # Endpoint: Delete Tenant (Admin only)
 @api_view(['DELETE'])
-# @role_required(["admin"])
+# @permission_required("delete_tenant")
 def delete_tenant(request, tenant_id):
     try:
         tenant = Tenant.objects.get(id=tenant_id)

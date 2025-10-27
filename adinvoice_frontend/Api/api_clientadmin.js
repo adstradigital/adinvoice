@@ -228,7 +228,6 @@ export const getAllProposals = async () => {
   }
 };
 
-
 // Updated API function for direct client filtering
 export const getProposalsByClient = async (clientId) => {
   const tenantId = localStorage.getItem("tenant_id");
@@ -254,7 +253,6 @@ export const getProposalsByClient = async (clientId) => {
     return [];
   }
 };
-
 
 // ✅ Upload Document
 export async function uploadDocument(file, docType) {
@@ -706,9 +704,9 @@ export const getProposalItems = async (proposalId) => {
   try {
     const response = await API.get(`/proposal/${proposalId}/items/`, {
       headers: getAuthHeaders(),
-      params: { tenant: tenantId } // Send tenant as query parameter
+      params: { tenant: tenantId }, // Send tenant as query parameter
     });
-    
+
     console.log("📦 Proposal items API response:", response.data);
     return response.data;
   } catch (error) {
@@ -719,7 +717,6 @@ export const getProposalItems = async (proposalId) => {
     throw error.response?.data || { detail: "Failed to fetch proposal items" };
   }
 };
-
 
 export const saveInvoice = async (invoiceData) => {
   const tenantId = localStorage.getItem("tenant_id");
@@ -736,11 +733,13 @@ export const saveInvoice = async (invoiceData) => {
     console.log("✅ Invoice saved successfully:", res.data);
     return res.data;
   } catch (error) {
-    console.error("Error saving invoice:", error.response?.data || error.message);
+    console.error(
+      "Error saving invoice:",
+      error.response?.data || error.message
+    );
     throw error.response?.data || { detail: "Failed to save invoice" };
   }
 };
-
 
 // Get All Invoices - FIXED VERSION
 export const getInvoices = async () => {
@@ -749,15 +748,15 @@ export const getInvoices = async () => {
 
   try {
     console.log("📋 Fetching invoices for tenant:", tenantId);
-    
+
     // ✅ CHANGE FROM POST TO GET
     const res = await API.get("/invoices/list/", {
       params: { tenant: tenantId }, // Send tenant as query parameter
-      headers: getAuthHeaders()
+      headers: getAuthHeaders(),
     });
-    
+
     console.log("📋 Invoices API response:", res.data);
-    
+
     // Handle different response formats
     if (res.data && res.data.invoices) {
       return res.data;
@@ -771,19 +770,22 @@ export const getInvoices = async () => {
       console.warn("⚠️ Unexpected API response format:", res.data);
       return { invoices: [] };
     }
-    
   } catch (error) {
     console.error("❌ Error fetching invoices:", error);
-    
+
     // More detailed error logging
     if (error.response) {
-      console.error("📋 Response error:", error.response.status, error.response.data);
+      console.error(
+        "📋 Response error:",
+        error.response.status,
+        error.response.data
+      );
     } else if (error.request) {
       console.error("📋 Request error:", error.request);
     } else {
       console.error("📋 Error message:", error.message);
     }
-    
+
     throw error.response?.data || { detail: "Failed to fetch invoices" };
   }
 };
@@ -791,16 +793,19 @@ export const getInvoices = async () => {
 // Get Single Invoice
 export const getInvoiceDetail = async (invoiceId) => {
   const tenantId = localStorage.getItem("tenant_id");
-  
+
   try {
     const res = await API.get(`/invoices/${invoiceId}/`, {
       headers: getAuthHeaders(),
-      params: { tenant: tenantId }
+      params: { tenant: tenantId },
     });
-    
+
     return res.data;
   } catch (error) {
-    console.error("Error fetching invoice:", error.response?.data || error.message);
+    console.error(
+      "Error fetching invoice:",
+      error.response?.data || error.message
+    );
     throw error.response?.data || { detail: "Failed to fetch invoice" };
   }
 };
@@ -808,18 +813,25 @@ export const getInvoiceDetail = async (invoiceId) => {
 // Update Invoice Status
 export const updateInvoiceStatus = async (invoiceId, status) => {
   const tenantId = localStorage.getItem("tenant_id");
-  
+
   try {
-    const res = await API.patch(`/invoices/${invoiceId}/status/`, {
-      status: status,
-      tenant: tenantId
-    }, {
-      headers: getAuthHeaders()
-    });
-    
+    const res = await API.patch(
+      `/invoices/${invoiceId}/status/`,
+      {
+        status: status,
+        tenant: tenantId,
+      },
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+
     return res.data;
   } catch (error) {
-    console.error("Error updating invoice status:", error.response?.data || error.message);
+    console.error(
+      "Error updating invoice status:",
+      error.response?.data || error.message
+    );
     throw error.response?.data || { detail: "Failed to update invoice status" };
   }
 };
@@ -828,12 +840,12 @@ export const updateInvoiceStatus = async (invoiceId, status) => {
 const fetchDraftInvoices = async () => {
   try {
     console.log("🔄 Fetching draft invoices...");
-    
+
     const invoicesData = await getInvoices();
     console.log("📋 Raw invoices data:", invoicesData);
-    
+
     let invoices = [];
-    
+
     // Handle different response formats
     if (invoicesData && invoicesData.invoices) {
       invoices = invoicesData.invoices;
@@ -842,36 +854,38 @@ const fetchDraftInvoices = async () => {
     } else if (invoicesData && invoicesData.data) {
       invoices = invoicesData.data.invoices || invoicesData.data || [];
     }
-    
+
     console.log("📋 Processed invoices:", invoices);
-    
+
     // Filter for draft invoices
-    const drafts = invoices.filter(invoice => {
+    const drafts = invoices.filter((invoice) => {
       // Handle case where status might be undefined or null
-      const status = invoice.status || 'draft';
-      return status.toLowerCase() === 'draft';
+      const status = invoice.status || "draft";
+      return status.toLowerCase() === "draft";
     });
-    
+
     console.log("📋 Draft invoices found:", drafts.length);
     setDraftInvoices(drafts);
-    
   } catch (err) {
     console.error("❌ Error fetching draft invoices:", err);
-    
+
     // More detailed error information
     if (err.response) {
-      console.error("📋 Server responded with:", err.response.status, err.response.data);
+      console.error(
+        "📋 Server responded with:",
+        err.response.status,
+        err.response.data
+      );
     } else if (err.request) {
       console.error("📋 No response received:", err.request);
     } else {
       console.error("📋 Error details:", err.message);
     }
-    
+
     // Set empty array to avoid breaking the UI
     setDraftInvoices([]);
   }
 };
-
 
 // In Api/index.js - Add these functions
 
@@ -884,28 +898,27 @@ export const getInvoiceById = async (invoiceId) => {
     }
 
     console.log(`🔍 Fetching invoice ${invoiceId} for tenant:`, tenantId);
-    
+
     const res = await API.get(`/invoices/${invoiceId}/`, {
       headers: getAuthHeaders(),
-      params: { tenant: tenantId }
+      params: { tenant: tenantId },
     });
-    
+
     console.log("✅ Invoice data received:", res.data);
     return res.data;
   } catch (error) {
     console.error("❌ Error fetching invoice:", error);
-    
+
     if (error.response?.status === 401) {
       // Clear invalid tokens
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
       throw new Error("Authentication failed. Please log in again.");
     }
-    
+
     throw error.response?.data || { detail: "Failed to fetch invoice" };
   }
 };
-
 
 // In your Api/index.js - Update the updateInvoice function
 export const updateInvoice = async (invoiceId, invoiceData) => {
@@ -917,32 +930,32 @@ export const updateInvoice = async (invoiceId, invoiceData) => {
 
     const dataToSend = {
       ...invoiceData,
-      tenant: tenantId
+      tenant: tenantId,
     };
 
     console.log("📤 Updating invoice:", invoiceId);
-    
+
     // ✅ MOST LIKELY CORRECT PATTERN:
     const res = await API.put(`/invoices/${invoiceId}/update/`, dataToSend, {
-      headers: getAuthHeaders()
+      headers: getAuthHeaders(),
     });
-    
+
     console.log("✅ Invoice updated successfully:", res.data);
     return res.data;
-    
   } catch (error) {
     console.error("❌ Error updating invoice:", error);
-    
+
     if (error.response?.status === 404) {
       // Get the base URL for debugging
-      const baseURL = API.defaults.baseURL || 'http://localhost:8000';
-      throw new Error(`Update endpoint not found. Tried: ${baseURL}/api/invoices/${invoiceId}/update/\n\nPlease check:\n1. Main urls.py includes\n2. Invoice app URL patterns\n3. Backend server is running`);
+      const baseURL = API.defaults.baseURL || "http://localhost:8000";
+      throw new Error(
+        `Update endpoint not found. Tried: ${baseURL}/api/invoices/${invoiceId}/update/\n\nPlease check:\n1. Main urls.py includes\n2. Invoice app URL patterns\n3. Backend server is running`
+      );
     }
-    
+
     throw error.response?.data || { detail: "Failed to update invoice" };
   }
 };
-
 
 // In your Api/index.js - Add receipt functions
 
@@ -957,18 +970,17 @@ export const createReceipt = async (receiptData) => {
 
     const dataToSend = {
       ...receiptData,
-      tenant: tenantId  // ✅ ADD TENANT ID LIKE PROPOSALS
+      tenant: tenantId, // ✅ ADD TENANT ID LIKE PROPOSALS
     };
 
     console.log("📤 Creating receipt with tenant:", dataToSend);
-    
+
     const res = await API.post("/receipts/create/", dataToSend, {
-      headers: getAuthHeaders()
+      headers: getAuthHeaders(),
     });
-    
+
     console.log("✅ Receipt created successfully:", res.data);
     return res.data;
-    
   } catch (error) {
     console.error("❌ Error creating receipt:", error);
     throw error.response?.data || { detail: "Failed to create receipt" };
@@ -980,12 +992,16 @@ export const getReceipts = async () => {
   if (!tenantId) throw new Error("Tenant ID not found. Please login again.");
 
   try {
-    const res = await API.get("/receipts/list/", {
-      tenant: tenantId  // ✅ ADD TENANT ID LIKE PROPOSALS
-    }, {
-      headers: getAuthHeaders()
-    });
-    
+    const res = await API.get(
+      "/receipts/list/",
+      {
+        tenant: tenantId, // ✅ ADD TENANT ID LIKE PROPOSALS
+      },
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+
     return res.data;
   } catch (error) {
     console.error("❌ Error fetching receipts:", error);
@@ -1003,9 +1019,9 @@ export const getReceiptById = async (receiptId) => {
 
     const res = await API.get(`/receipts/${receiptId}/`, {
       headers: getAuthHeaders(),
-      params: { tenant: tenantId }
+      params: { tenant: tenantId },
     });
-    
+
     return res.data;
   } catch (error) {
     console.error("❌ Error fetching receipt:", error);
@@ -1023,13 +1039,13 @@ export const updateReceipt = async (receiptId, receiptData) => {
 
     const dataToSend = {
       ...receiptData,
-      tenant: tenantId
+      tenant: tenantId,
     };
 
     const res = await API.put(`/receipts/${receiptId}/update/`, dataToSend, {
-      headers: getAuthHeaders()
+      headers: getAuthHeaders(),
     });
-    
+
     return res.data;
   } catch (error) {
     console.error("❌ Error updating receipt:", error);
@@ -1047,9 +1063,9 @@ export const deleteReceipt = async (receiptId) => {
 
     const res = await API.delete(`/receipts/${receiptId}/delete/`, {
       headers: getAuthHeaders(),
-      data: { tenant: tenantId }
+      data: { tenant: tenantId },
     });
-    
+
     return res.data;
   } catch (error) {
     console.error("❌ Error deleting receipt:", error);
@@ -1111,7 +1127,10 @@ export const submitSupportTicket = async (formData, file = null) => {
 
     return response.data;
   } catch (error) {
-    console.error("Error submitting ticket:", error.response?.data || error.message);
+    console.error(
+      "Error submitting ticket:",
+      error.response?.data || error.message
+    );
     throw error.response?.data || { detail: "Failed to submit ticket" };
   }
 };
@@ -1125,15 +1144,185 @@ export const fetchClientAdminAnalytics = async () => {
       `${API_URL}/analytic/client-admin/analytics/${tenantId}/`,
       {
         headers: {
-          ...getAuthHeaders()
+          ...getAuthHeaders(),
         },
       }
     );
 
     return response.data;
   } catch (error) {
-    console.error("Error fetching analytics:", error.response?.data || error.message);
+    console.error(
+      "Error fetching analytics:",
+      error.response?.data || error.message
+    );
     throw error.response?.data || { detail: "Failed to fetch analytics" };
   }
 };
 
+
+
+
+
+
+// api_clientadmin.js
+const BASE_URL = "http://127.0.0.1:8000/api/users/";
+
+// Users
+export const fetchUsers = async (tenantId) => {
+  const res = await fetch(`${BASE_URL}user/${tenantId}/`, { headers: getAuthHeaders() });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || `HTTP error! Status: ${res.status}`);
+  }
+  return res.json();
+};
+
+export const createUser = async (tenantId, data) => {
+  const res = await fetch(`${BASE_URL}user/create/${tenantId}/`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || `HTTP error! Status: ${res.status}`);
+  }
+  return res.json();
+};
+
+export const updateUser = async (userId, data) => {
+  const tenantId = localStorage.getItem("tenant_id");
+  const res = await fetch(`${BASE_URL}user/${userId}/`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ ...data, tenant: tenantId }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || `HTTP error! Status: ${res.status}`);
+  }
+  return res.json();
+};
+
+export const deleteUser = async (userId) => {
+  const tenantId = localStorage.getItem("tenant_id");
+  const res = await fetch(`${BASE_URL}user/${userId}/delete/`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ tenant: tenantId }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || `HTTP error! Status: ${res.status}`);
+  }
+  return res.json();
+};
+
+// Roles
+export const fetchRoles = async (tenantId) => {
+  const res = await fetch(`${BASE_URL}roles/${tenantId}/`, { headers: getAuthHeaders() });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || `HTTP error! Status: ${res.status}`);
+  }
+  return res.json();
+};
+
+export const createRole = async (tenantId, data) => {
+  const res = await fetch(`${BASE_URL}roles/${tenantId}/`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ ...data, tenant: tenantId }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || `HTTP error! Status: ${res.status}`);
+  }
+  return res.json();
+};
+
+export const updateRole = async (roleId, data) => {
+  const tenantId = localStorage.getItem("tenant_id");
+  if (!tenantId) throw new Error("Tenant ID not found");
+
+  const res = await fetch(`${BASE_URL}roles/${roleId}/update/`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ ...data, tenant: tenantId }),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || `HTTP error! Status: ${res.status}`);
+  }
+  return res.json();
+};
+
+// Delete Role
+export const deleteRole = async (roleId) => {
+  const tenantId = localStorage.getItem("tenant_id");
+  if (!tenantId) throw new Error("Tenant ID not found");
+
+  const res = await fetch(`${BASE_URL}roles/${roleId}/delete/?tenant=${tenantId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || `HTTP error! Status: ${res.status}`);
+  }
+  return res.json();
+};
+
+
+// Permissions
+export const fetchPermissions = async (tenantId) => {
+  const res = await fetch(`${BASE_URL}permissions/?tenant=${tenantId}`, { headers: getAuthHeaders() });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || `HTTP error! Status: ${res.status}`);
+  }
+  return res.json();
+};
+
+export const createPermission = async (tenantId, data) => {
+  const res = await fetch(`${BASE_URL}permissions/`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ ...data, tenant: tenantId }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || errorData.code?.[0] || `HTTP error! Status: ${res.status}`);
+  }
+  return res.json();
+};
+
+export const updatePermission = async (permId, data) => {
+  const tenantId = localStorage.getItem("tenant_id");
+  const res = await fetch(`${BASE_URL}permissions/${permId}/`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ ...data, tenant: tenantId }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || errorData.code?.[0] || `HTTP error! Status: ${res.status}`);
+  }
+  return res.json();
+};
+
+export const deletePermission = async (permId) => {
+  const tenantId = localStorage.getItem("tenant_id");
+  const res = await fetch(`${BASE_URL}permissions/${permId}/`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ tenant: tenantId }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || `HTTP error! Status: ${res.status}`);
+  }
+  return res.json();
+};

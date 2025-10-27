@@ -1,178 +1,552 @@
+// UserManagement.jsx
 "use client";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import {
+  fetchUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  fetchRoles,
+  createRole,
+  updateRole,
+  deleteRole,
+  fetchPermissions,
+  createPermission,
+  updatePermission,
+  deletePermission,
+} from "../../../../Api/api_clientadmin";
 import "bootstrap/dist/css/bootstrap.min.css";
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
-  const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ name: "", email: "", role: "User" });
+  const [roles, setRoles] = useState([]);
+  const [permissions, setPermissions] = useState([]);
+  const [activeTab, setActiveTab] = useState("users");
+  const [error, setError] = useState(null);
 
-  // ✅ Use dummy data instead of Axios
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [showPermModal, setShowPermModal] = useState(false);
+
+  const [editUser, setEditUser] = useState(null);
+  const [editRole, setEditRole] = useState(null);
+  const [editPerm, setEditPerm] = useState(null);
+
+  const [userForm, setUserForm] = useState({
+    username: "",
+    email: "",
+    role_id: "",
+  });
+  const [roleForm, setRoleForm] = useState({ name: "", permission_ids: [] });
+  const [permForm, setPermForm] = useState({ description: "", code: "" });
+
   useEffect(() => {
-    setTimeout(() => {
-      setUsers([
-        { id: 1, name: "John Doe", email: "john@example.com", role: "Admin" },
-        { id: 2, name: "Jane Smith", email: "jane@example.com", role: "Editor" },
-        { id: 3, name: "Bob Johnson", email: "bob@example.com", role: "User" },
-      ]);
-    }, 500); // simulate API delay
+    fetchAll();
   }, []);
 
-  // ✅ Handle input changes
-  const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const fetchAll = async () => {
+    try {
+      const tenantId = localStorage.getItem("tenant_id");
+      if (!tenantId) throw new Error("Tenant ID not found in localStorage");
+      const [usersData, rolesData, permsData] = await Promise.all([
+        fetchUsers(tenantId),
+        fetchRoles(tenantId),
+        fetchPermissions(tenantId),
+      ]);
+      setUsers(usersData.results || []);
+      setRoles(rolesData || []);
+      setPermissions(permsData || []);
+      setError(null);
+    } catch (err) {
+      setError(err.message || "Failed to fetch data");
+    }
   };
 
-  // ✅ Add user locally
-  const handleAddUser = (e) => {
+  // ---------------- User Handlers ----------------
+  const handleUserChange = (e) =>
+    setUserForm({ ...userForm, [e.target.name]: e.target.value });
+
+  const handleUserSave = async (e) => {
     e.preventDefault();
-    const newUser = { ...formData, id: users.length + 1 };
-    setUsers([...users, newUser]);
-    setFormData({ name: "", email: "", role: "User" });
-    setShowModal(false);
+    try {
+      const tenantId = localStorage.getItem("tenant_id");
+      if (!tenantId) throw new Error("Tenant ID not found");
+      if (editUser) {
+        await updateUser(editUser.id, userForm);
+      } else {
+        await createUser(tenantId, userForm);
+      }
+      setShowUserModal(false);
+      setEditUser(null);
+      setUserForm({ username: "", email: "", role_id: "" });
+      setError(null);
+      fetchAll();
+    } catch (err) {
+      setError(err.message || "Failed to save user");
+    }
   };
 
-  // ✅ Delete user locally
-  const handleDeleteUser = (id) => {
-    setUsers(users.filter((u) => u.id !== id));
+  const handleUserEdit = (user) => {
+    setEditUser(user);
+    setUserForm({
+      username: user.username || "",
+      email: user.email || "",
+      role_id: user.roles?.length ? user.roles[0] : "",
+    });
+    setShowUserModal(true);
+  };
+
+  const handleUserDelete = async (id) => {
+    if (confirm("Delete user?")) {
+      try {
+        await deleteUser(id);
+        setError(null);
+        fetchAll();
+      } catch (err) {
+        setError(err.message || "Failed to delete user");
+      }
+    }
+  };
+
+  // ---------------- Role Handlers ----------------
+  const handleRoleChange = (e) => {
+    const { name, value, type, options } = e.target;
+    if (type === "select-multiple") {
+      const selectedValues = Array.from(options)
+        .filter((o) => o.selected)
+        .map((o) => o.value);
+      setRoleForm({ ...roleForm, [name]: selectedValues });
+    } else {
+      setRoleForm({ ...roleForm, [name]: value });
+    }
+  };
+
+  const handleRoleSave = async (e) => {
+    e.preventDefault();
+    try {
+      const tenantId = localStorage.getItem("tenant_id");
+      if (!tenantId) throw new Error("Tenant ID not found");
+
+      // Convert permission_ids to numbers
+      const payload = {
+        ...roleForm,
+        permission_ids: roleForm.permission_ids.map(Number),
+      };
+
+      if (editRole) {
+        await updateRole(editRole.id, payload);
+      } else {
+        await createRole(tenantId, payload);
+      }
+
+      setShowRoleModal(false);
+      setEditRole(null);
+      setRoleForm({ name: "", permission_ids: [] });
+      fetchAll();
+    } catch (err) {
+      setError(err.message || "Failed to save role");
+    }
+  };
+
+  const handleRoleEdit = (role) => {
+    setEditRole(role);
+    setRoleForm({
+      name: role.name || "",
+      permission_ids: role.permissions?.map((p) => p.id.toString()) || [],
+    });
+    setShowRoleModal(true);
+  };
+
+  const handleRoleDelete = async (id) => {
+    if (confirm("Delete role?")) {
+      try {
+        await deleteRole(id);
+        setError(null);
+        fetchAll();
+      } catch (err) {
+        setError(err.message || "Failed to delete role");
+      }
+    }
+  };
+
+  // ---------------- Permission Handlers ----------------
+  const handlePermChange = (e) =>
+    setPermForm({ ...permForm, [e.target.name]: e.target.value });
+
+  const handlePermSave = async (e) => {
+    e.preventDefault();
+    try {
+      const tenantId = localStorage.getItem("tenant_id");
+      if (!tenantId) throw new Error("Tenant ID not found");
+      if (editPerm) {
+        await updatePermission(editPerm.id, permForm);
+      } else {
+        await createPermission(tenantId, permForm);
+      }
+      setShowPermModal(false);
+      setEditPerm(null);
+      setPermForm({ description: "", code: "" });
+      setError(null);
+      fetchAll();
+    } catch (err) {
+      setError(err.message || "Failed to save permission");
+    }
+  };
+
+  const handlePermEdit = (perm) => {
+    setEditPerm(perm);
+    setPermForm({ description: perm.description || "", code: perm.code || "" });
+    setShowPermModal(true);
+  };
+
+  const handlePermDelete = async (id) => {
+    if (confirm("Delete permission?")) {
+      try {
+        await deletePermission(id);
+        setError(null);
+        fetchAll();
+      } catch (err) {
+        setError(err.message || "Failed to delete permission");
+      }
+    }
   };
 
   return (
-    <div className="container py-5">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="fw-bold">👤 User Management</h2>
-        <button className="btn btn-primary shadow-sm" onClick={() => setShowModal(true)}>
-          + Create User
-        </button>
-      </div>
-
-      {/* User Table */}
-      <div className="card shadow-sm border-0">
-        <div className="card-body">
-          <h5 className="card-title mb-3">User List</h5>
-          <div className="table-responsive">
-            <table className="table align-middle table-hover">
-              <thead className="table-light">
-                <tr>
-                  <th>#</th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th className="text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.length > 0 ? (
-                  users.map((user, index) => (
-                    <tr key={user.id}>
-                      <td>{index + 1}</td>
-                      <td className="fw-semibold">{user.name}</td>
-                      <td>{user.email}</td>
-                      <td>
-                        <span
-                          className={`badge ${
-                            user.role === "Admin"
-                              ? "bg-primary"
-                              : user.role === "Editor"
-                              ? "bg-success"
-                              : "bg-secondary"
-                          }`}
-                        >
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="text-center">
-                        <button className="btn btn-sm btn-outline-secondary me-2">✏️ Edit</button>
-                        <button
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => handleDeleteUser(user.id)}
-                        >
-                          🗑 Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5" className="text-center text-muted">
-                      No users found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+    <div className="container mt-5">
+      <h2>User Management</h2>
+      {error && (
+        <div className="alert alert-danger" role="alert">
+          {error}
         </div>
-      </div>
+      )}
+      <ul className="nav nav-tabs">
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === "users" ? "active" : ""}`}
+            onClick={() => setActiveTab("users")}
+          >
+            Users
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${activeTab === "roles" ? "active" : ""}`}
+            onClick={() => setActiveTab("roles")}
+          >
+            Roles
+          </button>
+        </li>
+        <li className="nav-item">
+          <button
+            className={`nav-link ${
+              activeTab === "permissions" ? "active" : ""
+            }`}
+            onClick={() => setActiveTab("permissions")}
+          >
+            Permissions
+          </button>
+        </li>
+      </ul>
 
-      {/* Modal */}
-      {showModal && (
-        <div className="modal fade show d-block" tabIndex="-1">
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content shadow-lg border-0">
-              <form onSubmit={handleAddUser}>
+      {/* Users Tab */}
+      {activeTab === "users" && (
+        <div className="mt-3">
+          <button
+            className="btn btn-primary mb-3"
+            onClick={() => {
+              setEditUser(null);
+              setUserForm({ username: "", email: "", role_id: "" });
+              setShowUserModal(true);
+            }}
+          >
+            Add User
+          </button>
+          <table className="table table-bordered">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Roles</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id}>
+                  <td>{u.username}</td>
+                  <td>{u.email}</td>
+                  <td>{u.roles.join(", ")}</td>
+                  <td>
+                    <button
+                      className="btn btn-sm btn-warning me-2"
+                      onClick={() => handleUserEdit(u)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="btn btn-sm btn-danger"
+                      onClick={() => handleUserDelete(u.id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Roles Tab */}
+      {activeTab === "roles" && (
+        <div className="mt-3">
+          <button
+            className="btn btn-primary mb-3"
+            onClick={() => {
+              setEditRole(null);
+              setRoleForm({ name: "", permission_ids: [] });
+              setShowRoleModal(true);
+            }}
+          >
+            Add Role
+          </button>
+          <table className="table table-bordered">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Permissions</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {roles.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.name}</td>
+                  <td>
+                    {r.permissions
+                      ?.map((p) => p.description || p.code)
+                      .join(", ")}
+                  </td>
+                  <td>
+                    <button
+                      className="btn btn-sm btn-warning me-2"
+                      onClick={() => handleRoleEdit(r)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="btn btn-sm btn-danger"
+                      onClick={() => handleRoleDelete(r.id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Permissions Tab */}
+      {activeTab === "permissions" && (
+        <div className="mt-3">
+          <button
+            className="btn btn-primary mb-3"
+            onClick={() => {
+              setEditPerm(null);
+              setPermForm({ description: "", code: "" });
+              setShowPermModal(true);
+            }}
+          >
+            Add Permission
+          </button>
+          <table className="table table-bordered">
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th>Code</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {permissions.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.description || p.code}</td>
+                  <td>{p.code}</td>
+                  <td>
+                    <button
+                      className="btn btn-sm btn-warning me-2"
+                      onClick={() => handlePermEdit(p)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="btn btn-sm btn-danger"
+                      onClick={() => handlePermDelete(p.id)}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Modals */}
+      {showUserModal && (
+        <>
+          <div className="modal-backdrop fade show"></div>
+          <div className="modal show d-block" tabIndex="-1">
+            <div className="modal-dialog modal-dialog-centered">
+              <form className="modal-content" onSubmit={handleUserSave}>
                 <div className="modal-header">
-                  <h5 className="modal-title fw-bold">➕ Create New User</h5>
+                  <h5 className="modal-title">
+                    {editUser ? "Edit User" : "Add User"}
+                  </h5>
                   <button
                     type="button"
                     className="btn-close"
-                    onClick={() => setShowModal(false)}
+                    onClick={() => setShowUserModal(false)}
                   ></button>
                 </div>
                 <div className="modal-body">
-                  <div className="mb-3">
-                    <label className="form-label">Name</label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      className="form-control"
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Email</label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      className="form-control"
-                      required
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Role</label>
-                    <select
-                      name="role"
-                      value={formData.role}
-                      onChange={handleInputChange}
-                      className="form-select"
-                    >
-                      <option value="User">User</option>
-                      <option value="Editor">Editor</option>
-                      <option value="Admin">Admin</option>
-                    </select>
-                  </div>
+                  <input
+                    className="form-control mb-3"
+                    placeholder="Username"
+                    name="username"
+                    value={userForm.username}
+                    onChange={handleUserChange}
+                    required
+                  />
+                  <input
+                    className="form-control mb-3"
+                    placeholder="Email"
+                    name="email"
+                    type="email"
+                    value={userForm.email}
+                    onChange={handleUserChange}
+                    required
+                  />
+                  <select
+                    className="form-control mb-3"
+                    name="role_id"
+                    value={userForm.role_id}
+                    onChange={handleUserChange}
+                  >
+                    <option value="">Select Role</option>
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="modal-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => setShowModal(false)}
-                  >
-                    Cancel
-                  </button>
                   <button type="submit" className="btn btn-primary">
-                    Save User
+                    Save
                   </button>
                 </div>
               </form>
             </div>
           </div>
-        </div>
+        </>
+      )}
+
+      {showRoleModal && (
+        <>
+          <div className="modal-backdrop fade show"></div>
+          <div className="modal show d-block" tabIndex="-1">
+            <div className="modal-dialog modal-dialog-centered">
+              <form className="modal-content" onSubmit={handleRoleSave}>
+                <div className="modal-header">
+                  <h5 className="modal-title">
+                    {editRole ? "Edit Role" : "Add Role"}
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setShowRoleModal(false)}
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  <input
+                    className="form-control mb-3"
+                    placeholder="Role Name"
+                    name="name"
+                    value={roleForm.name}
+                    onChange={handleRoleChange}
+                    required
+                  />
+                  <select
+                    className="form-control mb-3"
+                    multiple
+                    name="permission_ids"
+                    value={roleForm.permission_ids}
+                    onChange={handleRoleChange}
+                  >
+                    {permissions.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.description || p.code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="modal-footer">
+                  <button type="submit" className="btn btn-primary">
+                    Save
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </>
+      )}
+
+      {showPermModal && (
+        <>
+          <div className="modal-backdrop fade show"></div>
+          <div className="modal show d-block" tabIndex="-1">
+            <div className="modal-dialog modal-dialog-centered">
+              <form className="modal-content" onSubmit={handlePermSave}>
+                <div className="modal-header">
+                  <h5 className="modal-title">
+                    {editPerm ? "Edit Permission" : "Add Permission"}
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setShowPermModal(false)}
+                  ></button>
+                </div>
+                <div className="modal-body">
+                  <input
+                    className="form-control mb-3"
+                    placeholder="Description"
+                    name="description"
+                    value={permForm.description}
+                    onChange={handlePermChange}
+                  />
+                  <input
+                    className="form-control mb-3"
+                    placeholder="Code"
+                    name="code"
+                    value={permForm.code}
+                    onChange={handlePermChange}
+                    required
+                  />
+                </div>
+                <div className="modal-footer">
+                  <button type="submit" className="btn btn-primary">
+                    Save
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

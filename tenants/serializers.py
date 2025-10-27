@@ -15,3 +15,11 @@ class TenantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tenant
         fields = ["id", "name", "db_name", "is_active", "owner"]
+
+
+class TenantsSerializer(serializers.ModelSerializer):
+    owner = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+
+    class Meta:
+        model = Tenant
+        fields = ["id", "name", "db_name", "is_active", "owner"]
