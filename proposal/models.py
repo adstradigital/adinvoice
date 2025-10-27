@@ -52,6 +52,11 @@ class Proposal(models.Model):
     
     # Tenant relationship
     # tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='proposals')
+
+    # Soft Delete
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)

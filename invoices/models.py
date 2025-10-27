@@ -50,6 +50,10 @@ class Invoice(models.Model):
     # Payment Information
     amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     balance_due = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    # Soft Delete
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

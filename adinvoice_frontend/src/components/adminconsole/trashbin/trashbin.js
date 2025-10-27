@@ -1,73 +1,134 @@
 "use client";
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
 
-export default function TrashBin() {
-  const [trash, setTrash] = useState([
-    { id: 1, type: "Invoice", name: "INV-1012", deletedAt: "2025-09-01" },
-    { id: 2, type: "Proposal", name: "Website Redesign", deletedAt: "2025-09-05" },
-  ]);
+const TrashBin = () => {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleRestore = (id) => {
-    setTrash((prev) => prev.filter((t) => t.id !== id));
-    alert(`✅ Item ID ${id} restored successfully!`);
+  const API_BASE = "http://127.0.0.1:8000/api/trashbin";
+
+  const fetchTrashItems = async () => {
+    setLoading(true);
+    try {
+      const tenantId = localStorage.getItem("tenant_id");
+      if (!tenantId) {
+        console.error("❌ No tenant ID found in localStorage!");
+        setLoading(false);
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/all/?tenant_id=${tenantId}`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+      const data = await res.json();
+
+      const normalized = data.map((item) => ({
+        ...item,
+        name:
+          item.title ||
+          item.invoice_number ||
+          item.receipt_number ||
+          "Unnamed Item",
+        deletedAt: item.deleted_at
+          ? new Date(item.deleted_at).toLocaleString()
+          : "No timestamp",
+      }));
+
+      setItems(normalized);
+    } catch (error) {
+      console.error("🚨 Error fetching trash items:", error);
+      setItems([]);
+    }
+    setLoading(false);
   };
 
-  const handleDeletePermanent = (id) => {
-    if (window.confirm("Are you sure you want to delete permanently?")) {
-      setTrash((prev) => prev.filter((t) => t.id !== id));
+  const restoreItem = async (id, type) => {
+    try {
+      const tenantId = localStorage.getItem("tenant_id");
+      const res = await fetch(
+        `${API_BASE}/${type}/${id}/restore/?tenant_id=${tenantId}`,
+        { method: "PUT" }
+      );
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      fetchTrashItems();
+    } catch (error) {
+      console.error("Restore error:", error);
     }
   };
 
-  return (
-    <div className="card shadow border-0 p-4 my-3">
-      <h4>🗑️ Trash Bin</h4>
-      <p>Manage your deleted items here.</p>
+  const permanentDelete = async (id, type) => {
+    try {
+      const tenantId = localStorage.getItem("tenant_id");
+      const res = await fetch(
+        `${API_BASE}/${type}/${id}/permanent-delete/?tenant_id=${tenantId}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      fetchTrashItems();
+    } catch (error) {
+      console.error("Permanent delete error:", error);
+    }
+  };
 
-      <div className="table-responsive">
-        <table className="table table-bordered mt-3">
-          <thead className="table-light">
-            <tr>
-              <th>ID</th>
-              <th>Type</th>
-              <th>Name</th>
-              <th>Deleted At</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {trash.length > 0 ? (
-              trash.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.id}</td>
+  useEffect(() => {
+    fetchTrashItems();
+  }, []);
+
+  return (
+    <div className="container py-4">
+      <h1 className="mb-4 text-primary">🗑️ Trash Bin</h1>
+
+      {loading ? (
+        <div className="text-center">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="alert alert-info">No deleted items found.</div>
+      ) : (
+        <div className="table-responsive">
+          <table className="table table-bordered table-hover align-middle">
+            <thead className="table-light">
+              <tr>
+                <th>Type</th>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Deleted At</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item) => (
+                <tr key={`${item.type}-${item.id}`}>
                   <td>{item.type}</td>
+                  <td>{item.id}</td>
                   <td>{item.name}</td>
                   <td>{item.deletedAt}</td>
                   <td>
-                    <button
-                      className="btn btn-sm btn-outline-success me-2"
-                      onClick={() => handleRestore(item.id)}
-                    >
-                      Restore
-                    </button>
-                    <button
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => handleDeletePermanent(item.id)}
-                    >
-                      Delete Permanently
-                    </button>
+                    <div className="d-flex gap-2">
+                      <button
+                        className="btn btn-success btn-sm"
+                        onClick={() => restoreItem(item.id, item.type)}
+                      >
+                        Restore
+                      </button>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        onClick={() => permanentDelete(item.id, item.type)}
+                      >
+                        Delete Permanently
+                      </button>
+                    </div>
                   </td>
                 </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan="5" className="text-center text-muted">
-                  No items in Trash
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
-}
+};
+
+export default TrashBin;

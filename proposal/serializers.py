@@ -58,5 +58,5 @@ class ProposalListSerializer(serializers.ModelSerializer):
         model = Proposal
         fields = [
             'id', 'proposal_number', 'title', 'client_name', 'client_email',
-            'date', 'due_date', 'grand_total', 'status', 'items_count', 'created_at'
+            'date', 'due_date', 'grand_total', 'status', 'items_count', 'created_at', 'is_deleted'
         ]

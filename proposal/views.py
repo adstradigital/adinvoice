@@ -93,7 +93,7 @@ def get_my_proposals(request):
         print(db_alias)
 
         # 🔹 Fetch proposals from tenant DB
-        proposals = Proposal.objects.using(db_alias).all().order_by('-created_at')
+        proposals = Proposal.objects.using(db_alias).filter(is_deleted=False).all()
 
         print(proposals)
 
@@ -225,7 +225,9 @@ def get_proposal_items(request, pk):
             return Response({"error": "Tenant not found"}, status=status.HTTP_404_NOT_FOUND)
 
         db_alias = get_tenant_db(tenant)
-
+        
+        
+        
         # Get items from the correct tenant database
         items = ProposalItem.objects.using(db_alias).filter(proposal_id=pk)
         serializer = ProposalItemSerializer(items, many=True)
@@ -314,7 +316,11 @@ def delete_proposal(request, pk):
             )
 
         # 5️⃣ Delete proposal in tenant DB
-        proposal.delete(using=db_alias)
+        # proposal.delete(using=db_alias)
+
+        proposal.is_deleted = True
+        proposal.save(using=db_alias)
+    
 
         return Response({"success": "Proposal deleted successfully"}, status=status.HTTP_200_OK)
 

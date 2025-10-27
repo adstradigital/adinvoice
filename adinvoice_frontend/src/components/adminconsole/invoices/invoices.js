@@ -58,31 +58,33 @@ export default function InvoiceBuilder() {
     new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   );
 
-  // ✅ DEBUG FUNCTION FOR SAVE BUTTON
-  const debugSaveButton = () => {
-    console.group("🔍 DEBUG SAVE BUTTON STATUS");
-    console.log("editingInvoice:", editingInvoice);
-    console.log("loading:", loading);
-    console.log("selectedProposal:", selectedProposal);
-    console.log("selectedClient:", selectedClient);
-    console.log("invoiceItems.length:", invoiceItems.length);
-    console.log("previewMode:", previewMode);
+  // ✅ EMERGENCY INVOICE FUNCTION
+  const createEmergencyInvoice = () => {
+    // Create a sample invoice with default values
+    const emergencyItems = [
+      {
+        id: `emergency-${Date.now()}-1`,
+        description: "Emergency Service",
+        quantity: 1,
+        price: 1000,
+        gst: 18,
+        unit: "pc",
+        item_type: "service",
+      }
+    ];
+
+    setInvoiceItems(emergencyItems);
+    setSelectedClient("");
+    setSelectedProposal("");
+    setInvoiceStatus('draft');
+    setPreviewMode(true);
+    setEditingInvoice(null);
     
-    const conditions = {
-      hasSelectedClient: !!selectedClient,
-      hasSelectedProposal: !!selectedProposal,
-      hasInvoiceItems: invoiceItems.length > 0,
-      isNotLoading: !loading,
-      isInPreviewMode: previewMode
-    };
+    // Generate a temporary invoice number
+    setInvoiceNumber(`EMG-${Date.now().toString().slice(-6)}`);
     
-    console.log("Button Conditions:", conditions);
-    
-    const isDisabled = loading || invoiceItems.length === 0 || (!editingInvoice && !selectedProposal);
-    console.log("Button Disabled:", isDisabled);
-    console.groupEnd();
-    
-    return conditions;
+    setError("✅ Emergency invoice created! You can now customize the items and save.");
+    console.log("🚨 Emergency invoice created with sample items");
   };
 
   // Fetch clients from API
@@ -412,23 +414,9 @@ export default function InvoiceBuilder() {
 
   // ✅ FIXED SAVE/UPDATE INVOICE FUNCTION
   const handleSaveInvoice = async () => {
-  // Debug first to see what's happening
-  debugSaveButton();
-  
-  // ✅ FIXED VALIDATION: For editing, only require items and client
+  // ✅ FIXED VALIDATION: For emergency invoices, only require items
   if (invoiceItems.length === 0) {
     setError("Please add at least one item to the invoice");
-    return;
-  }
-
-  if (!selectedClient) {
-    setError("Please select a client");
-    return;
-  }
-
-  // ✅ Only require proposal for NEW invoices, not for editing
-  if (!editingInvoice && !selectedProposal) {
-    setError("Please select a proposal for new invoices");
     return;
   }
 
@@ -440,9 +428,9 @@ export default function InvoiceBuilder() {
     
     // Generate invoice data WITH STATUS
     const invoiceData = {
-      // ✅ Use the proposal from the invoice if editing, otherwise from selection
-      proposal: editingInvoice ? selectedProposal : selectedProposal,
-      client: selectedClient,
+      // ✅ For emergency invoices, proposal can be empty
+      proposal: selectedProposal || null,
+      client: selectedClient || null, // Can be null for emergency invoices
       issue_date: invoiceDate,
       due_date: dueDate,
       subtotal: subtotal,
@@ -452,8 +440,8 @@ export default function InvoiceBuilder() {
       status: invoiceStatus,
       notes: "Thank you for your business! Payment due within 15 days.",
       terms: "Late payments may attract 2% interest per month. All disputes subject to Pune jurisdiction.",
-      // Client information for record keeping
-      client_name: client?.name || "Client",
+      // Client information for record keeping (can be empty for emergency invoices)
+      client_name: client?.name || "Direct Client",
       client_email: client?.email || "",
       client_phone: client?.phone || "",
       client_address: client?.address || "",
@@ -1147,26 +1135,25 @@ export default function InvoiceBuilder() {
       <div className="row">
         {/* ✅ MAIN CONTENT - LEFT SIDE */}
         <div className="col-lg-8">
-          {/* Debug Section */}
+          {/* Emergency Invoice Button */}
           <motion.div {...motionCard} className="inv-card mb-3">
             <div className="p-3">
               <div className="d-flex justify-content-between align-items-center">
-                <h6 className="fw-semibold mb-0" style={{ color: "#6b7280" }}>
-                  Debug Save Button
-                </h6>
+                <div>
+                  <h6 className="fw-semibold mb-1" style={{ color: "#6b7280" }}>
+                    🚨 Need to create an invoice quickly?
+                  </h6>
+                  <p className="small text-muted mb-0">
+                    Create an emergency invoice without client or proposal selection
+                  </p>
+                </div>
                 <button
-                  className="btn btn-outline-warning btn-sm"
-                  onClick={debugSaveButton}
+                  className="btn btn-danger"
+                  onClick={createEmergencyInvoice}
+                  disabled={loading}
                 >
-                  🔍 Check Save Status
+                  🚀 Emergency Invoice
                 </button>
-              </div>
-              <div className="mt-2 small text-muted">
-                <div>Client: {selectedClient ? "✓ Selected" : "✗ Missing"}</div>
-                <div>Proposal: {selectedProposal ? "✓ Selected" : "✗ Missing"}</div>
-                <div>Items: {invoiceItems.length > 0 ? `✓ ${invoiceItems.length} items` : "✗ None"}</div>
-                <div>Loading: {loading ? "✓ Yes" : "✗ No"}</div>
-                <div>Editing: {editingInvoice ? `✓ ${invoiceNumber}` : "✗ No"}</div>
               </div>
             </div>
           </motion.div>
@@ -1266,8 +1253,8 @@ export default function InvoiceBuilder() {
             </div>
           </motion.div>
 
-          {/* ✅ INVOICE DATES (SHOW WHEN EDITING) */}
-          {editingInvoice && (
+          {/* ✅ INVOICE DATES (SHOW WHEN EDITING OR EMERGENCY INVOICE) */}
+          {(editingInvoice || invoiceItems.length > 0) && (
             <motion.div {...motionCard} className="inv-card mb-3">
               <div className="p-3">
                 <h6 className="fw-semibold mb-2" style={{ color: "#6b7280" }}>
@@ -1297,30 +1284,35 @@ export default function InvoiceBuilder() {
             </motion.div>
           )}
 
-          {/* Client */}
-          <motion.div {...motionCard} className="inv-card mb-3">
-            <div className="p-3">
-              <h6 className="fw-semibold mb-2" style={{ color: "#6b7280" }}>
-                Step 1: Select Client
-              </h6>
-              <select
-                className="form-select"
-                value={selectedClient}
-                onChange={(e) => setSelectedClient(e.target.value)}
-                disabled={loading}
-              >
-                <option value="">-- Choose Client --</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </motion.div>
+          {/* Client - Only show if not emergency invoice */}
+          {!editingInvoice && (
+            <motion.div {...motionCard} className="inv-card mb-3">
+              <div className="p-3">
+                <h6 className="fw-semibold mb-2" style={{ color: "#6b7280" }}>
+                  Step 1: Select Client (Optional)
+                </h6>
+                <select
+                  className="form-select"
+                  value={selectedClient}
+                  onChange={(e) => setSelectedClient(e.target.value)}
+                  disabled={loading}
+                >
+                  <option value="">-- Choose Client (Optional) --</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="form-text">
+                  You can create an invoice without selecting a client using the Emergency Invoice button above.
+                </div>
+              </div>
+            </motion.div>
+          )}
 
-          {/* Proposal */}
-          {selectedClient && proposals.length > 0 && (
+          {/* Proposal - Only show if client selected and not emergency invoice */}
+          {selectedClient && proposals.length > 0 && !editingInvoice && (
             <motion.div {...motionCard} className="inv-card mb-3">
               <div className="p-3">
                 <h6 className="fw-semibold mb-2" style={{ color: "#6b7280" }}>
@@ -1335,13 +1327,16 @@ export default function InvoiceBuilder() {
                   }}
                   disabled={loading}
                 >
-                  <option value="">-- Choose Proposal --</option>
+                  <option value="">-- Choose Proposal (Optional) --</option>
                   {proposals.map((p) => (
                     <option key={p.id} value={p.id}>
                       {p.title} ({p.status}) - {formatINR(p.total_amount)}
                     </option>
                   ))}
                 </select>
+                <div className="form-text">
+                  Optional: Link to an existing proposal, or create invoice directly.
+                </div>
               </div>
             </motion.div>
           )}
@@ -1351,14 +1346,14 @@ export default function InvoiceBuilder() {
               <div className="p-3">
                 <div className="alert alert-info mb-0">
                   <i className="bi bi-info-circle me-2"></i>
-                  No proposals found for this client. Please create a proposal first.
+                  No proposals found for this client. You can still create an invoice directly.
                 </div>
               </div>
             </motion.div>
           )}
 
-          {/* ✅ FIXED: Items editor - SHOW WHEN EDITING OR WHEN PROPOSAL SELECTED */}
-          {(selectedProposal || editingInvoice) && !previewMode && (
+          {/* ✅ FIXED: Items editor - SHOW WHEN EDITING OR WHEN ITEMS EXIST */}
+          {(selectedProposal || editingInvoice || invoiceItems.length > 0) && !previewMode && (
             <motion.div {...motionCard} className="inv-card">
               <div className="p-3 p-md-4">
                 <div className="d-flex justify-content-between align-items-center mb-3">
@@ -1520,7 +1515,7 @@ export default function InvoiceBuilder() {
                     <div className="sheet">
                       <div className="left-rail">
                         <div className="vertical-tag">
-                          {editingInvoice ? invoiceNumber : `Invoice IN-001`}
+                          {editingInvoice ? invoiceNumber : (invoiceNumber || `Invoice IN-001`)}
                         </div>
                       </div>
                       <div className="content">
@@ -1548,11 +1543,13 @@ export default function InvoiceBuilder() {
                           <div className="meta-box">
                             <div className="meta-title">Bill To</div>
                             <div className="meta-line">
-                              {clients.find((c) => c.id == selectedClient)?.name ||
-                                "Client Name"}
+                              {selectedClient ? 
+                                (clients.find((c) => c.id == selectedClient)?.name || "Client Name") 
+                                : "Direct Client"}
                               <br />
-                              {clients.find((c) => c.id == selectedClient)?.address ||
-                                "Client Address"}
+                              {selectedClient ? 
+                                (clients.find((c) => c.id == selectedClient)?.address || "Client Address") 
+                                : "Address not specified"}
                             </div>
                           </div>
                           <div className="meta-box">
@@ -1567,7 +1564,7 @@ export default function InvoiceBuilder() {
                             <div>{new Date(invoiceDate).toLocaleDateString()}</div>
                             <div className="label">Invoice No</div>
                             <div>
-                              {editingInvoice ? invoiceNumber : `INV-${String(Math.floor(Math.random() * 100000)).padStart(5, "0")}`}
+                              {editingInvoice ? invoiceNumber : (invoiceNumber || `INV-${String(Math.floor(Math.random() * 100000)).padStart(5, "0")}`)}
                             </div>
                             <div className="label">Due Date</div>
                             <div>
@@ -1792,7 +1789,9 @@ export default function InvoiceBuilder() {
                                 >
                                   Client:
                                 </span>
-                                {clients.find((c) => c.id == selectedClient)?.name}
+                                {selectedClient ? 
+                                  (clients.find((c) => c.id == selectedClient)?.name || "Client Name") 
+                                  : "Direct Client"}
                               </div>
                               <div className="small">
                                 <span
@@ -1801,10 +1800,9 @@ export default function InvoiceBuilder() {
                                 >
                                   Proposal:
                                 </span>
-                                {
-                                  proposals.find((p) => p.id == selectedProposal)
-                                    ?.title
-                                }
+                                {selectedProposal ? 
+                                  (proposals.find((p) => p.id == selectedProposal)?.title || "No proposal") 
+                                  : "Direct Invoice"}
                               </div>
                               <div className="small">
                                 <span
@@ -1813,7 +1811,7 @@ export default function InvoiceBuilder() {
                                 >
                                   Invoice No:
                                 </span>
-                                {editingInvoice ? invoiceNumber : `INV-${String(Math.floor(Math.random() * 100000)).padStart(5, "0")}`}
+                                {editingInvoice ? invoiceNumber : (invoiceNumber || `INV-${String(Math.floor(Math.random() * 100000)).padStart(5, "0")}`)}
                               </div>
                               <div className="small">
                                 <span
@@ -1898,34 +1896,27 @@ export default function InvoiceBuilder() {
                 {/* ✅ FIXED ACTION BUTTONS IN PREVIEW MODE */}
                 <div className="text-end mt-3 no-print">
                   <div>
-                    {/* ✅ FIXED: Relaxed disabled condition for editing */}
+                    {/* ✅ FIXED: Relaxed disabled condition for emergency invoices */}
                     <button 
                      className="btn btn-success me-2"
                      onClick={handleSaveInvoice}
-                       disabled={
-                       loading || 
-                        invoiceItems.length === 0 || 
-                          !selectedClient ||  // Client is always required
-                           (!editingInvoice && !selectedProposal) // Proposal only required for NEW invoices
-                                    }
-                           title={
-                            loading ? "Loading..." :
-                             invoiceItems.length === 0 ? "Add at least one item" :
-                             !selectedClient ? "Select a client" :
-                              !selectedProposal && !editingInvoice ? "Select a proposal" :
-                                     "Ready to save"
-                                       }
-                                     >
-                                    {loading ? (
-                                  <>
-                                   <span className="spinner-border spinner-border-sm me-2" role="status">
-                                   <span className="visually-hidden">Saving...</span>
-                                   </span>
-                                   {editingInvoice ? 'Updating...' : 'Saving...'}
-                                     </>
-                                      ) : (
-                                     editingInvoice ? '💾 Update Invoice' : '💾 Save Invoice'
-                                                    )}
+                     disabled={loading || invoiceItems.length === 0}
+                     title={
+                      loading ? "Loading..." :
+                       invoiceItems.length === 0 ? "Add at least one item" :
+                       "Ready to save"
+                     }
+                    >
+                      {loading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status">
+                            <span className="visually-hidden">Saving...</span>
+                          </span>
+                          {editingInvoice ? 'Updating...' : 'Saving...'}
+                        </>
+                      ) : (
+                        editingInvoice ? '💾 Update Invoice' : '💾 Save Invoice'
+                      )}
                     </button>
 
                     {/* ✅ STATUS SELECTOR */}
@@ -2014,7 +2005,7 @@ export default function InvoiceBuilder() {
                         <span className="badge bg-warning text-dark">Draft</span>
                       </div>
                       <div className="small text-muted mb-1">
-                        {invoice.client_name}
+                        {invoice.client_name || "Direct Client"}
                       </div>
                       <div className="d-flex justify-content-between align-items-center">
                         <span className="fw-semibold">{formatINR(invoice.grand_total)}</span>
