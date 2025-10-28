@@ -1,3 +1,4 @@
+from copy import deepcopy
 import traceback
 
 from django.conf import settings
@@ -5,6 +6,7 @@ from tenants.db_utils import get_tenant_db
 from tenants.serializers import TenantSerializer
 from tenants.models import Tenant
 from users.serializers import UserSerializer
+from django.core.management import call_command
 from django.contrib.auth.hashers import check_password
 
 from utils.decorators import permission_required
@@ -215,6 +217,7 @@ def signin(request):
 
 
 # Endpoint: Approve/Reject Entrepreneur Application
+# ✅ Endpoint: Approve/Reject Entrepreneur Application
 @api_view(['PUT'])
 # @permission_required("approve_entrepreneur")
 @permission_classes([AllowAny])
@@ -241,17 +244,33 @@ def approve_entrepreneur(request, user_id):
             user.is_active = True
             user.save()
 
-            # ✅ Create Tenant Automatically
-            tenant_name = user.company_name if hasattr(user, "company_name") else user.first_name or user.email
-            Tenant.objects.create(
-                name=tenant_name,
-                owner=user
+            # ✅ Create Tenant Automatically (unique name and db)
+            tenant_name = (
+                f"{user.company_name}_{user.id}"
+                if hasattr(user, "company_name") and user.company_name
+                else f"{user.first_name or user.email}_{user.id}"
             )
+
+            db_name = f"tenant_{user.id}"  # unique DB name for each tenant
+
+            tenant = Tenant.objects.create(
+                name=tenant_name,
+                owner=user,
+                db_name=db_name,
+            )
+
+            # ✅ Copy default DB settings and register new DB
+            new_db_config = deepcopy(settings.DATABASES["default"])
+            new_db_config["NAME"] = tenant.db_name
+            settings.DATABASES[tenant.db_name] = new_db_config
+
+            # ✅ Run migrations for tenant DB
+            call_command("migrate", database=tenant.db_name, interactive=False)
 
             # ✅ Send Email
             subject = "Your Merchant Account is Approved ✅"
             message = f"""
-Hi {user.first_name},
+Hi {user.first_name or user.email},
 
 ✅ Your merchant account has been approved!
 
@@ -259,6 +278,7 @@ Here are your login details:
 Username: {user.username}
 Temporary Password: {random_password}
 
+📌 A separate database has been created for your company: {tenant.db_name}
 📌 Please change your password after login.
 
 Best Regards,
@@ -268,9 +288,10 @@ AdInvoice Team
             send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email])
 
             return Response({
-                "success": "Entrepreneur approved, tenant created & email sent",
+                "success": "Entrepreneur approved, tenant DB created & email sent",
                 "username": user.username,
-                "temp_password": random_password
+                "temp_password": random_password,
+                "tenant_db": tenant.db_name
             }, status=status.HTTP_200_OK)
 
         elif action == "reject":
@@ -284,6 +305,54 @@ AdInvoice Team
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
+# ✅ Endpoint: Delete Entrepreneur & Their Tenant
+@api_view(['DELETE'])
+# @permission_required("delete_entrepreneur")
+@permission_classes([AllowAny])  # You can later restrict this to superadmins
+def delete_entrepreneur(request, user_id):
+    try:
+        # ✅ Step 1: Get the entrepreneur (user)
+        try:
+            user = User.objects.get(id=user_id, role="admin")
+        except User.DoesNotExist:
+            return Response({"error": "Entrepreneur not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # ✅ Step 2: Find the associated tenant (if any)
+        tenant = Tenant.objects.filter(owner=user).first()
+
+        if tenant:
+            db_name = tenant.db_name
+
+            # ✅ Step 3: Drop the tenant database
+            from django.db import connections
+            with connections['default'].cursor() as cursor:
+                cursor.execute(f"DROP DATABASE IF EXISTS `{db_name}`;")
+
+            # ✅ Step 4: Remove tenant record from main DB
+            tenant.delete()
+
+            # ✅ Step 5: Remove it from Django settings if registered
+            if db_name in settings.DATABASES:
+                del settings.DATABASES[db_name]
+
+        # ✅ Step 6: Delete the entrepreneur account
+        user.delete()
+
+        return Response(
+            {"success": f"Entrepreneur and tenant '{tenant.name if tenant else 'N/A'}' deleted successfully."},
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
