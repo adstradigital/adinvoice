@@ -216,10 +216,7 @@ def signin(request):
 
 # Endpoint: Approve/Reject Entrepreneur Application
 @api_view(['PUT'])
-<<<<<<< HEAD
 # @permission_required("approve_entrepreneur")
-=======
->>>>>>> af9138201a181788863c89ef0e04ce08b1559006
 @permission_classes([AllowAny])
 def approve_entrepreneur(request, user_id):
     try:
