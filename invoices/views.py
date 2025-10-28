@@ -1,3 +1,4 @@
+from email.message import EmailMessage
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -415,3 +416,39 @@ def update_invoice(request, invoice_id):
         print("❌ Error in update_invoice:")
         print(traceback.format_exc())
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def send_invoice(request, invoice_id):
+    try:
+        invoice = Invoice.objects.get(id=invoice_id)
+
+        # ✅ Email part
+        email = EmailMessage(
+            subject=f"Your Invoice #{invoice.id}",
+            body=f"Dear {invoice.client_name},\n\nPlease find attached your invoice.",
+            from_email="support@adinvoice.com",
+            to=[invoice.client_email],
+        )
+        pdf_path = f"media/invoices/invoice_{invoice.id}.pdf"
+        email.attach_file(pdf_path)
+        email.send()
+
+        # ✅ WhatsApp part (optional)
+        whatsapp_message = f"Hello {invoice.client_name}, your invoice #{invoice.id} is ready."
+        whatsapp_api_url = "https://api.gupshup.io/sm/api/v1/msg"
+        payload = {
+            "channel": "whatsapp",
+            "source": "YOUR_WHATSAPP_NUMBER",
+            "destination": invoice.client_phone,
+            "message": {"type": "text", "text": whatsapp_message},
+        }
+        headers = {"apikey": "YOUR_GUPSHUP_API_KEY"}
+        request.post(whatsapp_api_url, json=payload, headers=headers)
+
+        return Response({"success": "Invoice sent successfully ✅"})
+
+    except Invoice.DoesNotExist:
+        return Response({"error": "Invoice not found"}, status=404)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)

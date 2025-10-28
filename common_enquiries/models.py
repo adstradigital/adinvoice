@@ -8,6 +8,7 @@ class CommonEnquiry(models.Model):
 
     name = models.CharField(max_length=100)
     email = models.EmailField()
+    mobile = models.CharField(max_length=15)
     subject = models.CharField(max_length=200)
     message = models.TextField()
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")

@@ -8,6 +8,8 @@ urlpatterns = [
     path('<uuid:invoice_id>/', views.get_invoice_detail, name='invoice-detail'),
     path('<uuid:invoice_id>/update/', views.update_invoice, name='update-invoice'),
     path('<uuid:invoice_id>/status/', views.update_invoice_status, name='update-invoice-status'),
+    path("invoices/send/<int:invoice_id>/", views.send_invoice, name="send_invoice"),
+
     
     
     # Receipt URLs

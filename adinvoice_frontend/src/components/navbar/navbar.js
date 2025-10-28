@@ -9,12 +9,18 @@ export default function Navbar() {
   return (
     <header>
       <nav className="nav container">
-        {/* Brand */}
+        {/* Brand Section */}
         <div className="brand">
-          <div className="logo"></div>
+          <img
+          src="/assets/adinvoicelogo.jpg"
+          alt="Adinvoice Logo"
+          className="logo-img"
+          />
           <div className="brand-text">
-            <div className="brand-title">Adinvoice</div>
-            <small className="brand-subtitle">Online Billing Platform</small>
+            <div className="brand-title">ADInvoice</div>
+            <small className="brand-subtitle">
+              Automate. Accelerate. AdInvoice
+            </small>
           </div>
         </div>
 

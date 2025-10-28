@@ -13,7 +13,6 @@
   overflow-x: hidden; /* prevent scrollbars during animation */
 }
 
-
 .pricing-container {
   max-width: 1100px;
   margin: 0 auto;
@@ -71,26 +70,52 @@
   margin-bottom: 15px;
 }
 
+/* Price Section */
 .pricing-amount {
   display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: flex-start;
   font-size: clamp(2rem, 5vw, 3rem);
   font-weight: 800;
-  margin: 15px 0;
-  align-items: baseline;
+  margin: 15px 0 5px;
+  text-align: left;
 }
 
 .pricing-amount small,
 .cta-small {
-  font-size: .9rem;
+  font-size: 0.9rem;
   color: #a9b2c7;
   font-weight: 600;
 }
 
-/* CTA Buttons */
+/* Offer Note — directly below the price */
+.offer-note {
+  display: inline-block;
+  font-size: 0.9rem;
+  color: #ffd166;
+  font-weight: 600;
+  margin-top: 4px;
+  margin-bottom: 15px;
+  text-align: left;
+  animation: blink 2s infinite;
+  letter-spacing: 0.3px;
+  padding-left: 4px; /* slight alignment correction */
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* CTA Buttons — aligned directly below the note */
 .pricing-buttons {
   display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
   gap: 10px;
   flex-wrap: wrap;
+  margin-top: 5px;
   margin-bottom: 15px;
 }
 
@@ -141,6 +166,7 @@
   background: rgba(124, 92, 255, 0.1);
 }
 
+/* Feature list styling */
 .features-list {
   list-style: none;
   padding: 0;
@@ -193,8 +219,14 @@
     font-size: 1.8rem;
   }
 
-  .pricing-cta, .pricing-cta-outline {
+  .pricing-cta, 
+  .pricing-cta-outline {
     padding: 10px 16px;
     font-size: 0.85rem;
+  }
+
+  .offer-note {
+    text-align: left;
+    padding-left: 2px;
   }
 }

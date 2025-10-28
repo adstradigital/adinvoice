@@ -38,6 +38,9 @@ export default function InvoiceBuilder() {
   // ✅ DRAFT INVOICES STATE
   const [draftInvoices, setDraftInvoices] = useState([]);
   
+  // ✅ ALL INVOICES STATE FOR LISTING
+  const [allInvoices, setAllInvoices] = useState([]);
+  
   // ✅ PRINT-RELATED STATES
   const [printOptions, setPrintOptions] = useState({
     showPrices: true,
@@ -58,6 +61,9 @@ export default function InvoiceBuilder() {
     new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   );
 
+  // ✅ EMERGENCY INVOICE STATE
+  const [isEmergencyInvoice, setIsEmergencyInvoice] = useState(false);
+
   // ✅ EMERGENCY INVOICE FUNCTION
   const createEmergencyInvoice = () => {
     // Create a sample invoice with default values
@@ -77,8 +83,9 @@ export default function InvoiceBuilder() {
     setSelectedClient("");
     setSelectedProposal("");
     setInvoiceStatus('draft');
-    setPreviewMode(true);
+    setPreviewMode(false);
     setEditingInvoice(null);
+    setIsEmergencyInvoice(true);
     
     // Generate a temporary invoice number
     setInvoiceNumber(`EMG-${Date.now().toString().slice(-6)}`);
@@ -132,10 +139,24 @@ export default function InvoiceBuilder() {
     }
   };
 
+  // ✅ FETCH ALL INVOICES FOR LISTING
+  const fetchAllInvoices = async () => {
+    try {
+      const invoicesData = await getInvoices();
+      if (invoicesData && invoicesData.invoices) {
+        setAllInvoices(invoicesData.invoices);
+        console.log("📋 All invoices loaded:", invoicesData.invoices.length);
+      }
+    } catch (err) {
+      console.error("❌ Error fetching all invoices:", err);
+    }
+  };
+
   // ✅ FIXED: LOAD INVOICE FOR EDITING - IMPROVED VERSION
   const loadInvoiceForEditing = async (invoiceId) => {
   setLoading(true);
   setError("");
+  setIsEmergencyInvoice(false);
   
   try {
     console.log("📝 Loading invoice for editing:", invoiceId);
@@ -216,6 +237,7 @@ export default function InvoiceBuilder() {
     setSelectedProposal("");
     setInvoiceItems([]);
     setPreviewMode(false);
+    setIsEmergencyInvoice(false);
     setError("");
     console.log("❌ Editing cancelled");
   };
@@ -347,10 +369,11 @@ export default function InvoiceBuilder() {
   useEffect(() => {
     fetchClients();
     fetchDraftInvoices(); // ✅ FETCH DRAFTS ON LOAD
+    fetchAllInvoices(); // ✅ FETCH ALL INVOICES ON LOAD
   }, []);
 
   useEffect(() => {
-    if (selectedClient && !editingInvoice) {
+    if (selectedClient && !editingInvoice && !isEmergencyInvoice) {
       fetchProposals(selectedClient);
       setSelectedProposal("");
       setInvoiceItems([]);
@@ -358,7 +381,7 @@ export default function InvoiceBuilder() {
   }, [selectedClient]);
 
   useEffect(() => {
-    if (selectedProposal && !editingInvoice) {
+    if (selectedProposal && !editingInvoice && !isEmergencyInvoice) {
       fetchInvoiceItems(selectedProposal);
     }
   }, [selectedProposal]);
@@ -411,6 +434,32 @@ export default function InvoiceBuilder() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(Number.isFinite(n) ? n : 0);
+
+  // ✅ GET STATUS BADGE COLOR
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'draft': return 'bg-warning text-dark';
+      case 'sent': return 'bg-info text-white';
+      case 'paid': return 'bg-success text-white';
+      case 'overdue': return 'bg-danger text-white';
+      case 'cancelled': return 'bg-secondary text-white';
+      case 'partially_paid': return 'bg-primary text-white';
+      default: return 'bg-secondary text-white';
+    }
+  };
+
+  // ✅ GET STATUS DISPLAY NAME
+  const getStatusDisplayName = (status) => {
+    switch (status) {
+      case 'draft': return '📝 Draft';
+      case 'sent': return '📤 Sent';
+      case 'paid': return '✅ Paid';
+      case 'overdue': return '⚠️ Overdue';
+      case 'cancelled': return '❌ Cancelled';
+      case 'partially_paid': return '💰 Partially Paid';
+      default: return status;
+    }
+  };
 
   // ✅ FIXED SAVE/UPDATE INVOICE FUNCTION
   const handleSaveInvoice = async () => {
@@ -483,6 +532,7 @@ export default function InvoiceBuilder() {
       
       // ✅ REFRESH DRAFT INVOICES LIST AFTER SAVING
       fetchDraftInvoices();
+      fetchAllInvoices();
       
       // If editing, reset editing state
       if (editingInvoice) {
@@ -491,10 +541,12 @@ export default function InvoiceBuilder() {
     } else if (result.success) {
       alert(`✅ ${result.success}`);
       fetchDraftInvoices();
+      fetchAllInvoices();
       if (editingInvoice) cancelEditing();
     } else {
       alert(`✅ Invoice ${editingInvoice ? 'updated' : 'saved'} successfully!`);
       fetchDraftInvoices();
+      fetchAllInvoices();
       if (editingInvoice) cancelEditing();
     }
     
@@ -517,6 +569,32 @@ export default function InvoiceBuilder() {
     setLoading(false);
   }
 };
+
+ const handleSendInvoice = async (invoiceId) => {
+  if (!invoiceId) {
+    alert("Please save the invoice first!");
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem("access_token");
+    const res = await axios.post(
+      `http://127.0.0.1:8000/api/invoices/send/${invoiceId}/`,
+      {},
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    alert(res.data.success || "Invoice sent successfully ✅");
+  } catch (error) {
+    console.error("Error sending invoice:", error);
+    alert(
+      error.response?.data?.error || "Failed to send invoice. Please try again."
+    );
+  }
+};
+
 
   // ✅ PRINT FUNCTIONALITY WITH BACKGROUND STYLING
   const handlePrint = (customOptions = {}) => {
@@ -854,6 +932,23 @@ export default function InvoiceBuilder() {
         }
 
         .draft-invoice-item.editing {
+          border-left-color: #e53935;
+          background-color: #fff8f8;
+        }
+
+        .all-invoice-item {
+          transition: all 0.2s ease;
+          border-left: 3px solid #d1d5db;
+          cursor: pointer;
+        }
+
+        .all-invoice-item:hover {
+          background-color: #f8f9fa;
+          border-left-color: #3b82f6;
+          transform: translateX(2px);
+        }
+
+        .all-invoice-item.editing {
           border-left-color: #e53935;
           background-color: #fff8f8;
         }
@@ -1284,8 +1379,8 @@ export default function InvoiceBuilder() {
             </motion.div>
           )}
 
-          {/* Client - Only show if not emergency invoice */}
-          {!editingInvoice && (
+          {/* Client - Only show if not emergency invoice and not editing */}
+          {!editingInvoice && !isEmergencyInvoice && (
             <motion.div {...motionCard} className="inv-card mb-3">
               <div className="p-3">
                 <h6 className="fw-semibold mb-2" style={{ color: "#6b7280" }}>
@@ -1312,7 +1407,7 @@ export default function InvoiceBuilder() {
           )}
 
           {/* Proposal - Only show if client selected and not emergency invoice */}
-          {selectedClient && proposals.length > 0 && !editingInvoice && (
+          {selectedClient && proposals.length > 0 && !editingInvoice && !isEmergencyInvoice && (
             <motion.div {...motionCard} className="inv-card mb-3">
               <div className="p-3">
                 <h6 className="fw-semibold mb-2" style={{ color: "#6b7280" }}>
@@ -1341,7 +1436,7 @@ export default function InvoiceBuilder() {
             </motion.div>
           )}
 
-          {selectedClient && proposals.length === 0 && !loading && (
+          {selectedClient && proposals.length === 0 && !loading && !isEmergencyInvoice && (
             <motion.div {...motionCard} className="inv-card mb-3">
               <div className="p-3">
                 <div className="alert alert-info mb-0">
@@ -1352,13 +1447,13 @@ export default function InvoiceBuilder() {
             </motion.div>
           )}
 
-          {/* ✅ FIXED: Items editor - SHOW WHEN EDITING OR WHEN ITEMS EXIST */}
-          {(selectedProposal || editingInvoice || invoiceItems.length > 0) && !previewMode && (
+          {/* ✅ FIXED: Items editor - SHOW WHEN EDITING, EMERGENCY INVOICE, OR WHEN ITEMS EXIST */}
+          {(selectedProposal || editingInvoice || isEmergencyInvoice || invoiceItems.length > 0) && !previewMode && (
             <motion.div {...motionCard} className="inv-card">
               <div className="p-3 p-md-4">
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <h6 className="fw-semibold mb-0" style={{ color: "#6b7280" }}>
-                    Step 3: Edit Invoice Items
+                    {isEmergencyInvoice ? "Emergency Invoice Items" : "Step 3: Edit Invoice Items"}
                     {invoiceItems.length > 0 && ` (${invoiceItems.length} items)`}
                   </h6>
                   <button
@@ -1919,6 +2014,14 @@ export default function InvoiceBuilder() {
                       )}
                     </button>
 
+                    <button
+                    className="btn btn-success"
+                     onClick={() => handleSendInvoice(invoiceId)} // pass the saved invoice ID
+                          >
+                       Send Invoice
+                     </button>
+
+
                     {/* ✅ STATUS SELECTOR */}
                     <div className="d-inline-block me-2">
                       <select
@@ -1973,9 +2076,10 @@ export default function InvoiceBuilder() {
           </AnimatePresence>
         </div>
 
-        {/* ✅ DRAFT INVOICES PANEL - RIGHT SIDE */}
+        {/* ✅ DRAFT INVOICES & ALL INVOICES PANEL - RIGHT SIDE */}
         <div className="col-lg-4">
-          <motion.div {...motionCard} className="inv-card sticky-top" style={{ top: '20px' }}>
+          {/* Draft Invoices */}
+          <motion.div {...motionCard} className="inv-card mb-3">
             <div className="p-3">
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <h6 className="fw-semibold mb-0" style={{ color: "#6b7280" }}>
@@ -1992,7 +2096,7 @@ export default function InvoiceBuilder() {
               </div>
 
               {draftInvoices.length > 0 ? (
-                <div className="draft-list" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                <div className="draft-list" style={{ maxHeight: '300px', overflowY: 'auto' }}>
                   {draftInvoices.map((invoice) => (
                     <div 
                       key={invoice.id} 
@@ -2028,12 +2132,78 @@ export default function InvoiceBuilder() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-4">
-                  <div className="text-muted mb-2">
-                    <i className="bi bi-file-earmark-text" style={{ fontSize: '2rem' }}></i>
+                <div className="text-center py-3">
+                  <div className="text-muted mb-1">
+                    <i className="bi bi-file-earmark-text" style={{ fontSize: '1.5rem' }}></i>
                   </div>
                   <p className="text-muted small mb-0">No draft invoices found</p>
-                  <p className="text-muted small">Create and save invoices as drafts to see them here</p>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* All Invoices Listing */}
+          <motion.div {...motionCard} className="inv-card sticky-top" style={{ top: '20px' }}>
+            <div className="p-3">
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h6 className="fw-semibold mb-0" style={{ color: "#6b7280" }}>
+                  📄 All Invoices ({allInvoices.length})
+                </h6>
+                <button
+                  className="btn btn-outline-primary btn-sm"
+                  onClick={fetchAllInvoices}
+                  disabled={loading}
+                  title="Refresh all invoices"
+                >
+                  🔄
+                </button>
+              </div>
+
+              {allInvoices.length > 0 ? (
+                <div className="all-invoices-list" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+                  {allInvoices.map((invoice) => (
+                    <div 
+                      key={invoice.id} 
+                      className={`all-invoice-item p-3 mb-2 rounded border ${editingInvoice === invoice.id ? 'editing' : ''}`}
+                      onClick={() => loadInvoiceForEditing(invoice.id)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div className="d-flex justify-content-between align-items-start mb-2">
+                        <strong className="text-dark">{invoice.invoice_number}</strong>
+                        <span className={`badge ${getStatusBadge(invoice.status)}`}>
+                          {getStatusDisplayName(invoice.status)}
+                        </span>
+                      </div>
+                      <div className="small text-muted mb-1">
+                        {invoice.client_name || "Direct Client"}
+                      </div>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <span className="fw-semibold">{formatINR(invoice.grand_total)}</span>
+                        <span className="small text-muted">
+                          {new Date(invoice.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {invoice.proposal_title && (
+                        <div className="small text-muted mt-1">
+                          Proposal: {invoice.proposal_title}
+                        </div>
+                      )}
+                      {editingInvoice === invoice.id && (
+                        <div className="small text-success mt-1">
+                          <i className="bi bi-pencil-square me-1"></i>
+                          Currently editing
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <div className="text-muted mb-2">
+                    <i className="bi bi-receipt" style={{ fontSize: '2rem' }}></i>
+                  </div>
+                  <p className="text-muted small mb-0">No invoices found</p>
+                  <p className="text-muted small">Create and save invoices to see them here</p>
                 </div>
               )}
             </div>

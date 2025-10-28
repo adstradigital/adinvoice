@@ -1,4 +1,4 @@
-/* Navbar Styles */
+/* Navbar Container */
 header {
   position: sticky;
   top: 0;
@@ -17,7 +17,7 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 80px; /* slightly taller navbar */
+  height: 80px;
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 24px;
@@ -33,27 +33,42 @@ header {
   color: #fff;
 }
 
-.logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #7c5cff, #4dd0e1);
+/* ✅ Logo Image */
+.logo-img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  border-radius: 8px;
 }
 
-.brand small {
-   display:block; 
-   font-weight: 400; 
-   font-size: 0.8rem;
-   color: var(--subtext); 
-   line-height: 1; 
-   margin-top: -4px; }
+/* Brand Text */
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  min-width: 160px;
+}
 
-/* Navigation Links */
+.brand-title {
+  font-weight: 800;
+  font-size: 2rem;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+
+.brand-subtitle {
+  font-weight: 400;
+  font-size: 0.70rem;
+  color: #a9b2c7;
+  letter-spacing: 0.3px;
+}
+
+/* Nav Links */
 .navlinks {
   display: flex;
   align-items: center;
   gap: 22px;
-  margin-left: auto; /* push links to right side */
+  margin-left: auto;
 }
 
 .navlinks a {
@@ -85,10 +100,8 @@ header {
 }
 
 .navlinks .cta:hover {
-  opacity: 0.9;
-  transform: scale(1.05); /* slight zoom effect */
-  box-shadow: 0 8px 20px rgba(124, 92, 255, 0.5); /* glowing shadow */
-  opacity: 1; /* maintain full opacity */
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(124, 92, 255, 0.5);
 }
 
 /* Price pill inside CTA */
@@ -101,17 +114,7 @@ header {
   font-size: 14px;
 }
 
-/* Burger Menu */
-.burger {
-  display: none;
-  font-size: 28px;
-  background: none;
-  border: none;
-  color: #fff;
-  cursor: pointer;
-}
-
-/* Sign In button */
+/* Sign In Button */
 .signin-btn {
   border: 1px solid #4dd0e1;
   color: #4dd0e1;
@@ -128,13 +131,22 @@ header {
   box-shadow: 0 6px 16px rgba(77, 208, 225, 0.4);
 }
 
+/* Burger Menu */
+.burger {
+  display: none;
+  font-size: 28px;
+  background: none;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+}
 
-/* Responsive Styles */
+/* Responsive */
 @media (max-width: 900px) {
   .navlinks {
     display: none;
     position: absolute;
-    top: 80px; /* match navbar height */
+    top: 80px;
     right: 0;
     left: 0;
     background: rgba(11, 16, 32, 0.95);
@@ -142,7 +154,6 @@ header {
     padding: 20px;
     gap: 16px;
     text-align: center;
-    margin-left: 0;
   }
 
   .navlinks.open {

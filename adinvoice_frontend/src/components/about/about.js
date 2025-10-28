@@ -11,13 +11,13 @@ export default function About() {
   }, []);
 
   return (
-    <section className="about-page">
+    <section id="why" className="about-page">
       {/* Intro / Mission */}
       <div className="about-intro" data-aos="fade-up">
         <h1>Why This Platform Exists</h1>
         <p>
-          {`Whether you're a freelancer, startup founder, or growing agency, your work deserves a billing
-          system as committed as you are.`}
+          {`Whether you're a freelancer, startup founder, or growing agency,`} <br />
+           {`your work deserves a billing system as committed as you are.`}
         </p>
       </div>
 

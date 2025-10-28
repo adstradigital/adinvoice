@@ -683,12 +683,6 @@ Thank you for your business!`
                       <td className="text-center">
                         <div className="d-flex gap-2 justify-content-center">
                           <button 
-                            className="btn btn-outline-primary btn-sm" 
-                            onClick={() => handleEditReceipt(r)}
-                          >
-                            <Pencil size={14} />
-                          </button>
-                          <button 
                             className="btn btn-outline-danger btn-sm" 
                             onClick={() => handleDeleteReceipt(r.id)}
                           >

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import HeroPage from "@/components/heropage/heropage";
 import Navbar from "@/components/navbar/navbar";
 import About from "@/components/about/about";
@@ -9,14 +10,22 @@ import ContactPage from "@/components/contactpage/Contact";
 import Footer from "@/components/footer/footer";
 import Image from "next/image";
 
-
-
 export default function Page() {
+  useEffect(() => {
+    // ✅ On refresh, remove any hash (#section) and scroll to top
+    if (typeof window !== "undefined") {
+      if (window.location.hash) {
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+      window.scrollTo(0, 0);
+    }
+  }, []);
+
   return (
     <div>
       <Navbar />
 
-      {/* Coming Soon Overlay */}
+      {/* Coming Soon Overlay (Optional) */}
       {/* <div
         style={{
           zIndex: 9999,
@@ -57,7 +66,7 @@ export default function Page() {
         </h1>
       </div> */}
 
-      {/* Other sections (hidden behind overlay until you remove it) */}
+      {/* ✅ Main Sections */}
       <HeroPage />
       <About />
       <Pricing />

@@ -8,6 +8,7 @@ export default function ContactPage() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    mobile: "", // ✅ added mobile
     subject: "",
     message: "",
   });
@@ -15,7 +16,7 @@ export default function ContactPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const API_URL = "http://127.0.0.1:8000/api/enquiries/create/"; // ✅ match your Django URL
+  const API_URL = "http://127.0.0.1:8000/api/enquiries/create/";
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -28,7 +29,13 @@ export default function ContactPage() {
     try {
       await axios.post(API_URL, formData);
       setSuccess(true);
-      setFormData({ name: "", email: "", subject: "", message: "" });
+      setFormData({
+        name: "",
+        email: "",
+        mobile: "",
+        subject: "",
+        message: "",
+      });
     } catch (error) {
       console.error("Error submitting enquiry:", error);
       alert("Failed to send message.");
@@ -54,7 +61,7 @@ export default function ContactPage() {
   }, []);
 
   return (
-    <section className="contact-section">
+    <section id="contact" className="contact-section">
       <div className="container">
         <h2 className="contact-title reveal">Get in Touch</h2>
         <p className="contact-subtitle reveal">
@@ -91,6 +98,19 @@ export default function ContactPage() {
                 name="email"
                 placeholder="Your Email"
                 value={formData.email}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            {/* ✅ New Mobile Field */}
+            <div className="form-group">
+              <label>Mobile Number</label>
+              <input
+                type="tel"
+                name="mobile"
+                placeholder="Your Mobile Number"
+                value={formData.mobile}
                 onChange={handleChange}
                 required
               />

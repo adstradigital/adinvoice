@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { signupUser } from "../../../Api/api_clientadmin"; 
+import { signupUser } from "../../../Api/api_clientadmin";
 import "./Signup.css";
 
 export default function SignUp() {
@@ -19,6 +19,7 @@ export default function SignUp() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
+  // ✅ Field validation rules
   const validateField = (name, value) => {
     let error = "";
 
@@ -26,24 +27,32 @@ export default function SignUp() {
       case "first_name":
       case "last_name":
         if (!value.trim()) error = `${name === "first_name" ? "First" : "Last"} name is required`;
+        else if (!/^[A-Za-z\s]+$/.test(value)) error = "Only letters are allowed";
         break;
+
       case "email":
         if (!value) error = "Email is required";
         else if (!/^\S+@\S+\.\S+$/.test(value)) error = "Invalid email format";
         break;
+
       case "phone":
         if (!value) error = "Phone number is required";
-        else if (!/^\+?\d{7,15}$/.test(value)) error = "Enter valid phone number";
+        else if (!/^\+?\d{7,15}$/.test(value)) error = "Enter valid phone number (digits only)";
         break;
+
       case "address":
         if (!value.trim()) error = "Address is required";
+        else if (!/^[A-Za-z0-9\s,.-/]+$/.test(value)) error = "Invalid characters in address";
         break;
+
       case "date_of_birth":
         if (!value) error = "Date of birth is required";
         break;
+
       case "company_name":
         if (!value.trim()) error = "Company name is required";
         break;
+
       default:
         break;
     }
@@ -51,14 +60,22 @@ export default function SignUp() {
     return error;
   };
 
+  // ✅ Handle input change
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
 
-    const error = validateField(name, value);
+    // Allow spaces for address, lowercase for email
+    let processedValue = value;
+    if (name === "email") processedValue = value.trim().toLowerCase();
+    else if (name !== "address") processedValue = value.trim();
+
+    setFormData((prev) => ({ ...prev, [name]: processedValue }));
+
+    const error = validateField(name, processedValue);
     setErrors((prev) => ({ ...prev, [name]: error }));
   };
 
+  // ✅ Handle form submit
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -93,10 +110,7 @@ export default function SignUp() {
       });
       setErrors({});
     } catch (error) {
-      const errMsg =
-        error.error ||
-        error.message ||
-        "Failed to register. Please try again!";
+      const errMsg = error.error || error.message || "Failed to register. Please try again!";
       alert(errMsg);
       console.error("API Error:", error);
     } finally {
@@ -106,6 +120,7 @@ export default function SignUp() {
 
   return (
     <div className="signup-page">
+      {/* Background animation shapes */}
       <div className="background-animation">
         <div className="shape shape1"></div>
         <div className="shape shape2"></div>
@@ -113,6 +128,7 @@ export default function SignUp() {
       </div>
 
       <div className="signup-content">
+        {/* Left Side Info */}
         <div className="signup-left">
           <h1>Welcome to AdInvoice 🚀</h1>
           <p>
@@ -132,6 +148,7 @@ export default function SignUp() {
           />
         </div>
 
+        {/* Right Side Form */}
         <div className="signup-right">
           <form className="signup-form" onSubmit={handleSubmit}>
             <h2>Create an Account</h2>
@@ -141,25 +158,36 @@ export default function SignUp() {
                 <label>
                   {field.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                 </label>
-                <input
-                  type={
-                    field === "email"
-                      ? "email"
-                      : field === "phone"
-                      ? "tel"
-                      : field === "date_of_birth"
-                      ? "date"
-                      : "text"
-                  }
-                  name={field}
-                  placeholder={`Enter your ${field.replace("_", " ")}`}
-                  value={formData[field]}
-                  onChange={handleChange}
-                  className={errors[field] ? "input-error" : ""}
-                />
-                {errors[field] && (
-                  <span className="error-text">{errors[field]}</span>
+
+                {field === "address" ? (
+                  <textarea
+                    name={field}
+                    placeholder={`Enter your ${field.replace("_", " ")}`}
+                    value={formData[field]}
+                    onChange={handleChange}
+                    className={errors[field] ? "input-error" : ""}
+                    rows="3"
+                  />
+                ) : (
+                  <input
+                    type={
+                      field === "email"
+                        ? "email"
+                        : field === "phone"
+                        ? "tel"
+                        : field === "date_of_birth"
+                        ? "date"
+                        : "text"
+                    }
+                    name={field}
+                    placeholder={`Enter your ${field.replace("_", " ")}`}
+                    value={formData[field]}
+                    onChange={handleChange}
+                    className={errors[field] ? "input-error" : ""}
+                  />
                 )}
+
+                {errors[field] && <span className="error-text">{errors[field]}</span>}
               </div>
             ))}
 
