@@ -1,5 +1,6 @@
 // api.js
 import axios from "axios";
+
 // import { handleApiError } from "./errorHandler"
 
 // Base URL of your Django backend
@@ -315,13 +316,14 @@ export const getPendingMerchants = async () => {
   }
 };
 
+// ✅ Approve or Reject Merchant
 export const updateMerchantStatus = async (id, action) => {
   try {
-    const res = await API.put(
-      `/tenants/update/${id}/`,
-      { action }, // "enable" or "disable"
-      { headers: getAuthHeaders() }
-    );
+    const res = await API.put(`/users/approve-entrepreneur/${id}/`, {
+      action: action,
+    }, {
+      headers: getAuthHeaders(),
+    });
     return res.data;
   } catch (error) {
     console.error(
@@ -331,6 +333,7 @@ export const updateMerchantStatus = async (id, action) => {
     throw error;
   }
 };
+
 
 // ===== PRODUCTS & SERVICES =====
 

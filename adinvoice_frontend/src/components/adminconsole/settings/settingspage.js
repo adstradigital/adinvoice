@@ -5,8 +5,6 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState({
     username: "admin_user",
     email: "admin@example.com",
-    language: "English",
-    theme: "Light",
     notifications: true,
   });
 
@@ -20,12 +18,16 @@ export default function SettingsPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert("✅ Settings saved successfully!");
+    alert("🚧 Settings features are under development. UI changes only!");
   };
 
   return (
-    <div className="card shadow p-4">
-      <h4 className="mb-3">⚙️ Settings</h4>
+    <div className="card shadow p-4" style={{ maxWidth: "600px", margin: "auto" }}>
+      <h4 className="mb-2">⚙️ Settings</h4>
+      <p className="text-muted mb-3">
+        🚧 This page is still under development. Some features are disabled for now.
+      </p>
+
       <form onSubmit={handleSubmit}>
         {/* Profile Info */}
         <div className="mb-3">
@@ -38,6 +40,7 @@ export default function SettingsPage() {
             onChange={handleChange}
           />
         </div>
+
         <div className="mb-3">
           <label className="form-label">Email</label>
           <input
@@ -49,39 +52,25 @@ export default function SettingsPage() {
           />
         </div>
 
-        {/* Preferences */}
-        <div className="row">
-          <div className="col-md-6 mb-3">
-            <label className="form-label">Language</label>
-            <select
-              className="form-select"
-              name="language"
-              value={settings.language}
-              onChange={handleChange}
-            >
-              <option>English</option>
-              <option>Spanish</option>
-              <option>French</option>
-              <option>German</option>
-            </select>
-          </div>
-          <div className="col-md-6 mb-3">
-            <label className="form-label">Theme</label>
-            <select
-              className="form-select"
-              name="theme"
-              value={settings.theme}
-              onChange={handleChange}
-            >
-              <option>Light</option>
-              <option>Dark</option>
-              <option>System Default</option>
-            </select>
-          </div>
+        {/* Features Coming Soon */}
+        <div className="mb-3">
+          <label className="form-label">Language</label>
+          <select className="form-select" disabled title="Coming soon">
+            <option>English</option>
+          </select>
+          <small className="text-warning">Coming Soon 🔒</small>
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label">Theme</label>
+          <select className="form-select" disabled title="Coming soon">
+            <option>Light</option>
+          </select>
+          <small className="text-warning">Coming Soon 🔒</small>
         </div>
 
         {/* Notifications Toggle */}
-        <div className="form-check mb-3">
+        <div className="form-check mb-4">
           <input
             type="checkbox"
             className="form-check-input"
@@ -95,7 +84,7 @@ export default function SettingsPage() {
           </label>
         </div>
 
-        <button type="submit" className="btn btn-primary">
+        <button type="submit" className="btn btn-primary w-100">
           Save Settings
         </button>
       </form>

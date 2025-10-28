@@ -31,10 +31,7 @@ export default function SuperAdminSignin() {
         localStorage.setItem("access_token", response.access);
       }
      
-      
-      alert("Super Admin login successful!");
-      
-      print("jasgiugsauidgsauo",response.access)
+            
       // Redirect to dashboard
       router.push("/super-admin-dashboard");
     } catch (err) {
