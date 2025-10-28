@@ -42,32 +42,8 @@ const TrashBin = () => {
     setLoading(false);
   };
 
-  const restoreItem = async (id, type) => {
-    try {
-      const tenantId = localStorage.getItem("tenant_id");
-      const res = await fetch(
-        `${API_BASE}/${type}/${id}/restore/?tenant_id=${tenantId}`,
-        { method: "PUT" }
-      );
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      fetchTrashItems();
-    } catch (error) {
-      console.error("Restore error:", error);
-    }
-  };
-
-  const permanentDelete = async (id, type) => {
-    try {
-      const tenantId = localStorage.getItem("tenant_id");
-      const res = await fetch(
-        `${API_BASE}/${type}/${id}/permanent-delete/?tenant_id=${tenantId}`,
-        { method: "DELETE" }
-      );
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      fetchTrashItems();
-    } catch (error) {
-      console.error("Permanent delete error:", error);
-    }
+  const comingSoonAlert = () => {
+    alert("🚧 This feature is under construction. Coming Soon!");
   };
 
   useEffect(() => {
@@ -108,14 +84,14 @@ const TrashBin = () => {
                   <td>
                     <div className="d-flex gap-2">
                       <button
-                        className="btn btn-success btn-sm"
-                        onClick={() => restoreItem(item.id, item.type)}
+                        className="btn btn-warning btn-sm"
+                        onClick={comingSoonAlert}
                       >
                         Restore
                       </button>
                       <button
                         className="btn btn-danger btn-sm"
-                        onClick={() => permanentDelete(item.id, item.type)}
+                        onClick={comingSoonAlert}
                       >
                         Delete Permanently
                       </button>

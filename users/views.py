@@ -1,4 +1,6 @@
 import traceback
+
+from django.conf import settings
 from tenants.db_utils import get_tenant_db
 from tenants.serializers import TenantSerializer
 from tenants.models import Tenant
@@ -21,6 +23,8 @@ import string
 from .serializers import DocumentSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.decorators import api_view, permission_classes, parser_classes
+from django.core.mail import send_mail
+
 
 
 
@@ -117,12 +121,11 @@ def register_entrepreneur(request):
         address = data.get("address")
         date_of_birth = data.get("date_of_birth")
         company_name = data.get("company_name")
-        password = data.get("password")  # <-- new password field
 
         # Basic validation
-        if not first_name or not last_name or not email or not phone or not password:
+        if not first_name or not last_name or not email or not phone:
             return Response(
-                {"error": "First name, last name, email, phone and password are required"},
+                {"error": "First name, last name, email and phone are required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -132,41 +135,23 @@ def register_entrepreneur(request):
         if User.objects.filter(phone=phone).exists():
             return Response({"error": "Phone number already exists"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Create user in 'pending' status
+        # Create user with inactive status - WITHOUT password
         user = User.objects.create(
-            username=f"pending_{email}",   # temp username until approved
+            username=f"pending_{email}",
             email=email,
             first_name=first_name,
             last_name=last_name,
-            role="admin",  # set role
-            is_active=False,  # cannot login yet
+            role="admin",  # merchant role
+            is_active=False,
             application_status="pending"
         )
 
-        # Set hashed password
-        user.set_password(password)
-
-        # Save entrepreneur-specific fields
+        # Save other user fields
         user.phone = phone
         user.address_line1 = address
         user.date_of_birth = date_of_birth
         user.company_name = company_name
         user.save()
-
-        # Check OTP/email verification
-        if not user.sms_verified:
-            return Response({
-                "warning": "SMS verification pending. Please verify your phone number.",
-                "application_id": user.id,
-                "status": user.application_status
-            }, status=status.HTTP_202_ACCEPTED)
-
-        if not user.email_verified:
-            return Response({
-                "warning": "Email verification pending. Please verify your email.",
-                "application_id": user.id,
-                "status": user.application_status
-            }, status=status.HTTP_202_ACCEPTED)
 
         return Response({
             "success": "Application submitted successfully. Wait for admin approval.",
@@ -176,64 +161,63 @@ def register_entrepreneur(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
+    
 # Endpoint: Sign In
 @api_view(['POST'])
 @permission_classes([AllowAny])
-def signin(request): 
+def signin(request):
     try:
-        username = request.data.get("username")
+        username_or_email = request.data.get("username")
         password = request.data.get("password")
 
-        if not username or not password:
-            return Response({"error": "Email and password are required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not username_or_email or not password:
+            return Response({"error": "Username/Email and Password required"}, status=400)
 
-        # Fetch user by username/email
-        user = User.objects.filter(username=username).first()
+        # ✅ Try login using username OR email
+        user = User.objects.filter(username=username_or_email).first()
+        if not user:
+            user = User.objects.filter(email=username_or_email).first()
 
-        if user is None or not check_password(password, user.password):
-            return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
-    
-        # Check if account is active
+        if not user:
+            return Response({"error": "User not found"}, status=401)
+
+        # ✅ Check password correctly
+        if not check_password(password, user.password):
+            return Response({"error": "Invalid credentials"}, status=401)
+
         if not user.is_active:
-            return Response({"error": "Account is disabled. Contact Adinvoice Support Team."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": "Account is disabled"}, status=403)
 
-        # Entrepreneurs must be approved
         if user.role == "admin" and user.application_status != "approved":
-            return Response({"error": f"Application {user.application_status}. Please wait for approval."}, status=status.HTTP_403_FORBIDDEN)
-        
-        print(user.id)
-        tenant = Tenant.objects.get(owner_id=user.id)
-        print(tenant)
-        
-        # Generate JWT tokens
+            return Response({"error": f"Application {user.application_status}"}, status=403)
+
+        tenant = Tenant.objects.filter(owner_id=user.id).first()
+        if not tenant:
+            return Response({"error": "Tenant not found"}, status=404)
+
         refresh = RefreshToken.for_user(user)
 
         return Response({
-            "success": "Login successful",
+            "success": True,
+            "message": "Login successful✅",
             "access": str(refresh.access_token),
             "refresh": str(refresh),
             "role": user.role,
             "user_id": user.id,
             "tenant_id": tenant.id,
-        }, status=status.HTTP_200_OK)
+            "username": user.username,
+        }, status=200)
 
     except Exception as e:
-        print(traceback.format_exc())
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
+        return Response({"error": str(e)}, status=500)
 
 
 # Endpoint: Approve/Reject Entrepreneur Application
 @api_view(['PUT'])
-# @role_required(["admin"])
 @permission_classes([AllowAny])
 def approve_entrepreneur(request, user_id):
     try:
-        action = request.data.get("action")  # "approve" or "reject"
+        action = request.data.get("action")
 
         try:
             user = User.objects.get(id=user_id, role="admin")
@@ -241,42 +225,62 @@ def approve_entrepreneur(request, user_id):
             return Response({"error": "Entrepreneur not found"}, status=status.HTTP_404_NOT_FOUND)
 
         if action == "approve":
-            # Generate username & password
+            # ✅ Generate username
             base_username = user.email.split("@")[0]
             user.username = f"{base_username}_{user.id}"
 
-            # Generate random password
+            # ✅ Generate password
             random_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(10))
             user.password = make_password(random_password)
 
-            # Activate account
+            # ✅ Approve user
             user.application_status = "approved"
             user.is_active = True
             user.save()
 
-            # TODO: Send credentials via email/SMS here
+            # ✅ Create Tenant Automatically
+            tenant_name = user.company_name if hasattr(user, "company_name") else user.first_name or user.email
+            Tenant.objects.create(
+                name=tenant_name,
+                owner=user
+            )
+
+            # ✅ Send Email
+            subject = "Your Merchant Account is Approved ✅"
+            message = f"""
+Hi {user.first_name},
+
+✅ Your merchant account has been approved!
+
+Here are your login details:
+Username: {user.username}
+Temporary Password: {random_password}
+
+📌 Please change your password after login.
+
+Best Regards,
+AdInvoice Team
+"""
+
+            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email])
 
             return Response({
-                "success": "Entrepreneur approved successfully",
+                "success": "Entrepreneur approved, tenant created & email sent",
                 "username": user.username,
-                "temp_password": random_password,
-                "status": user.application_status
+                "temp_password": random_password
             }, status=status.HTTP_200_OK)
 
         elif action == "reject":
             user.application_status = "rejected"
             user.is_active = False
             user.save()
-            return Response({"success": "Entrepreneur application rejected"}, status=status.HTTP_200_OK)
+            return Response({"success": "Entrepreneur rejected"}, status=status.HTTP_200_OK)
 
         else:
-            return Response({"error": "Invalid action. Use 'approve' or 'reject'."},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Invalid action"}, status=status.HTTP_400_BAD_REQUEST)
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState, useRef } from "react";
 import { Pencil, Trash2, Download, Mail, Printer, Save, Search, Receipt } from "lucide-react";
-import { getInvoices, getInvoiceById, createReceipt, getReceipts, updateReceipt, deleteReceipt } from "../../../../Api/api_clientadmin";
+import { getInvoices, createReceipt, getReceipts, updateReceipt, deleteReceipt } from "../../../../Api/api_clientadmin";
 
 export default function ReceiptsPage() {
   const [invoices, setInvoices] = useState([]);
@@ -26,7 +26,6 @@ export default function ReceiptsPage() {
     paidAmount: 0,
     balanceAmount: 0,
     dueDate: "",
-    nextPayment: "",
     status: "Pending",
   });
 
@@ -97,7 +96,7 @@ export default function ReceiptsPage() {
       setLoading(true);
       setSelectedInvoice(inv);
       setShowInvoiceDropdown(false);
-      setInvoiceSearchQuery(inv.invoice_number || ""); // Set the input box to show invoice number
+      setInvoiceSearchQuery(inv.invoice_number || "");
       
       const total = extractAmount(inv);
       const paid = 0;
@@ -219,7 +218,7 @@ export default function ReceiptsPage() {
       }));
       setSelectedInvoice(null);
       setEditingReceipt(null);
-      setInvoiceSearchQuery(""); // Clear the invoice search input
+      setInvoiceSearchQuery("");
       
     } catch (error) {
       console.error("Error saving receipt:", error);
@@ -243,11 +242,10 @@ export default function ReceiptsPage() {
       paidAmount: parseFloat(r.paid_amount || 0),
       balanceAmount: parseFloat(r.balance_amount || 0),
       dueDate: r.due_date || "",
-      nextPayment: r.next_payment || "",
       status: r.status,
     });
     setSelectedInvoice(null);
-    setInvoiceSearchQuery(r.invoice_number || ""); // Show invoice number in search input when editing
+    setInvoiceSearchQuery(r.invoice_number || "");
   }
 
   async function handleDeleteReceipt(id) {
@@ -540,57 +538,74 @@ Thank you for your business!`
               </div>
             </div>
             <div className="card-body">
-              <div className="receipt-preview bg-light p-4 rounded-3 border" ref={previewRef}>
+              <div className="receipt-preview bg-white p-4 rounded-3 border" ref={previewRef}>
+                {/* Professional Receipt Design */}
                 <div className="text-center mb-4">
-                  <h3 className="fw-bold text-primary">OFFICIAL RECEIPT</h3>
-                  <div className="border-top border-bottom py-2 my-3">
-                    <h5 className="mb-0">Your Company Name</h5>
-                    <small className="text-muted">Company Address • Phone • Email</small>
+                  <div className="d-flex justify-content-between align-items-start mb-3">
+                    <div className="text-start">
+                      <h4 className="fw-bold text-primary mb-1">OFFICIAL RECEIPT</h4>
+                      <small className="text-muted">Receipt No: <strong>{form.receiptNumber || "R-001"}</strong></small>
+                    </div>
+                    <div className="text-end">
+                      <h5 className="fw-bold mb-1">Your Company</h5>
+                      <small className="text-muted">123 Business St, City</small><br/>
+                      <small className="text-muted">contact@company.com</small>
+                    </div>
+                  </div>
+                  <div className="border-top border-bottom py-2">
+                    <h6 className="mb-0 fw-bold">PAYMENT RECEIPT</h6>
                   </div>
                 </div>
 
-                <div className="row mb-4">
+                <div className="row mb-3">
                   <div className="col-6">
-                    <strong>Receipt No:</strong> {form.receiptNumber || "R-001"}
-                  </div>
-                  <div className="col-6 text-end">
                     <strong>Date:</strong> {form.date}
                   </div>
+                  <div className="col-6 text-end">
+                    <strong>Invoice No:</strong> {form.invoiceNumber || "-"}
+                  </div>
                 </div>
 
-                <div className="mb-4">
+                <div className="mb-4 p-3 bg-light rounded">
                   <strong>Received from:</strong>
-                  <div className="fw-semibold">{form.clientName || "Client Name"}</div>
+                  <div className="fw-bold fs-5">{form.clientName || "Client Name"}</div>
                   <small className="text-muted">{form.clientEmail || "client@email.com"}</small>
                 </div>
 
-                <div className="mb-4">
-                  <strong>Invoice Number:</strong>
-                  <div>{form.invoiceNumber || "-"}</div>
-                </div>
-
-                <div className="mb-4">
+                <div className="mb-3">
                   <strong>Description:</strong>
-                  <div>{form.description || "Payment for services rendered"}</div>
+                  <div className="border p-2 rounded bg-white">{form.description || "Payment for services rendered"}</div>
                 </div>
 
-                <div className="border-top border-bottom py-3 mb-4">
-                  <div className="row fw-bold">
-                    <div className="col-6">Total Amount</div>
+                <div className="border-top border-bottom py-3 mb-3">
+                  <div className="row fw-bold mb-2">
+                    <div className="col-6">Total Amount Due</div>
                     <div className="col-6 text-end">{rupee(form.totalAmount)}</div>
                   </div>
-                  <div className="row text-success">
+                  <div className="row text-success mb-2">
                     <div className="col-6">Amount Paid</div>
                     <div className="col-6 text-end">{rupee(form.paidAmount)}</div>
                   </div>
+                  <div className="row border-top pt-2 fw-bold">
+                    <div className="col-6">Balance Due</div>
+                    <div className="col-6 text-end">{rupee(form.balanceAmount)}</div>
+                  </div>
                 </div>
 
-                <div className="row fw-bold fs-5">
-                  <div className="col-6">Balance Due</div>
-                  <div className="col-6 text-end">{rupee(form.balanceAmount)}</div>
+                <div className="row text-center mt-4 pt-3 border-top">
+                  <div className="col-6">
+                    <small className="text-muted">Status:</small><br/>
+                    <span className={`badge ${badgeClass(form.status)}`}>
+                      {form.status}
+                    </span>
+                  </div>
+                  <div className="col-6">
+                    <small className="text-muted">Payment Method:</small><br/>
+                    <strong>Bank Transfer</strong>
+                  </div>
                 </div>
 
-                <div className="text-center mt-5 pt-4 border-top">
+                <div className="text-center mt-4 pt-3 border-top">
                   <small className="text-muted">Thank you for your business!</small>
                 </div>
               </div>
@@ -599,7 +614,7 @@ Thank you for your business!`
         </div>
       </div>
 
-      {/* Receipts List - Removed Edit Option */}
+      {/* Receipts List */}
       <div className="card shadow-sm border-0">
         <div className="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
           <div>
@@ -666,12 +681,20 @@ Thank you for your business!`
                         </span>
                       </td>
                       <td className="text-center">
-                        <button 
-                          className="btn btn-outline-danger btn-sm" 
-                          onClick={() => handleDeleteReceipt(r.id)}
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <div className="d-flex gap-2 justify-content-center">
+                          <button 
+                            className="btn btn-outline-primary btn-sm" 
+                            onClick={() => handleEditReceipt(r)}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button 
+                            className="btn btn-outline-danger btn-sm" 
+                            onClick={() => handleDeleteReceipt(r.id)}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
