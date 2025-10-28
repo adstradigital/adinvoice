@@ -35,8 +35,10 @@ export default function UserManagement() {
   const [userForm, setUserForm] = useState({
     username: "",
     email: "",
-    role_id: "",
+    password: "",
+    role_ids: [],
   });
+
   const [roleForm, setRoleForm] = useState({ name: "", permission_ids: [] });
   const [permForm, setPermForm] = useState({ description: "", code: "" });
 
@@ -63,22 +65,33 @@ export default function UserManagement() {
   };
 
   // ---------------- User Handlers ----------------
-  const handleUserChange = (e) =>
-    setUserForm({ ...userForm, [e.target.name]: e.target.value });
+  const handleUserChange = (e) => {
+    const { name, value } = e.target;
+    setUserForm({ ...userForm, [name]: value });
+  };
 
   const handleUserSave = async (e) => {
     e.preventDefault();
     try {
       const tenantId = localStorage.getItem("tenant_id");
       if (!tenantId) throw new Error("Tenant ID not found");
+
+      const payload = {
+        username: userForm.username,
+        email: userForm.email,
+        password: userForm.password,
+        role_ids: userForm.role_ids ? [Number(userForm.role_ids)] : [],
+      };
+
       if (editUser) {
-        await updateUser(editUser.id, userForm);
+        await updateUser(editUser.id, payload);
       } else {
-        await createUser(tenantId, userForm);
+        await createUser(tenantId, payload);
       }
+
       setShowUserModal(false);
       setEditUser(null);
-      setUserForm({ username: "", email: "", role_id: "" });
+      setUserForm({ username: "", email: "", password: "", role_ids: [] });
       setError(null);
       fetchAll();
     } catch (err) {
@@ -91,8 +104,11 @@ export default function UserManagement() {
     setUserForm({
       username: user.username || "",
       email: user.email || "",
-      role_id: user.roles?.length ? user.roles[0] : "",
+      role_ids: user.roles?.length
+        ? user.roles.map((r) => r.id.toString())
+        : [],
     });
+
     setShowUserModal(true);
   };
 
@@ -275,7 +291,11 @@ export default function UserManagement() {
                 <tr key={u.id}>
                   <td>{u.username}</td>
                   <td>{u.email}</td>
-                  <td>{u.roles.join(", ")}</td>
+                  <td>
+                    {u.roles && u.roles.length > 0
+                      ? u.roles.map((r) => r.name).join(", ")
+                      : "No Roles"}
+                  </td>
                   <td>
                     <button
                       className="btn btn-sm btn-warning me-2"
@@ -417,24 +437,37 @@ export default function UserManagement() {
                     className="form-control mb-3"
                     placeholder="Username"
                     name="username"
-                    value={userForm.username}
+                    value={userForm.username || ""}
                     onChange={handleUserChange}
-                    required
                   />
+
                   <input
                     className="form-control mb-3"
                     placeholder="Email"
                     name="email"
                     type="email"
-                    value={userForm.email}
+                    value={userForm.email || ""}
                     onChange={handleUserChange}
-                    required
                   />
+
+                  {!editUser && (
+                    <input
+                      className="form-control mb-3"
+                      placeholder="Password"
+                      name="password"
+                      type="password"
+                      value={userForm.password || ""}
+                      onChange={handleUserChange}
+                    />
+                  )}
+
                   <select
                     className="form-control mb-3"
-                    name="role_id"
-                    value={userForm.role_id}
-                    onChange={handleUserChange}
+                    name="role_ids"
+                    value={userForm.role_ids?.[0] || ""} // take first role for now
+                    onChange={(e) =>
+                      setUserForm({ ...userForm, role_ids: [e.target.value] })
+                    }
                   >
                     <option value="">Select Role</option>
                     {roles.map((r) => (

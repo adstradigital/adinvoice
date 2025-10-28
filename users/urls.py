@@ -19,9 +19,10 @@ urlpatterns = [
     
     path("user/<int:tenant_id>/", views.user_list, name="user-list"),
     path("user/create/<int:tenant_id>/", views.user_create, name="user-create"),
-    path("user/<int:user_id>/", views.user_update, name="user-update"),
+    path("user/update/<int:user_id>/", views.user_update, name="user_update"), 
     path("user/<int:user_id>/delete/", views.user_delete, name="user-delete"),
-    path("roles/<int:tenant_id>/", views.role_list_create, name="role-list-create"),
+    path("roles/<int:tenant_id>/list/", views.role_list, name="role-list"),
+    path("roles/<int:tenant_id>/create/", views.role_create, name="role-create"),
     path("roles/<int:role_id>/update/", views.role_update, name="role-update"),
     path("roles/<int:role_id>/delete/", views.role_delete, name="role-delete"),
     path("permissions/", views.permission_list_create, name="permission-list-create"),

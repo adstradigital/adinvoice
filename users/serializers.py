@@ -115,13 +115,11 @@ class PermissionSerializer(serializers.ModelSerializer):
         instance.save(using=db_alias)
         return instance
 
+
+
 class RoleSerializer(serializers.ModelSerializer):
-    permission_ids = serializers.PrimaryKeyRelatedField(
-        many=True,
-        source="permissions",
-        queryset=Permission.objects.none(),
-        write_only=True,
-        required=False,
+    permission_ids = serializers.ListField(
+        child=serializers.IntegerField(), write_only=True, required=False
     )
     permissions = PermissionSerializer(many=True, read_only=True)
 
@@ -129,41 +127,43 @@ class RoleSerializer(serializers.ModelSerializer):
         model = Role
         fields = ["id", "name", "permissions", "permission_ids"]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        db_alias = self.context.get("using", "default")
-        self.fields["permission_ids"].queryset = Permission.objects.using(db_alias).all()
-
-    def validate_permission_ids(self, value):
-        db_alias = self.context.get("using", "default")
-        invalid_ids = [
-            pid for pid in [p.id for p in value]
-            if not Permission.objects.using(db_alias).filter(id=pid).exists()
-        ]
-        if invalid_ids:
-            raise serializers.ValidationError(
-                {"permission_ids": [f"Invalid pk \"{pid}\" - object does not exist." for pid in invalid_ids]}
-            )
-        return value
-
     def create(self, validated_data):
         db_alias = self.context.get("using", "default")
-        permission_ids = validated_data.pop("permissions", [])
+
+        # Extract permission IDs
+        permission_ids = validated_data.pop("permission_ids", [])
+        validated_data.pop("permissions", None)
+
+        # ✅ Create role in tenant DB
         role = Role.objects.using(db_alias).create(**validated_data)
+
+        # ✅ Link permissions in the same tenant DB
         if permission_ids:
-            permissions = Permission.objects.using(db_alias).filter(id__in=[p.id for p in permission_ids])
-            role.permissions.set(permissions)
+            permissions = Permission.objects.using(db_alias).filter(id__in=permission_ids)
+            role.permissions.set(permissions)  # handled correctly even across DB aliases
+
         return role
 
     def update(self, instance, validated_data):
         db_alias = self.context.get("using", "default")
-        permission_ids = validated_data.pop("permissions", None)
+
+        permission_ids = validated_data.pop("permission_ids", None)
+        validated_data.pop("permissions", None)
+
         instance.name = validated_data.get("name", instance.name)
         instance.save(using=db_alias)
+
         if permission_ids is not None:
-            permissions = Permission.objects.using(db_alias).filter(id__in=[p.id for p in permission_ids])
+            permissions = Permission.objects.using(db_alias).filter(id__in=permission_ids)
             instance.permissions.set(permissions)
+
         return instance
+
+
+
+    
+
+
 
 class UserRoleSerializer(serializers.ModelSerializer):
     class Meta:

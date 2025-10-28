@@ -4,6 +4,8 @@ from tenants.serializers import TenantSerializer
 from tenants.models import Tenant
 from users.serializers import UserSerializer
 from django.contrib.auth.hashers import check_password
+
+from utils.decorators import permission_required
 from .models import Document
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -229,7 +231,7 @@ def signin(request):
 
 # Endpoint: Approve/Reject Entrepreneur Application
 @api_view(['PUT'])
-# @role_required(["admin"])
+# @permission_required("approve_entrepreneur")
 @permission_classes([AllowAny])
 def approve_entrepreneur(request, user_id):
     try:
@@ -280,6 +282,7 @@ def approve_entrepreneur(request, user_id):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+# @permission_required("get_company_details")
 def get_company_details(request, user_id=None):
     try:
         # Determine user
@@ -341,6 +344,7 @@ def get_company_details(request, user_id=None):
 
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
+# @permission_required("update_company_details")
 def update_company_details(request):
     try:
         user = request.user
@@ -367,6 +371,7 @@ def update_company_details(request):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+# @permission_required("list_documents")
 def list_documents(request):
     docs = Document.objects.filter(user=request.user)
     serializer = DocumentSerializer(docs, many=True, context={"request": request})
@@ -375,6 +380,7 @@ def list_documents(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])
+# @permission_required("upload_document")
 def upload_document(request):
     file_obj = request.FILES.get("document_file")
     doc_type = request.data.get("doc_type")
@@ -393,6 +399,7 @@ def upload_document(request):
 
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
+# @permission_required("delete_document")
 def delete_document(request, doc_id):
     print("Received doc_id:", doc_id)
     try:
@@ -404,6 +411,7 @@ def delete_document(request, doc_id):
 
 
 @api_view(['GET'])
+# @permission_required("pending_users")
 def pending_users(request):
     try:
 
@@ -463,6 +471,7 @@ def superadmin_login(request):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+# @permission_required("merchant_list")
 def merchant_list(request):
     try:
         tenants = Tenant.objects.select_related("owner").all()  # fetch tenants + owner in one query
@@ -488,68 +497,219 @@ from .serializers import UserSerializer, RoleSerializer, PermissionSerializer, U
 
 logger = logging.getLogger(__name__)
 
-# Assume get_tenant_db is defined elsewhere
-# def get_tenant_db(tenant):
-#     return tenant.schema_name  # Example
 
 # ---------------- Users ----------------
+
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+# @permission_required("user_list")
 def user_list(request, tenant_id):
+    """List all users for a tenant."""
     try:
         tenant = Tenant.objects.get(id=tenant_id)
         db_alias = get_tenant_db(tenant)
-        users = User.objects.using(db_alias).all()
-        serializer = UserSerializer(users, many=True, context={"db_alias": db_alias})
-        return Response({"results": serializer.data}, status=status.HTTP_200_OK)
+
+        users = User.objects.using(db_alias).all().values("id", "username", "email", "first_name", "last_name")
+        result = []
+
+        for u in users:
+            roles = (
+                Role.objects.using(db_alias)
+                .filter(user_roles__user_id=u["id"])   # 👈 FIXED HERE
+                .values("id", "name")
+            )
+
+            result.append({
+                **u,
+                "roles": list(roles)
+            })
+
+        return Response({"results": result}, status=status.HTTP_200_OK)
+
     except Tenant.DoesNotExist:
         return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Error in user_list: {str(e)}", exc_info=True)
         return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+# @permission_required("user_create")
 def user_create(request, tenant_id):
+    """Create a user in a tenant DB and assign roles."""
     try:
         tenant = Tenant.objects.get(id=tenant_id)
         db_alias = get_tenant_db(tenant)
-        serializer = UserSerializer(data=request.data, context={"db_alias": db_alias})
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        data = request.data
+        username = data.get("username")
+        email = data.get("email")
+        password = data.get("password")
+        first_name = data.get("first_name", "")
+        last_name = data.get("last_name", "")
+        role_ids = data.get("role_ids", [])
+
+        if not username or not password:
+            return Response(
+                {"error": "Username and password are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ✅ Create user in tenant DB
+        user = User(
+            username=username,
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+        )
+        user.set_password(password)
+        user.save(using=db_alias)
+        # ✅ Assign roles (via UserRole table)
+        if isinstance(role_ids, list) and role_ids:
+            for role_id in role_ids:
+                try:
+                    role = Role.objects.using(db_alias).get(id=role_id)
+                    UserRole.objects.using(db_alias).create(user=user, role=role)
+                except Role.DoesNotExist:
+                    logger.warning(f"Role ID {role_id} not found in tenant {tenant_id}, skipped")
+
+        # ✅ Fetch roles for response
+        roles = (
+            Role.objects.using(db_alias)
+            .filter(user_roles__user_id=user.id)   # 👈 FIXED HERE TOO
+            .values("id", "name")
+        )
+
+
+
+        return Response(
+            {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "roles": list(roles),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
     except Tenant.DoesNotExist:
         return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.error(f"Error in user_create: {str(e)}", exc_info=True)
         return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+
+
 @api_view(["PUT"])
 @permission_classes([IsAuthenticated])
+# @permission_required("user_update")
 def user_update(request, user_id):
+    """Update user details and roles for a given tenant (no serializer)."""
     try:
+        logger.info(f"PUT data: {request.data}")
+
         tenant_id = request.data.get("tenant")
         if not tenant_id:
-            return Response({"error": "Tenant ID required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "Tenant ID required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         tenant = Tenant.objects.get(id=tenant_id)
         db_alias = get_tenant_db(tenant)
+
         user = User.objects.using(db_alias).get(id=user_id)
-        serializer = UserSerializer(user, data=request.data, context={"db_alias": db_alias})
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # --- Extract fields from request ---
+        username = request.data.get("username", user.username)
+        email = request.data.get("email", user.email)
+        first_name = request.data.get("first_name", user.first_name)
+        last_name = request.data.get("last_name", user.last_name)
+        password = request.data.get("password", None)
+        role_ids = request.data.get("role_ids", [])
+
+        # --- Check for unique username conflict ---
+        if (
+            User.objects.using(db_alias)
+            .exclude(id=user.id)
+            .filter(username=username)
+            .exists()
+        ):
+            return Response(
+                {"error": "A user with that username already exists."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # --- Update basic fields ---
+        user.username = username
+        user.email = email
+        user.first_name = first_name
+        user.last_name = last_name
+        if password:
+            user.set_password(password)
+
+        user.save(using=db_alias)
+
+        # --- Update roles ---
+        if isinstance(role_ids, list):
+            UserRole.objects.using(db_alias).filter(user=user).delete()
+            for role_id in role_ids:
+                try:
+                    role = Role.objects.using(db_alias).get(id=role_id)
+                    UserRole.objects.using(db_alias).create(user=user, role=role)
+                except Role.DoesNotExist:
+                    logger.warning(
+                        f"Role ID {role_id} not found for tenant {tenant_id}"
+                    )
+
+        # --- Fetch updated roles for response ---
+        roles = (
+            Role.objects.using(db_alias)
+            .filter(user_roles__user_id=user.id)
+            .values("id", "name")
+        )
+
+        return Response(
+            {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "roles": list(roles),
+            },
+            status=status.HTTP_200_OK,
+        )
+
     except Tenant.DoesNotExist:
-        return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST
+        )
     except User.DoesNotExist:
-        return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
+        )
     except Exception as e:
         logger.error(f"Error in user_update: {str(e)}", exc_info=True)
-        return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"error": "Internal server error"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+
+
 
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
+# @permission_required("user_delete")
 def user_delete(request, user_id):
     try:
         tenant_id = request.data.get("tenant")
@@ -569,49 +729,170 @@ def user_delete(request, user_id):
         return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # ---------------- Roles ----------------
-@api_view(["GET", "POST"])
+
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def role_list_create(request, tenant_id):
+# @permission_required("role_list")
+def role_list(request, tenant_id):
+    """List all roles for a tenant without serializer."""
     try:
         tenant = Tenant.objects.get(id=tenant_id)
         db_alias = get_tenant_db(tenant)
 
-        if request.method == "GET":
-            roles = Role.objects.using(db_alias).all()
-            serializer = RoleSerializer(roles, many=True, context={"using": db_alias})
-            return Response(serializer.data)
+        # ✅ Fetch all roles from the tenant DB
+        roles = Role.objects.using(db_alias).all()
 
-        elif request.method == "POST":
-            serializer = RoleSerializer(data=request.data, context={"using": db_alias})
-            if serializer.is_valid():
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # ✅ Prepare response with permissions (via RolePermission)
+        role_data = []
+        for role in roles:
+            # Fetch linked permissions via RolePermission table
+            role_permissions = RolePermission.objects.using(db_alias).filter(role=role).select_related("permission")
+
+            permissions = [
+                {
+                    "id": rp.permission.id,
+                    "code": rp.permission.code,
+                    "description": rp.permission.description,
+                }
+                for rp in role_permissions
+            ]
+
+            role_data.append({
+                "id": role.id,
+                "name": role.name,
+                "description": role.description,
+                "permissions": permissions,
+            })
+
+        return Response(role_data, status=status.HTTP_200_OK)
 
     except Tenant.DoesNotExist:
         return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
-        logger.error(f"Error in role_list_create: {str(e)}", exc_info=True)
+        logger.error(f"Error in role_list: {str(e)}", exc_info=True)
         return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
+
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+# @permission_required("role_create")
+def role_create(request, tenant_id):
+    try:
+        # 1️⃣ Get tenant and correct database alias
+        tenant = Tenant.objects.get(id=tenant_id)
+        db_alias = get_tenant_db(tenant)
+
+        data = request.data
+        name = data.get("name")
+        description = data.get("description", "")
+        permission_ids = data.get("permission_ids", [])
+
+        if not name:
+            return Response(
+                {"error": "Role name is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 2️⃣ Create the Role in tenant DB
+        role = Role.objects.using(db_alias).create(
+            name=name,
+            description=description,
+        )
+
+        # 3️⃣ Attach permissions manually via RolePermission
+        permissions = []
+        if permission_ids:
+            permissions = Permission.objects.using(db_alias).filter(id__in=permission_ids)
+            if permissions.count() != len(permission_ids):
+                return Response(
+                    {"error": "Some permission IDs not found in tenant DB"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Create RolePermission records in tenant DB
+            role_permissions = [
+                RolePermission(role_id=role.id, permission_id=p.id)
+                for p in permissions
+            ]
+            RolePermission.objects.using(db_alias).bulk_create(role_permissions)
+
+        # 4️⃣ Prepare response
+        return Response(
+            {
+                "id": role.id,
+                "name": role.name,
+                "description": role.description,
+                "permissions": list(permissions.values("id", "code"))
+                if permissions
+                else [],
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    except Tenant.DoesNotExist:
+        return Response(
+            {"error": "Tenant not found"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        logger.error(f"Error in role_create: {str(e)}", exc_info=True)
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
 
 @api_view(["PUT"])
 @permission_classes([IsAuthenticated])
+# @permission_required("role_update")
 def role_update(request, role_id):
     tenant_id = request.data.get("tenant")
     if not tenant_id:
         return Response({"error": "Tenant ID required"}, status=status.HTTP_400_BAD_REQUEST)
-    
+
     try:
         tenant = Tenant.objects.get(id=tenant_id)
         db_alias = get_tenant_db(tenant)
+
+        # Get role from tenant DB
         role = Role.objects.using(db_alias).get(id=role_id)
 
-        serializer = RoleSerializer(role, data=request.data, context={"using": db_alias})
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # Update role name
+        role_name = request.data.get("name")
+        if role_name:
+            role.name = role_name
+            role.save(using=db_alias)
+
+        # Update permissions
+        permission_ids = request.data.get("permission_ids", [])
+        if isinstance(permission_ids, list):
+            RolePermission.objects.using(db_alias).filter(role=role).delete()
+
+            for pid in permission_ids:
+                try:
+                    permission = Permission.objects.using(db_alias).get(id=pid)
+                    RolePermission.objects.using(db_alias).create(role=role, permission=permission)
+                except Permission.DoesNotExist:
+                    logger.warning(f"Permission ID {pid} not found in tenant {tenant_id}, skipped")
+
+        # Fetch updated permissions
+        permissions = list(
+            RolePermission.objects.using(db_alias)
+            .filter(role=role)
+            .select_related("permission")
+            .values("permission__id", "permission__code", "permission__description")
+        )
+
+        return Response(
+            {
+                "id": role.id,
+                "name": role.name,
+                "permissions": permissions,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     except Tenant.DoesNotExist:
         return Response({"error": "Tenant not found"}, status=status.HTTP_400_BAD_REQUEST)
@@ -619,10 +900,16 @@ def role_update(request, role_id):
         return Response({"error": "Role not found"}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(f"Error in role_update: {str(e)}", exc_info=True)
-        return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
     
+
+
+
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
+# @permission_required("role_delete")
 def role_delete(request, role_id):
     tenant_id = request.query_params.get("tenant")  # Pass tenant via query param
     if not tenant_id:
@@ -642,6 +929,9 @@ def role_delete(request, role_id):
     except Exception as e:
         logger.error(f"Error in role_delete: {str(e)}", exc_info=True)
         return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
 
 
 # ---------------- Permissions ----------------
@@ -673,6 +963,9 @@ def permission_list_create(request):
         logger.error(f"Error in permission_list_create: {str(e)}", exc_info=True)
         return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+
+
 @api_view(["PUT", "DELETE"])
 @permission_classes([IsAuthenticated])
 def permission_update_delete(request, perm_id):
@@ -703,6 +996,8 @@ def permission_update_delete(request, perm_id):
         logger.error(f"Error in permission_update_delete: {str(e)}", exc_info=True)
         return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+
 # ---------------- Assign Role ----------------
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -732,6 +1027,9 @@ def assign_role_to_user(request):
     except Exception as e:
         logger.error(f"Error in assign_role_to_user: {str(e)}", exc_info=True)
         return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+
 
 # ---------------- Assign Permission ----------------
 @api_view(["POST"])

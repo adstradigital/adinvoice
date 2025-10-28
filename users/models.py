@@ -135,7 +135,7 @@ class Document(models.Model):
 # models.py
 class Role(models.Model):
     name = models.CharField(max_length=100)
-    permissions = models.ManyToManyField('Permission', through='RolePermission', related_name='roles')
+    description = models.CharField(max_length=100,null=True)
 
     def __str__(self):
         return self.name

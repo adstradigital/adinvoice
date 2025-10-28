@@ -1192,7 +1192,7 @@ export const createUser = async (tenantId, data) => {
 
 export const updateUser = async (userId, data) => {
   const tenantId = localStorage.getItem("tenant_id");
-  const res = await fetch(`${BASE_URL}user/${userId}/`, {
+  const res = await fetch(`${BASE_URL}user/update/${userId}/`, {
     method: "PUT",
     headers: getAuthHeaders(),
     body: JSON.stringify({ ...data, tenant: tenantId }),
@@ -1219,8 +1219,14 @@ export const deleteUser = async (userId) => {
 };
 
 // Roles
+
+
 export const fetchRoles = async (tenantId) => {
-  const res = await fetch(`${BASE_URL}roles/${tenantId}/`, { headers: getAuthHeaders() });
+  const res = await fetch(`${BASE_URL}roles/${tenantId}/list/`, {
+    method: "GET",
+    headers: getAuthHeaders(),
+  });
+
   if (!res.ok) {
     const errorData = await res.json();
     throw new Error(errorData.error || `HTTP error! Status: ${res.status}`);
@@ -1229,17 +1235,21 @@ export const fetchRoles = async (tenantId) => {
 };
 
 export const createRole = async (tenantId, data) => {
-  const res = await fetch(`${BASE_URL}roles/${tenantId}/`, {
+  const res = await fetch(`${BASE_URL}roles/${tenantId}/create/`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ ...data, tenant: tenantId }),
+    body: JSON.stringify(data),
   });
+
   if (!res.ok) {
     const errorData = await res.json();
     throw new Error(errorData.error || `HTTP error! Status: ${res.status}`);
   }
   return res.json();
 };
+
+
+
 
 export const updateRole = async (roleId, data) => {
   const tenantId = localStorage.getItem("tenant_id");
