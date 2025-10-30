@@ -27,7 +27,7 @@ export default function Navbar() {
         {/* Nav Links + CTA */}
         <div className={`navlinks ${isOpen ? "open" : ""}`}>
           <a href="#top">Home</a>
-          <a href="#why">Why Us</a>
+          <a href="#why">About Us</a>
           <a href="#pricing">Pricing</a>
           <a href="#contact">Contact</a>
 

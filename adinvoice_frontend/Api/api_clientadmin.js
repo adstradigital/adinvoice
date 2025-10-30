@@ -1339,3 +1339,25 @@ export const deletePermission = async (permId) => {
   }
   return res.json();
 };
+
+// ===== TEMPLATE MANAGEMENT =====
+export const getTemplates = async () => {
+  const tenantId = localStorage.getItem("tenant_id");
+  if (!tenantId) {
+    console.error("Tenant ID not found. Please login again.");
+    return [];
+  }
+
+  try {
+    const res = await API.get(`/template-management/templates/`, {
+      headers: getAuthHeaders(),
+    });
+    return res.data;
+  } catch (error) {
+    console.error(
+      "Error fetching templates:",
+      error.response?.data || error.message
+    );
+    return [];
+  }
+};

@@ -17,6 +17,7 @@ class Proposal(models.Model):
         (1, 'Classic'),
         (2, 'Modern'),
         (3, 'Professional'),
+        (6, 'Your Custom Template'),
     ]
 
     # Basic Information
@@ -89,6 +90,10 @@ class ProposalItem(models.Model):
     quantity = models.PositiveIntegerField(default=1)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # NEW FIELDS: HSN/SAC and Part/Service Code
+    hsn_sac_code = models.CharField(max_length=50, blank=True, null=True)
+    part_service_code = models.CharField(max_length=50, blank=True, null=True)
     
     # Calculated fields
     total = models.DecimalField(max_digits=10, decimal_places=2, default=0)

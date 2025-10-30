@@ -76,6 +76,8 @@ export default function InvoiceBuilder() {
         gst: 18,
         unit: "pc",
         item_type: "service",
+        hsn_sac: "", // ✅ ADDED HSN/SAC FIELD
+        part_service_code: "", // ✅ ADDED PART/SERVICE CODE FIELD
       }
     ];
 
@@ -177,7 +179,7 @@ export default function InvoiceBuilder() {
       setInvoiceStatus(invoice.status || 'draft');
       setTemplate(invoice.template_used || 'saffron');
       
-      // ✅ Load items
+      // ✅ Load items with HSN/SAC and Part/Service Code
       if (invoice.items && invoice.items.length > 0) {
         console.log("📝 Using invoice items from database:", invoice.items);
         const transformedItems = invoice.items.map((item, index) => ({
@@ -188,6 +190,8 @@ export default function InvoiceBuilder() {
           gst: Number(item.gst_rate) || Number(item.gst) || 18,
           unit: item.unit || "pc",
           item_type: item.item_type || "service",
+          hsn_sac: item.hsn_sac || item.hsn_sac_code || "", // ✅ ADDED HSN/SAC
+          part_service_code: item.part_service_code || "", // ✅ ADDED PART/SERVICE CODE
         }));
         setInvoiceItems(transformedItems);
       }
@@ -329,7 +333,7 @@ export default function InvoiceBuilder() {
       console.log("📦 Items data received:", itemsData);
 
       if (itemsData && itemsData.length > 0) {
-        // Transform API response to match expected format
+        // Transform API response to match expected format WITH HSN/SAC AND PART/SERVICE CODE
         const transformedItems = itemsData.map((item) => ({
           id: item.id,
           description: item.description || item.name || "Service Item",
@@ -338,6 +342,8 @@ export default function InvoiceBuilder() {
           gst: Number(item.gst_rate) || Number(item.gst) || 18,
           unit: item.unit || "pc",
           item_type: item.item_type || "service",
+          hsn_sac: item.hsn_sac || item.hsn_sac_code || "", // ✅ ADDED HSN/SAC
+          part_service_code: item.part_service_code || "", // ✅ ADDED PART/SERVICE CODE
         }));
 
         setInvoiceItems(transformedItems);
@@ -405,6 +411,8 @@ export default function InvoiceBuilder() {
         price: 0,
         gst: 18,
         id: `temp-${Date.now()}`,
+        hsn_sac: "", // ✅ ADDED HSN/SAC FIELD
+        part_service_code: "", // ✅ ADDED PART/SERVICE CODE FIELD
       }
     ]);
   };
@@ -461,7 +469,7 @@ export default function InvoiceBuilder() {
     }
   };
 
-  // ✅ FIXED SAVE/UPDATE INVOICE FUNCTION
+  // ✅ FIXED SAVE/UPDATE INVOICE FUNCTION WITH HSN/SAC AND PART/SERVICE CODE
   const handleSaveInvoice = async () => {
   // ✅ FIXED VALIDATION: For emergency invoices, only require items
   if (invoiceItems.length === 0) {
@@ -475,7 +483,7 @@ export default function InvoiceBuilder() {
   try {
     const client = clients.find(c => c.id == selectedClient);
     
-    // Generate invoice data WITH STATUS
+    // Generate invoice data WITH STATUS AND HSN/PART FIELDS
     const invoiceData = {
       // ✅ For emergency invoices, proposal can be empty
       proposal: selectedProposal || null,
@@ -508,7 +516,9 @@ export default function InvoiceBuilder() {
         gst_rate: item.gst,
         total: item.quantity * item.price * (1 + item.gst / 100),
         item_type: item.item_type || "service",
-        unit: item.unit || "pc"
+        unit: item.unit || "pc",
+        hsn_sac: item.hsn_sac || "", // ✅ ADDED HSN/SAC TO API DATA
+        part_service_code: item.part_service_code || "", // ✅ ADDED PART/SERVICE CODE TO API DATA
       }))
     };
 
@@ -569,32 +579,6 @@ export default function InvoiceBuilder() {
     setLoading(false);
   }
 };
-
- const handleSendInvoice = async (invoiceId) => {
-  if (!invoiceId) {
-    alert("Please save the invoice first!");
-    return;
-  }
-
-  try {
-    const token = localStorage.getItem("access_token");
-    const res = await axios.post(
-      `http://127.0.0.1:8000/api/invoices/send/${invoiceId}/`,
-      {},
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-
-    alert(res.data.success || "Invoice sent successfully ✅");
-  } catch (error) {
-    console.error("Error sending invoice:", error);
-    alert(
-      error.response?.data?.error || "Failed to send invoice. Please try again."
-    );
-  }
-};
-
 
   // ✅ PRINT FUNCTIONALITY WITH BACKGROUND STYLING
   const handlePrint = (customOptions = {}) => {
@@ -1161,6 +1145,15 @@ export default function InvoiceBuilder() {
           width: 140px;
           text-align: right;
         }
+        /* ✅ ADDED HSN/SAC AND PART/SERVICE CODE COLUMNS */
+        .inv-preview.saffron .items .col-hsn {
+          width: 100px;
+          text-align: center;
+        }
+        .inv-preview.saffron .items .col-part {
+          width: 120px;
+          text-align: center;
+        }
 
         .inv-preview.saffron .totals {
           width: 100%;
@@ -1472,9 +1465,12 @@ export default function InvoiceBuilder() {
                         <thead className="table-light">
                           <tr>
                             <th>Description</th>
-                            <th width="10%">Qty</th>
-                            <th width="15%">Price</th>
-                            <th width="10%">GST %</th>
+                            <th width="8%">Qty</th>
+                            <th width="12%">Price</th>
+                            <th width="8%">GST %</th>
+                            {/* ✅ ADDED HSN/SAC AND PART/SERVICE CODE COLUMNS */}
+                            <th width="12%">HSN/SAC</th>
+                            <th width="12%">Part/Service Code</th>
                             <th width="15%">Total</th>
                             <th width="5%"></th>
                           </tr>
@@ -1530,6 +1526,32 @@ export default function InvoiceBuilder() {
                                     onChange={(e) =>
                                       updateItem(i, "gst", Number(e.target.value))
                                     }
+                                    disabled={loading}
+                                  />
+                                </td>
+                                {/* ✅ ADDED HSN/SAC INPUT */}
+                                <td>
+                                  <input
+                                    type="text"
+                                    className="form-control text-center"
+                                    value={item.hsn_sac || ""}
+                                    onChange={(e) =>
+                                      updateItem(i, "hsn_sac", e.target.value)
+                                    }
+                                    placeholder="HSN/SAC"
+                                    disabled={loading}
+                                  />
+                                </td>
+                                {/* ✅ ADDED PART/SERVICE CODE INPUT */}
+                                <td>
+                                  <input
+                                    type="text"
+                                    className="form-control text-center"
+                                    value={item.part_service_code || ""}
+                                    onChange={(e) =>
+                                      updateItem(i, "part_service_code", e.target.value)
+                                    }
+                                    placeholder="Part/Service Code"
                                     disabled={loading}
                                   />
                                 </td>
@@ -1675,6 +1697,9 @@ export default function InvoiceBuilder() {
                               <tr>
                                 <th className="col-qty">Qty</th>
                                 <th>Description</th>
+                                {/* ✅ ADDED HSN/SAC AND PART/SERVICE CODE COLUMNS */}
+                                <th className="col-hsn">HSN/SAC</th>
+                                <th className="col-part">Part/Service Code</th>
                                 <th className="col-unit">Unit Price</th>
                                 <th className="col-amount">Amount</th>
                               </tr>
@@ -1686,6 +1711,10 @@ export default function InvoiceBuilder() {
                                   <tr key={it.id || i}>
                                     <td className="col-qty">{it.quantity}</td>
                                     <td>{it.description}</td>
+                                    {/* ✅ ADDED HSN/SAC DATA */}
+                                    <td className="col-hsn">{it.hsn_sac || "-"}</td>
+                                    {/* ✅ ADDED PART/SERVICE CODE DATA */}
+                                    <td className="col-part">{it.part_service_code || "-"}</td>
                                     <td className="col-unit">
                                       {formatINR(it.price)}
                                     </td>
@@ -1697,7 +1726,7 @@ export default function InvoiceBuilder() {
                               })}
                               <tr>
                                 <td
-                                  colSpan={3}
+                                  colSpan={5}
                                   style={{ textAlign: "right", color: "#4b5563" }}
                                 >
                                   Subtotal
@@ -1708,7 +1737,7 @@ export default function InvoiceBuilder() {
                               </tr>
                               <tr>
                                 <td
-                                  colSpan={3}
+                                  colSpan={5}
                                   style={{ textAlign: "right", color: "#4b5563" }}
                                 >
                                   GST ({invoiceItems[0]?.gst ?? 18}%)
@@ -1719,7 +1748,7 @@ export default function InvoiceBuilder() {
                               </tr>
                               <tr>
                                 <td
-                                  colSpan={3}
+                                  colSpan={5}
                                   style={{
                                     textAlign: "right",
                                     fontWeight: 700,
@@ -1929,6 +1958,9 @@ export default function InvoiceBuilder() {
                               <tr>
                                 <th>Description</th>
                                 <th>Qty</th>
+                                {/* ✅ ADDED HSN/SAC AND PART/SERVICE CODE COLUMNS */}
+                                <th>HSN/SAC</th>
+                                <th>Part/Service Code</th>
                                 <th>Price</th>
                                 <th>GST</th>
                                 <th>Total</th>
@@ -1942,6 +1974,10 @@ export default function InvoiceBuilder() {
                                   <tr key={item.id || i}>
                                     <td>{item.description}</td>
                                     <td>{item.quantity}</td>
+                                    {/* ✅ ADDED HSN/SAC DATA */}
+                                    <td>{item.hsn_sac || "-"}</td>
+                                    {/* ✅ ADDED PART/SERVICE CODE DATA */}
+                                    <td>{item.part_service_code || "-"}</td>
                                     <td>{formatINR(item.price)}</td>
                                     <td>{item.gst}%</td>
                                     <td>{formatINR(rowTotal)}</td>
@@ -2013,14 +2049,6 @@ export default function InvoiceBuilder() {
                         editingInvoice ? '💾 Update Invoice' : '💾 Save Invoice'
                       )}
                     </button>
-
-                    <button
-                    className="btn btn-success"
-                     onClick={() => handleSendInvoice(invoiceId)} // pass the saved invoice ID
-                          >
-                       Send Invoice
-                     </button>
-
 
                     {/* ✅ STATUS SELECTOR */}
                     <div className="d-inline-block me-2">

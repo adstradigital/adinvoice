@@ -1,5 +1,4 @@
 from rest_framework import serializers
-
 from tenants.models import Tenant
 from .models import Proposal, ProposalItem
 import uuid
@@ -11,7 +10,8 @@ class ProposalItemSerializer(serializers.ModelSerializer):
         model = ProposalItem
         fields = [
             'id', 'name', 'description', 'item_type', 
-            'quantity', 'price', 'gst_rate', 'total', 'order'
+            'quantity', 'price', 'gst_rate', 'total', 'order',
+            'hsn_sac_code', 'part_service_code'  
         ]
         read_only_fields = ['total']
 
@@ -44,11 +44,34 @@ class ProposalSerializer(serializers.ModelSerializer):
         
         # Create proposal items in the same database
         for item_data in items_data:
+            # Ensure new fields are included with default values if not provided
+            item_data.setdefault('hsn_sac_code', '')
+            item_data.setdefault('part_service_code', '')
             ProposalItem.objects.using(db_alias).create(proposal=proposal, **item_data)
         
         print(f"✅ Proposal saved to {db_alias}: {proposal.proposal_number}")
         return proposal
     
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop('items', [])
+        
+        # Update proposal fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        
+        # Handle items update
+        if items_data:
+            # Delete existing items
+            instance.items.all().delete()
+            
+            # Create new items with new fields
+            for item_data in items_data:
+                item_data.setdefault('hsn_sac_code', '')
+                item_data.setdefault('part_service_code', '')
+                ProposalItem.objects.create(proposal=instance, **item_data)
+        
+        return instance
 
 # Add this to your serializers.py
 class ProposalListSerializer(serializers.ModelSerializer):

@@ -1,11 +1,11 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Trash2, Loader2, Search, UserPlus, Building, Edit, Save, FileText, List, Printer, Plus, Eye, Image } from "lucide-react";
+import { Trash2, Loader2, RefreshCw, Search, UserPlus, Building, Edit, Save, FileText, List, Printer, Plus, Eye } from "lucide-react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import Swal from "sweetalert2";
 
-// Import your existing API functions - including template functions
+// Import your existing API functions
 import { 
   getProductsServices, 
   addProduct, 
@@ -19,8 +19,7 @@ import {
   saveProposal,
   getProposals,
   updateProposal,
-  deleteProposal,
-  getTemplates // Add this import
+  deleteProposal
 } from "../../../Api/api_clientadmin";
 
 // Helper function to handle address objects
@@ -43,7 +42,7 @@ const renderAddress = (address) => {
   return address;
 };
 
-// API Service Functions - Updated with Template Management
+// API Service Functions - Connected to your Django backend
 const apiService = {
   products: {
     async getAll() {
@@ -56,8 +55,6 @@ const apiService = {
             name: item.name,
             price: parseFloat(item.unit_price) || 0,
             description: item.description || "",
-            hsn_sac: item.hsn_code || "",
-            part_service_code: item.part_service_code || "",
             type: item.type || "product"
           }));
         return { products: productItems };
@@ -73,8 +70,6 @@ const apiService = {
           name: productData.name,
           description: productData.description,
           unit_price: productData.price.toString(),
-          hsn_code: productData.hsn_code || "",
-          part_service_code: productData.part_service_code || "",
           type: "product"
         };
         const newProduct = await addProduct(apiData);
@@ -83,8 +78,6 @@ const apiService = {
           name: newProduct.name,
           price: parseFloat(newProduct.unit_price) || 0,
           description: newProduct.description || "",
-          hsn_sac: newProduct.hsn_code || "",
-          part_service_code: newProduct.part_service_code || "",
           type: newProduct.type || "product"
         };
       } catch (error) {
@@ -115,8 +108,6 @@ const apiService = {
             name: item.name,
             price: parseFloat(item.unit_price) || 0,
             description: item.description || "",
-            hsn_sac: item.hsn_code || "",
-            part_service_code: item.part_service_code || "",
             type: "service"
           }));
         return { services: serviceItems };
@@ -132,8 +123,6 @@ const apiService = {
           name: serviceData.name,
           description: serviceData.description,
           unit_price: serviceData.price.toString(),
-          hsn_code: serviceData.hsn_code || "",
-          part_service_code: serviceData.part_service_code || "",
           type: "service"
         };
         const newService = await addProduct(apiData);
@@ -142,8 +131,6 @@ const apiService = {
           name: newService.name,
           price: parseFloat(newService.unit_price) || 0,
           description: newService.description || "",
-          hsn_sac: newService.hsn_code || "",
-          part_service_code: newService.part_service_code || "",
           type: newService.type || "service"
         };
       } catch (error) {
@@ -615,8 +602,6 @@ const apiService = {
           items: proposalData.items.map(item => ({
             name: item.name,
             description: item.description || '',
-            hsn_sac_code: item.hsn_sac || '',
-            part_service_code: item.part_service_code || '',
             quantity: item.qty || 1,
             price: item.price || 0,
             gst_rate: item.gst || 0,
@@ -672,8 +657,6 @@ const apiService = {
           items: proposalData.items.map(item => ({
             name: item.name,
             description: item.description || '',
-            hsn_sac_code: item.hsn_sac || '',
-            part_service_code: item.part_service_code || '',
             quantity: item.qty || 1,
             price: item.price || 0,
             gst_rate: item.gst || 0,
@@ -703,209 +686,60 @@ const apiService = {
         throw error;
       }
     }
-  },
-
-  // Add Templates API
-  templates: {
-    async getAll() {
-      try {
-        const templates = await getTemplates();
-        console.log('📋 Raw templates API response:', templates);
-        
-        // Transform templates to match your expected format
-        const transformedTemplates = (templates || []).map(template => ({
-          id: template.id,
-          name: template.title,
-          file: template.file,
-          style: this.generateTemplateStyle(template.id), // Generate dynamic styles
-          imageUrl: `http://127.0.0.1:8000/uploads/${template.file}`,
-          _original: template
-        }));
-        
-        console.log('🎨 Transformed templates:', transformedTemplates);
-        return { templates: transformedTemplates };
-      } catch (error) {
-        console.error('Error fetching templates:', error);
-        // Return default templates if API fails
-        return { templates: this.getDefaultTemplates() };
-      }
-    },
-
-    generateTemplateStyle(templateId) {
-      // Generate styles based on template ID or use defaults
-      const baseStyles = {
-        container: { fontFamily: "Arial, sans-serif", fontSize: "14px", fontWeight: "normal", textColor: "#333", textAlign: "left" },
-        header: { color: "#2c3e50", fontSize: "24px", fontWeight: "bold", textAlign: "center" },
-        subHeader: { color: "#34495e", fontSize: "18px", fontWeight: "bold" },
-        clientInfo: { fontSize: "14px", fontWeight: "normal", textColor: "#555" },
-        tableHeader: { backgroundColor: "#f8f9fa", fontWeight: "bold", textAlign: "left", fontSize: "14px", color: "#2c3e50" },
-        tableCell: { fontSize: "14px", color: "#333", textAlign: "left" },
-        totals: { fontSize: "16px", fontWeight: "bold", textAlign: "right", color: "#2c3e50" },
-        notes: { fontSize: "13px", color: "#666", textAlign: "left" },
-        footer: { fontSize: "12px", color: "#777", textAlign: "center" },
-      };
-
-      // You can customize styles based on template ID
-      switch(templateId) {
-        case 1:
-          return {
-            ...baseStyles,
-            header: { ...baseStyles.header, color: "#1b4496", textAlign: "left" },
-            container: { ...baseStyles.container, fontFamily: "Times New Roman, serif" }
-          };
-        case 2:
-          return {
-            ...baseStyles,
-            header: { ...baseStyles.header, color: "#473b32", textAlign: "center" },
-            tableHeader: { ...baseStyles.tableHeader, textAlign: "center" },
-            tableCell: { ...baseStyles.tableCell, textAlign: "center" }
-          };
-        case 3:
-          return {
-            ...baseStyles,
-            header: { ...baseStyles.header, color: "#ffffff", textAlign: "right" },
-            container: { ...baseStyles.container, textAlign: "right" },
-            tableHeader: { ...baseStyles.tableHeader, textAlign: "right" },
-            tableCell: { ...baseStyles.tableCell, textAlign: "right" },
-            totals: { ...baseStyles.totals, textAlign: "right" }
-          };
-        default:
-          return baseStyles;
-      }
-    },
-
-    getDefaultTemplates() {
-      // Fallback templates if API fails
-      return [
-        {
-          id: 1,
-          name: "Classic",
-          file: "template_1.jpg",
-          style: {
-            container: { fontFamily: "Times New Roman, serif", fontSize: "14px", fontWeight: "normal", textColor: "#dfdcdcff", textAlign: "left"},
-            header: { color: "#b2b4b6ff", fontSize: "20px", fontWeight: "bold", textAlign: "left" },
-            subHeader: { color: "#1b4496ff", fontSize: "16px", fontWeight: "bold"},
-            clientInfo: { fontSize: "14px", fontWeight: "normal", textColor: "#fdf6f6ff" },
-            tableHeader: { backgroundColor: "#f0f0f0", fontWeight: "bold", textAlign: "left", fontSize: "14px", color: "#000" },
-            tableCell: { fontSize: "14px", color: "#000000ff", textAlign: "left" },
-            totals: { fontSize: "14px", fontWeight: "bold", textAlign: "right", color: "#111111" },
-            notes: { fontSize: "13px", color: "#333333", textAlign: "left" },
-            footer: { fontSize: "12px", color: "#555555", textAlign: "center" },
-          },
-        },
-        {
-          id: 2,
-          name: "Modern",
-          file: "template_2.jpg", 
-          style: {
-            container: { fontFamily: "Arial, sans-serif", fontSize: "13px", fontWeight: "normal", textColor: "#222222", textAlign: "left" },
-            header: { color: "#473b32ff", fontSize: "22px", fontWeight: "bold", textAlign: "center" },
-            subHeader: { color: "#251d18ff", fontSize: "16px", fontWeight: "bold" },
-            clientInfo: { fontSize: "13px", fontWeight: "normal", textColor: "#e9e8e8ff" },
-            tableHeader: { backgroundColor: "#e0f7fa", fontWeight: "bold", textAlign: "center", fontSize: "14px", color: "#222" },
-            tableCell: { fontSize: "13px", color: "#222", textAlign: "center" },
-            totals: { fontSize: "14px", fontWeight: "bold", textAlign: "right", color: "#222" },
-            notes: { fontSize: "13px", color: "#444444", textAlign: "left" },
-            footer: { fontSize: "12px", color: "#271e09ff", textAlign: "center", marginTop:"-20px"},
-          },
-        }
-      ];
-    }
-  },
+  }
 };
 
-// Simple Template Selection Modal Component
-const TemplateSelectionModal = ({ 
-  show, 
-  onClose, 
-  templates, 
-  onSelectTemplate, 
-  currentTemplate,
-  loading = false 
-}) => {
-  return (
-    <div
-      className="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1060 }}
-      onClick={onClose}
-    >
-      <div
-        className="card shadow"
-        style={{ width: "90%", maxWidth: "800px", maxHeight: "90vh", overflowY: "auto" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-          <h5 className="mb-0">Select Template</h5>
-          <button 
-            className="btn-close btn-close-white" 
-            onClick={onClose}
-          ></button>
-        </div>
-        
-        <div className="card-body">
-          {loading ? (
-            <div className="text-center py-4">
-              <Loader2 size={32} className="spinner" />
-              <p className="mt-2">Loading templates...</p>
-            </div>
-          ) : templates.length === 0 ? (
-            <div className="text-center py-4">
-              <p>No templates available.</p>
-            </div>
-          ) : (
-            <div className="row g-3">
-              {templates.map((template) => (
-                <div key={template.id} className="col-md-6">
-                  <div 
-                    className={`card template-card ${currentTemplate?.id === template.id ? 'border-primary' : 'border-light'}`}
-                    style={{ 
-                      cursor: 'pointer',
-                      border: currentTemplate?.id === template.id ? '3px solid #0d6efd' : '1px solid #dee2e6'
-                    }}
-                    onClick={() => onSelectTemplate(template)}
-                  >
-                    <div className="card-img-top template-preview">
-                      <img 
-                        src={template.imageUrl || `/proposal-templates/${template.file}`} 
-                        alt={template.name}
-                        style={{ 
-                          width: '100%', 
-                          height: '150px', 
-                          objectFit: 'cover',
-                          background: '#f8f9fa'
-                        }}
-                        onError={(e) => {
-                          e.target.src = '/proposal-templates/default-template.jpg';
-                        }}
-                      />
-                    </div>
-                    <div className="card-body text-center p-2">
-                      <h6 className="card-title mb-1">{template.name}</h6>
-                      {currentTemplate?.id === template.id && (
-                        <span className="badge bg-success">Selected</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        
-        <div className="card-footer">
-          <div className="d-flex justify-content-end">
-            <button 
-              className="btn btn-secondary"
-              onClick={onClose}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+// Templates
+const TEMPLATES = [
+  {
+    id: 1,
+    name: "Classic",
+    file: "template_1.jpg",
+    style: {
+      container: { fontFamily: "Times New Roman, serif", fontSize: "14px", fontWeight: "normal", textColor: "#dfdcdcff", textAlign: "left",},
+      header: { color: "#b2b4b6ff", fontSize: "20px", fontWeight: "bold", textAlign: "left", },
+      subHeader: { color: "#1b4496ff", fontSize: "16px", fontWeight: "bold",},
+      clientInfo: { fontSize: "14px", fontWeight: "normal", textColor: "#fdf6f6ff" },
+      tableHeader: { backgroundColor: "#f0f0f0", fontWeight: "bold", textAlign: "left", fontSize: "14px", color: "#000" },
+      tableCell: { fontSize: "14px", color: "#000000ff", textAlign: "left" },
+      totals: { fontSize: "14px", fontWeight: "bold", textAlign: "right", color: "#111111" },
+      notes: { fontSize: "13px", color: "#333333", textAlign: "left" },
+      footer: { fontSize: "12px", color: "#555555", textAlign: "center" },
+    },
+  },
+  {
+    id: 2,
+    name: "Modern",
+    file: "template_2.jpg",
+    style: {
+      container: { fontFamily: "Arial, sans-serif", fontSize: "13px", fontWeight: "normal", textColor: "#222222", textAlign: "left" },
+      header: { color: "#473b32ff", fontSize: "22px", fontWeight: "bold", textAlign: "center" },
+      subHeader: { color: "#251d18ff", fontSize: "16px", fontWeight: "bold" },
+      clientInfo: { fontSize: "13px", fontWeight: "normal", textColor: "#e9e8e8ff" },
+      tableHeader: { backgroundColor: "#e0f7fa", fontWeight: "bold", textAlign: "center", fontSize: "14px", color: "#222" },
+      tableCell: { fontSize: "13px", color: "#222", textAlign: "center" },
+      totals: { fontSize: "14px", fontWeight: "bold", textAlign: "right", color: "#222" },
+      notes: { fontSize: "13px", color: "#444444", textAlign: "left" },
+      footer: { fontSize: "12px", color: "#271e09ff", textAlign: "center", marginTop:"-20px"},
+    },
+  },
+  {
+    id: 3,
+    name: "Professional",
+    file: "template_3.jpg",
+    style: {
+      container: { fontFamily: "Verdana, sans-serif", fontSize: "15px", fontWeight: "normal", textColor: "#fff8f8ff", textAlign: "right" },
+      header: { color: "#ffffff", fontSize: "22px", fontWeight: "bold", textAlign: "right" },
+      subHeader: { color: "#ffffff", fontSize: "16px", fontWeight: "bold" },
+      clientInfo: { fontSize: "14px", fontWeight: "normal", textColor: "#ffff" },
+      tableHeader: { backgroundColor: "#d4ceceff", fontWeight: "bold", textAlign: "right", fontSize: "14px", color: "#000" },
+      tableCell: { fontSize: "14px", color: "#0b0a0aff", textAlign: "right" },
+      totals: { fontSize: "14px", fontWeight: "bold", textAlign: "right", color: "#000000" },
+      notes: { fontSize: "13px", color: "#666666", textAlign: "right" },
+      footer: { fontSize: "11px", color: "#030303ff", textAlign: "center" },
+    },
+  },
+];
 
 // Product/Service Creation Modal Component
 const ProductServiceModal = ({ 
@@ -920,7 +754,6 @@ const ProductServiceModal = ({
     description: '',
     price: '',
     hsn_code: '',
-    part_service_code: '',
     stock_quantity:'',
     delivery_available: true,
     is_active: true,
@@ -948,7 +781,6 @@ const ProductServiceModal = ({
         description: '',
         price: '',
         hsn_code: '',
-        part_service_code: '',
         stock_quantity: '',
         delivery_available: true,
         is_active: true,
@@ -965,12 +797,12 @@ const ProductServiceModal = ({
     >
       <div
         className="card shadow"
-        style={{ width: "500px", maxHeight: "90vh", overflowY: "auto" }}
+        style={{ width: "600px", maxHeight: "90vh", overflowY: "auto" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
           <h5 className="mb-0">
-            {type === 'product' ? 'Create Product' : 'Create Service'}
+            {type === 'product' ? '📦 Create Product' : '🛠️ Create Service'}
           </h5>
           <button 
             className="btn-close btn-close-white" 
@@ -980,34 +812,101 @@ const ProductServiceModal = ({
         
         <div className="card-body">
           <form onSubmit={handleSubmit}>
-            <div className="mb-3">
-              <label className="form-label">Name *</label>
-              <input
-                type="text"
-                className="form-control"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                placeholder={`Enter ${type} name`}
-                required
-              />
+            <div className="row">
+              <div className="col-md-6">
+                {/* Name */}
+                <div className="mb-3">
+                  <label className="form-label">Name *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder={`Enter ${type} name`}
+                    required
+                  />
+                </div>
+
+                {/* Price */}
+                <div className="mb-3">
+                  <label className="form-label">Price ($) *</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    name="price"
+                    value={formData.price}
+                    onChange={handleInputChange}
+                    placeholder="Enter price"
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+                </div>
+
+                {/* HSN Code */}
+                <div className="mb-3">
+                  <label className="form-label">HSN Code</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="hsn_code"
+                    value={formData.hsn_code}
+                    onChange={handleInputChange}
+                    placeholder="Enter HSN code"
+                  />
+                </div>
+              </div>
+
+              <div className="col-md-6">
+                {/* Stock Quantity - Only for products */}
+                {type === 'product' && (
+                  <div className="mb-3">
+                    <label className="form-label">Stock Quantity</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      name="stock_quantity"
+                      value={formData.stock_quantity}
+                      onChange={handleInputChange}
+                      placeholder="Enter stock quantity"
+                      min="0"
+                    />
+                  </div>
+                )}
+
+                {/* Status Checkboxes */}
+                <div className="mb-3">
+                  <div className="form-check">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      name="is_active"
+                      checked={formData.is_active}
+                      onChange={handleInputChange}
+                    />
+                    <label className="form-check-label">
+                      Active
+                    </label>
+                  </div>
+                  
+                  <div className="form-check">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      name="delivery_available"
+                      checked={formData.delivery_available}
+                      onChange={handleInputChange}
+                    />
+                    <label className="form-check-label">
+                      Delivery Available
+                    </label>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="mb-3">
-              <label className="form-label">Price ($) *</label>
-              <input
-                type="number"
-                className="form-control"
-                name="price"
-                value={formData.price}
-                onChange={handleInputChange}
-                placeholder="Enter price"
-                min="0"
-                step="0.01"
-                required
-              />
-            </div>
-
+            {/* Description - Full width */}
             <div className="mb-3">
               <label className="form-label">Description</label>
               <textarea
@@ -1016,32 +915,15 @@ const ProductServiceModal = ({
                 value={formData.description}
                 onChange={handleInputChange}
                 placeholder={`Enter ${type} description`}
-                rows="2"
+                rows="3"
               />
             </div>
 
-            <div className="mb-3">
-              <label className="form-label">HSN/SAC Code</label>
-              <input
-                type="text"
-                className="form-control"
-                name="hsn_code"
-                value={formData.hsn_code}
-                onChange={handleInputChange}
-                placeholder="Enter HSN or SAC code"
-              />
-            </div>
-
-            <div className="mb-3">
-              <label className="form-label">Part/Service Code</label>
-              <input
-                type="text"
-                className="form-control"
-                name="part_service_code"
-                value={formData.part_service_code}
-                onChange={handleInputChange}
-                placeholder="Enter internal code"
-              />
+            {/* Type Display */}
+            <div className="alert alert-info py-2">
+              <small>
+                <strong>Type:</strong> {type === 'product' ? 'Product' : 'Service'}
+              </small>
             </div>
           </form>
         </div>
@@ -1116,7 +998,10 @@ const CompanySettingsModal = ({ companyDetails, onUpdate, onClose, loading, onLo
       <div className="modal-dialog modal-lg">
         <div className="modal-content">
           <div className="modal-header">
-            <h5 className="modal-title">Company Settings</h5>
+            <h5 className="modal-title">
+              <Building size={20} className="me-2" />
+              Company Settings
+            </h5>
             <button type="button" className="btn-close" onClick={onClose}></button>
           </div>
           <div className="modal-body">
@@ -1156,6 +1041,16 @@ const CompanySettingsModal = ({ companyDetails, onUpdate, onClose, loading, onLo
                       required
                     />
                   </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Alternate Phone</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={formData.alternatePhone}
+                      onChange={(e) => setFormData({...formData, alternatePhone: e.target.value})}
+                    />
+                  </div>
                 </div>
                 
                 <div className="col-md-6">
@@ -1181,9 +1076,75 @@ const CompanySettingsModal = ({ companyDetails, onUpdate, onClose, loading, onLo
                       placeholder="https://example.com"
                     />
                   </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Industry</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={formData.industry}
+                      onChange={(e) => setFormData({...formData, industry: e.target.value})}
+                      placeholder="e.g., Software, Consulting"
+                    />
+                  </div>
                 </div>
               </div>
 
+              <div className="row">
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label">Designation</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={formData.designation}
+                      onChange={(e) => setFormData({...formData, designation: e.target.value})}
+                      placeholder="e.g., CEO, Founder"
+                    />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label">Experience (Years)</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      value={formData.experience}
+                      onChange={(e) => setFormData({...formData, experience: parseInt(e.target.value) || 0})}
+                      min="0"
+                      max="50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="row">
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label">LinkedIn</label>
+                    <input
+                      type="url"
+                      className="form-control"
+                      value={formData.linkedin}
+                      onChange={(e) => setFormData({...formData, linkedin: e.target.value})}
+                      placeholder="https://linkedin.com/in/username"
+                    />
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="mb-3">
+                    <label className="form-label">Twitter</label>
+                    <input
+                      type="url"
+                      className="form-control"
+                      value={formData.twitter}
+                      onChange={(e) => setFormData({...formData, twitter: e.target.value})}
+                      placeholder="https://twitter.com/username"
+                    />
+                  </div>
+                </div>
+              </div>
+              
               <div className="mb-3">
                 <label className="form-label">Company Logo</label>
                 <input
@@ -1193,13 +1154,16 @@ const CompanySettingsModal = ({ companyDetails, onUpdate, onClose, loading, onLo
                   onChange={handleLogoChange}
                   disabled={uploadingLogo}
                 />
-                {uploadingLogo && <div className="form-text">Uploading...</div>}
+                <div className="form-text">
+                  Recommended: Square image, max 5MB (PNG, JPG, SVG)
+                  {uploadingLogo && <span className="text-warning"> • Uploading...</span>}
+                </div>
                 {formData.companyLogo && (
                   <div className="mt-2">
                     <img 
                       src={formData.companyLogo} 
                       alt="Company Logo" 
-                      style={{ maxHeight: '60px', maxWidth: '200px' }}
+                      style={{ maxHeight: '80px', maxWidth: '200px' }}
                       className="border rounded p-1 bg-white"
                     />
                   </div>
@@ -1274,7 +1238,10 @@ const ViewProposalModal = ({ proposal, onClose }) => {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
-          <h5 className="mb-0">View Proposal - {proposal.proposal_number}</h5>
+          <h5 className="mb-0">
+            <Eye size={20} className="me-2" />
+            View Proposal - {proposal.proposal_number}
+          </h5>
           <button 
             className="btn-close btn-close-white" 
             onClick={onClose}
@@ -1311,6 +1278,9 @@ const ViewProposalModal = ({ proposal, onClose }) => {
                 <p style={style.clientInfo}>Proposal #: {proposal.proposal_number}</p>
                 <p style={style.clientInfo}>Date: {proposal.date}</p>
                 {proposal.due_date && <p style={style.clientInfo}>Due Date: {proposal.due_date}</p>}
+                <p style={{ ...style.clientInfo, marginTop: "10px", padding: "5px 10px", backgroundColor: proposal.status === 'accepted' ? '#28a745' : proposal.status === 'rejected' ? '#dc3545' : '#6c757d', color: 'white', borderRadius: '5px', display: 'inline-block' }}>
+                  Status: {proposal.status?.toUpperCase() || 'DRAFT'}
+                </p>
               </div>
             </div>
 
@@ -1330,8 +1300,6 @@ const ViewProposalModal = ({ proposal, onClose }) => {
                   <th style={{ padding: "12px", border: "1px solid #ddd" }}>S.No</th>
                   <th style={{ padding: "12px", border: "1px solid #ddd" }}>Item</th>
                   <th style={{ padding: "12px", border: "1px solid #ddd" }}>Description</th>
-                  <th style={{ padding: "12px", border: "1px solid #ddd" }}>HSN/SAC</th>
-                  <th style={{ padding: "12px", border: "1px solid #ddd" }}>Part/Service Code</th>
                   <th style={{ padding: "12px", border: "1px solid #ddd" }}>Qty</th>
                   <th style={{ padding: "12px", border: "1px solid #ddd" }}>Price</th>
                   <th style={{ padding: "12px", border: "1px solid #ddd" }}>GST %</th>
@@ -1344,8 +1312,6 @@ const ViewProposalModal = ({ proposal, onClose }) => {
                     <td style={{ padding: "12px", border: "1px solid #ddd" }}>{index + 1}</td>
                     <td style={{ padding: "12px", border: "1px solid #ddd" }}>{item.name}</td>
                     <td style={{ padding: "12px", border: "1px solid #ddd" }}>{item.description || "-"}</td>
-                    <td style={{ padding: "12px", border: "1px solid #ddd" }}>{item.hsn_sac_code || "-"}</td>
-                    <td style={{ padding: "12px", border: "1px solid #ddd" }}>{item.part_service_code || "-"}</td>
                     <td style={{ padding: "12px", border: "1px solid #ddd", textAlign: "center" }}>{item.quantity || item.qty || 1}</td>
                     <td style={{ padding: "12px", border: "1px solid #ddd", textAlign: "right" }}>${(item.price || 0).toFixed(2)}</td>
                     <td style={{ padding: "12px", border: "1px solid #ddd", textAlign: "right" }}>{item.gst_rate || item.gst || 0}%</td>
@@ -1387,6 +1353,9 @@ const ViewProposalModal = ({ proposal, onClose }) => {
             {/* Footer */}
             <div style={{ textAlign: "center", marginTop: "40px", paddingTop: "20px", borderTop: "1px solid #ddd" }}>
               <p style={style.footer}>Thank you for your business!</p>
+              <p style={style.footer}>
+                {proposal.company_name} | {proposal.company_phone} | {proposal.company_email}
+              </p>
             </div>
           </div>
         </div>
@@ -1477,11 +1446,11 @@ const ClientCompanyModal = ({
     >
       <div
         className="card shadow"
-        style={{ width: "700px", maxHeight: "90vh", overflowY: "auto" }}
+        style={{ width: "800px", maxHeight: "90vh", overflowY: "auto" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-          <h5 className="mb-0">Add Client Company Details</h5>
+          <h5 className="mb-0">🏢 Add Client Company Details</h5>
           <button 
             className="btn-close btn-close-white" 
             onClick={onClose}
@@ -1489,6 +1458,13 @@ const ClientCompanyModal = ({
         </div>
         
         <div className="card-body">
+          <div className="alert alert-info">
+            <small>
+              <strong>Note:</strong> Basic information is pre-filled from the form above. 
+              You can add additional details here.
+            </small>
+          </div>
+
           <form onSubmit={handleSubmit}>
             <div className="row">
               <div className="col-md-6">
@@ -1542,9 +1518,57 @@ const ClientCompanyModal = ({
                     placeholder="+1234567890"
                   />
                 </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Industry</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="industry"
+                    value={formData.industry}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Technology, Healthcare"
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Website</label>
+                  <input
+                    type="url"
+                    className="form-control"
+                    name="website"
+                    value={formData.website}
+                    onChange={handleInputChange}
+                    placeholder="https://example.com"
+                  />
+                </div>
               </div>
 
               <div className="col-md-6">
+                <div className="mb-3">
+                  <label className="form-label">Registration Number</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="registration_number"
+                    value={formData.registration_number}
+                    onChange={handleInputChange}
+                    placeholder="Business registration number"
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Tax ID / VAT Number</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    name="tax_id"
+                    value={formData.tax_id}
+                    onChange={handleInputChange}
+                    placeholder="Tax identification number"
+                  />
+                </div>
+
                 <div className="mb-3">
                   <label className="form-label">Address Line 1 *</label>
                   <input
@@ -1586,6 +1610,35 @@ const ClientCompanyModal = ({
                   </div>
                   <div className="col-md-6">
                     <div className="mb-3">
+                      <label className="form-label">State/Province</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        name="state"
+                        value={formData.state}
+                        onChange={handleInputChange}
+                        placeholder="State or province"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="mb-3">
+                      <label className="form-label">Country</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        name="country"
+                        value={formData.country}
+                        onChange={handleInputChange}
+                        placeholder="Country"
+                      />
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="mb-3">
                       <label className="form-label">Postal Code</label>
                       <input
                         type="text"
@@ -1598,6 +1651,18 @@ const ClientCompanyModal = ({
                     </div>
                   </div>
                 </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Support Email</label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    name="support_email"
+                    value={formData.support_email}
+                    onChange={handleInputChange}
+                    placeholder="support@example.com"
+                  />
+                </div>
               </div>
             </div>
 
@@ -1606,11 +1671,25 @@ const ClientCompanyModal = ({
               <textarea
                 className="form-control"
                 name="notes"
-                rows="2"
+                rows="3"
                 value={formData.notes}
                 onChange={handleInputChange}
                 placeholder="Additional notes about this client..."
               />
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label">Company Logo</label>
+              <input
+                type="file"
+                className="form-control"
+                name="logo"
+                accept="image/*"
+                onChange={handleInputChange}
+              />
+              <div className="form-text">
+                Optional: Upload company logo (PNG, JPG, SVG, max 5MB)
+              </div>
             </div>
           </form>
         </div>
@@ -1665,11 +1744,14 @@ const ProposalsModal = ({
     >
       <div
         className="card shadow"
-        style={{ width: "900px", maxHeight: "90vh", overflowY: "auto" }}
+        style={{ width: "1000px", maxHeight: "90vh", overflowY: "auto" }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="card-header d-flex justify-content-between align-items-center bg-primary text-white">
-          <h5 className="mb-0">Saved Proposals ({safeProposals.length})</h5>
+          <h5 className="mb-0">
+            <FileText size={20} className="me-2" />
+            Saved Proposals ({safeProposals.length})
+          </h5>
           <button 
             className="btn-close btn-close-white" 
             onClick={onClose}
@@ -1684,6 +1766,7 @@ const ProposalsModal = ({
             </div>
           ) : safeProposals.length === 0 ? (
             <div className="text-center py-4">
+              <FileText size={48} className="text-muted mb-3" />
               <p>No saved proposals found.</p>
               <p className="text-muted">Create and save your first proposal!</p>
             </div>
@@ -1706,15 +1789,24 @@ const ProposalsModal = ({
                     <tr key={proposal.id}>
                       <td>
                         <strong>{proposal.proposal_number}</strong>
+                        {proposal.title && (
+                          <div><small className="text-muted">{proposal.title}</small></div>
+                        )}
                       </td>
                       <td>
                         <div className="fw-bold">{proposal.client_name}</div>
                         {proposal.client_email && (
                           <div><small>{proposal.client_email}</small></div>
                         )}
+                        {proposal.client_phone && (
+                          <div><small>{proposal.client_phone}</small></div>
+                        )}
                       </td>
                       <td>
                         <div>{proposal.date}</div>
+                        {proposal.due_date && (
+                          <div><small className="text-muted">Due: {proposal.due_date}</small></div>
+                        )}
                       </td>
                       <td>
                         <span className="badge bg-info">
@@ -1767,7 +1859,10 @@ const ProposalsModal = ({
         </div>
         
         <div className="card-footer">
-          <div className="d-flex justify-content-end">
+          <div className="d-flex justify-content-between align-items-center">
+            <small className="text-muted">
+              Showing {safeProposals.length} proposal{safeProposals.length !== 1 ? 's' : ''}
+            </small>
             <button 
               className="btn btn-secondary"
               onClick={onClose}
@@ -1780,58 +1875,6 @@ const ProposalsModal = ({
     </div>
   );
 };
-
-// Default templates fallback
-const TEMPLATES = [
-  {
-    id: 1,
-    name: "Classic",
-    file: "template_1.jpg",
-    style: {
-      container: { fontFamily: "Times New Roman, serif", fontSize: "14px", fontWeight: "normal", textColor: "#dfdcdcff", textAlign: "left",},
-      header: { color: "#b2b4b6ff", fontSize: "20px", fontWeight: "bold", textAlign: "left", },
-      subHeader: { color: "#1b4496ff", fontSize: "16px", fontWeight: "bold",},
-      clientInfo: { fontSize: "14px", fontWeight: "normal", textColor: "#fdf6f6ff" },
-      tableHeader: { backgroundColor: "#f0f0f0", fontWeight: "bold", textAlign: "left", fontSize: "14px", color: "#000" },
-      tableCell: { fontSize: "14px", color: "#000000ff", textAlign: "left" },
-      totals: { fontSize: "14px", fontWeight: "bold", textAlign: "right", color: "#111111" },
-      notes: { fontSize: "13px", color: "#333333", textAlign: "left" },
-      footer: { fontSize: "12px", color: "#555555", textAlign: "center" },
-    },
-  },
-  {
-    id: 2,
-    name: "Modern",
-    file: "template_2.jpg",
-    style: {
-      container: { fontFamily: "Arial, sans-serif", fontSize: "13px", fontWeight: "normal", textColor: "#222222", textAlign: "left" },
-      header: { color: "#473b32ff", fontSize: "22px", fontWeight: "bold", textAlign: "center" },
-      subHeader: { color: "#251d18ff", fontSize: "16px", fontWeight: "bold" },
-      clientInfo: { fontSize: "13px", fontWeight: "normal", textColor: "#e9e8e8ff" },
-      tableHeader: { backgroundColor: "#e0f7fa", fontWeight: "bold", textAlign: "center", fontSize: "14px", color: "#222" },
-      tableCell: { fontSize: "13px", color: "#222", textAlign: "center" },
-      totals: { fontSize: "14px", fontWeight: "bold", textAlign: "right", color: "#222" },
-      notes: { fontSize: "13px", color: "#444444", textAlign: "left" },
-      footer: { fontSize: "12px", color: "#271e09ff", textAlign: "center", marginTop:"-20px"},
-    },
-  },
-  {
-    id: 3,
-    name: "Professional",
-    file: "template_3.jpg",
-    style: {
-      container: { fontFamily: "Verdana, sans-serif", fontSize: "15px", fontWeight: "normal", textColor: "#fff8f8ff", textAlign: "right" },
-      header: { color: "#ffffff", fontSize: "22px", fontWeight: "bold", textAlign: "right" },
-      subHeader: { color: "#ffffff", fontSize: "16px", fontWeight: "bold" },
-      clientInfo: { fontSize: "14px", fontWeight: "normal", textColor: "#ffff" },
-      tableHeader: { backgroundColor: "#d4ceceff", fontWeight: "bold", textAlign: "right", fontSize: "14px", color: "#000" },
-      tableCell: { fontSize: "14px", color: "#0b0a0aff", textAlign: "right" },
-      totals: { fontSize: "14px", fontWeight: "bold", textAlign: "right", color: "#000000" },
-      notes: { fontSize: "13px", color: "#666666", textAlign: "right" },
-      footer: { fontSize: "11px", color: "#030303ff", textAlign: "center" },
-    },
-  },
-];
 
 export default function ProposalGenerator() {
   const [invoiceData, setInvoiceData] = useState({
@@ -1850,20 +1893,18 @@ export default function ProposalGenerator() {
     paymentTerms: "Net 30",
     items: [],
     notes: "",
-    template: TEMPLATES[0], // Set default template
+    template: TEMPLATES[0],
   });
 
   // API States
   const [products, setProducts] = useState([]);
   const [services, setServices] = useState([]);
   const [clients, setClients] = useState([]);
-  const [templates, setTemplates] = useState([]); // Add templates state
   const [companyDetails, setCompanyDetails] = useState(null);
   const [loading, setLoading] = useState({
     products: false,
-    services: false, 
+    services: false,
     clients: false,
-    templates: false, // Add templates loading state
     company: false,
     creatingProduct: false,
     creatingService: false,
@@ -1876,7 +1917,6 @@ export default function ProposalGenerator() {
     products: null,
     services: null,
     clients: null,
-    templates: null, // Add templates error state
     company: null,
     proposals: null
   });
@@ -1888,9 +1928,6 @@ export default function ProposalGenerator() {
 
   // Company Settings State
   const [showCompanySettings, setShowCompanySettings] = useState(false);
-
-  // Template Selection State
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   // Proposal States
   const [savedProposals, setSavedProposals] = useState([]);
@@ -1912,7 +1949,7 @@ export default function ProposalGenerator() {
     address_line1: "",
     city: "",
     state: "",
-    country: "", 
+    country: "",
     postal_code: "",
     support_email: "",
     notes: "",
@@ -1927,47 +1964,21 @@ export default function ProposalGenerator() {
   const [showProduct, setShowProduct] = useState(true);
   const [showService, setShowService] = useState(true);
 
-  // Fetch Templates from API
-  const fetchTemplates = async () => {
-    setLoading(prev => ({ ...prev, templates: true }));
-    setError(prev => ({ ...prev, templates: null }));
-    
-    try {
-      const templatesData = await apiService.templates.getAll();
-      console.log('📋 Fetched templates:', templatesData);
-      setTemplates(templatesData.templates || []);
-      
-      // Set default template if none is selected
-      if (templatesData.templates.length > 0 && !invoiceData.template) {
-        setInvoiceData(prev => ({
-          ...prev,
-          template: templatesData.templates[0]
-        }));
-      }
-    } catch (err) {
-      const errorMessage = err.response?.data?.detail || err.message || 'Failed to fetch templates';
-      setError(prev => ({ ...prev, templates: errorMessage }));
-      console.error('Error fetching templates:', err);
-    } finally {
-      setLoading(prev => ({ ...prev, templates: false }));
-    }
-  };
+  const style = invoiceData.template.style;
 
-  // Handle Template Selection
-  const handleTemplateSelect = (template) => {
-    setInvoiceData(prev => ({
-      ...prev,
-      template: template
-    }));
-    setShowTemplateModal(false);
-    
-    Swal.fire({
-      icon: 'success',
-      title: 'Template Selected!',
-      text: `"${template.name}" template is now active`,
-      timer: 2000
-    });
-  };
+  // Pre-fill client company modal data
+  useEffect(() => {
+    if (showClientCompanyModal) {
+      setClientCompanyFormData(prev => ({
+        ...prev,
+        name: invoiceData.clientName,
+        contact: invoiceData.clientName,
+        email: invoiceData.clientEmail,
+        phone: invoiceData.clientPhone,
+        address_line1: invoiceData.clientAddress
+      }));
+    }
+  }, [showClientCompanyModal, invoiceData]);
 
   // Fetch Company Details
   const fetchCompanyDetails = async () => {
@@ -2323,8 +2334,6 @@ export default function ProposalGenerator() {
       qty: item.quantity || item.qty || 1,
       price: item.price || 0,
       gst: item.gst_rate || item.gst || 0,
-      hsn_sac: item.hsn_sac_code || '',
-      part_service_code: item.part_service_code || '',
       type: item.type || 'product'
     }));
 
@@ -2402,7 +2411,7 @@ export default function ProposalGenerator() {
       dueDate: "",
       items: [],
       notes: "",
-      template: invoiceData.template || TEMPLATES[0], // Keep current template or default
+      template: TEMPLATES[0],
     };
     
     setInvoiceData(newInvoiceData);
@@ -2574,39 +2583,23 @@ export default function ProposalGenerator() {
     }
   };
 
-  // Refresh all data - Updated to include templates
+  // Refresh all data
   const refreshData = () => {
     fetchProducts();
     fetchServices();
     fetchClients();
-    fetchTemplates(); // Add templates refresh
     fetchCompanyDetails();
     fetchProposals();
   };
 
-  // Load data on component mount - Updated to include templates
+  // Load data on component mount
   useEffect(() => {
     fetchProducts();
     fetchServices();
     fetchClients();
-    fetchTemplates(); // Add templates fetch
     fetchCompanyDetails();
     fetchProposals();
   }, []);
-
-  // Pre-fill client company modal data
-  useEffect(() => {
-    if (showClientCompanyModal) {
-      setClientCompanyFormData(prev => ({
-        ...prev,
-        name: invoiceData.clientName,
-        contact: invoiceData.clientName,
-        email: invoiceData.clientEmail,
-        phone: invoiceData.clientPhone,
-        address_line1: invoiceData.clientAddress
-      }));
-    }
-  }, [showClientCompanyModal, invoiceData]);
 
   // Calculate totals
   const calculateTotals = () => {
@@ -2632,25 +2625,12 @@ export default function ProposalGenerator() {
 
   const totals = calculateTotals();
 
-  // Item management functions
-  const addItem = (item) => setInvoiceData({ 
-    ...invoiceData, 
-    items: [...invoiceData.items, { 
-      ...item, 
-      qty: 1, 
-      gst: 10,
-      description: item.description || "",
-      hsn_sac: item.hsn_sac || "",
-      part_service_code: item.part_service_code || ""
-    }] 
-  });
-  
+  const addItem = (item) => setInvoiceData({ ...invoiceData, items: [...invoiceData.items, { ...item, qty: 1, gst: 10 }] });
   const removeItem = (index) => {
     const newItems = [...invoiceData.items];
     newItems.splice(index, 1);
     setInvoiceData({ ...invoiceData, items: newItems });
   };
-  
   const updateItem = (index, key, value) => {
     const newItems = [...invoiceData.items];
     if (key === "qty") newItems[index][key] = value === "" ? "" : parseInt(value);
@@ -2659,7 +2639,6 @@ export default function ProposalGenerator() {
     setInvoiceData({ ...invoiceData, items: newItems });
   };
 
-  // ADD THE MISSING chunkItems FUNCTION
   const chunkItems = (items, chunkSize) => {
     const chunks = [];
     for (let i = 0; i < items.length; i += chunkSize) {
@@ -2667,7 +2646,6 @@ export default function ProposalGenerator() {
     }
     return chunks;
   };
-
   const itemChunks = chunkItems(invoiceData.items, 10);
 
   const downloadInvoice = async () => {
@@ -2700,78 +2678,59 @@ export default function ProposalGenerator() {
     pdf.save(`${invoiceData.invoiceNumber}.pdf`);
   };
 
-  // Get current style for rendering
-  const style = invoiceData.template?.style || TEMPLATES[0].style;
-
   return (
-    <div className="d-flex" style={{ minHeight: "100vh", background: "#f8f9fa" }}>
-      {/* Simplified Sidebar */}
-      <div className="border-end p-3" style={{ width: 280, background: "white" }}>
-        {/* Template Section */}
+    <div className="d-flex" style={{ minHeight: "100vh", background: "#e9ecef" }}>
+      {/* Sidebar */}
+      <div className="border-end p-3" style={{ width: 280 }}>
+        {/* API Controls */}
         <div className="mb-4">
           <div className="d-flex justify-content-between align-items-center mb-2">
-            <h6>Template</h6>
-            {loading.templates && <Loader2 size={14} className="spinner" />}
+            <h5>API Controls</h5>
+            <button 
+              className="btn btn-sm btn-outline-secondary"
+              onClick={refreshData}
+              disabled={loading.products || loading.services || loading.clients || loading.company}
+            >
+              <RefreshCw size={14} />
+            </button>
           </div>
-          
-          {invoiceData.template ? (
-            <div className="card mb-2">
-              <div className="card-body p-2 text-center">
-                <div className="mb-1">
-                  <img 
-                    src={invoiceData.template.imageUrl || `/proposal-templates/${invoiceData.template.file}`} 
-                    alt={invoiceData.template.name}
-                    style={{ 
-                      width: '100%', 
-                      height: '60px', 
-                      objectFit: 'cover',
-                      borderRadius: '4px'
-                    }}
-                    onError={(e) => {
-                      e.target.src = '/proposal-templates/default-template.jpg';
-                    }}
-                  />
-                </div>
-                <small className="d-block text-muted">{invoiceData.template.name}</small>
-              </div>
-            </div>
-          ) : null}
-          
-          <button 
-            className="btn btn-outline-primary w-100 btn-sm"
-            onClick={() => setShowTemplateModal(true)}
-          >
-            Change Template
-          </button>
         </div>
 
-        {/* Company Section */}
+        {/* Company Settings Section */}
         <div className="mb-4">
           <div className="d-flex justify-content-between align-items-center mb-2">
-            <h6>Company</h6>
-            {loading.company && <Loader2 size={14} className="spinner" />}
+            <h5>Company Settings</h5>
+            {loading.company && <Loader2 size={16} className="spinner" />}
           </div>
+          
+          {error.company && (
+            <div className="alert alert-danger py-2 mb-2">
+              <small>{error.company}</small>
+            </div>
+          )}
 
           {companyDetails && (
-            <div className="card mb-2">
-              <div className="card-body p-2">
-                <div className="d-flex align-items-center mb-1">
+            <div className="card mb-3">
+              <div className="card-body p-3">
+                <div className="d-flex align-items-center mb-2">
                   {companyDetails.companyLogo && (
                     <img 
                       src={companyDetails.companyLogo} 
                       alt="Logo" 
-                      style={{ width: '30px', height: '30px', objectFit: 'contain' }}
+                      style={{ width: '40px', height: '40px', objectFit: 'contain' }}
                       className="me-2 rounded"
                     />
                   )}
                   <div className="flex-grow-1">
-                    <small className="d-block fw-bold">{companyDetails.companyName}</small>
+                    <strong className="d-block">{companyDetails.companyName}</strong>
+                    <small className="text-muted">{companyDetails.companyEmail}</small>
                   </div>
                 </div>
                 <button 
                   className="btn btn-outline-primary w-100 btn-sm"
                   onClick={() => setShowCompanySettings(true)}
                 >
+                  <Edit size={14} className="me-1" />
                   Edit Company
                 </button>
               </div>
@@ -2781,23 +2740,26 @@ export default function ProposalGenerator() {
 
         {/* Proposal Controls */}
         <div className="mb-4">
-          <h6 className="mb-2">Proposal</h6>
+          <div className="d-flex justify-content-between align-items-center mb-2">
+            <h5>Proposal Controls</h5>
+            {loading.proposals && <Loader2 size={16} className="spinner" />}
+          </div>
           
-          <div className="d-grid gap-1">
+          <div className="d-grid gap-2">
             <button 
               className="btn btn-success btn-sm"
               onClick={saveProposalHandler}
-              disabled={loading.savingProposal || invoiceData.items.length === 0 || !invoiceData.template}
+              disabled={loading.savingProposal || invoiceData.items.length === 0}
             >
               {loading.savingProposal ? (
                 <>
-                  <Loader2 size={12} className="spinner me-1" />
+                  <Loader2 size={14} className="spinner me-1" />
                   Saving...
                 </>
               ) : (
                 <>
-                  <Save size={12} className="me-1" />
-                  {currentProposalId ? 'Update' : 'Save'}
+                  <Save size={14} className="me-1" />
+                  {currentProposalId ? 'Update Proposal' : 'Save Proposal'}
                 </>
               )}
             </button>
@@ -2809,7 +2771,7 @@ export default function ProposalGenerator() {
                 fetchProposals();
               }}
             >
-              <List size={12} className="me-1" />
+              <List size={14} className="me-1" />
               My Proposals ({savedProposals.length})
             </button>
             
@@ -2817,102 +2779,173 @@ export default function ProposalGenerator() {
               className="btn btn-outline-secondary btn-sm"
               onClick={createNewProposal}
             >
-              <FileText size={12} className="me-1" />
+              <FileText size={14} className="me-1" />
               New Proposal
             </button>
           </div>
         </div>
 
-        {/* Products & Services */}
+        <h5>Filters</h5>
         <div className="mb-3">
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <h6>Products & Services</h6>
-            <div className="form-check form-check-inline">
-              <input type="checkbox" checked={showProduct} onChange={() => setShowProduct(!showProduct)} id="productCheckbox" className="form-check-input" />
-              <label htmlFor="productCheckbox" className="form-check-label small">Products</label>
-            </div>
-            <div className="form-check form-check-inline">
-              <input type="checkbox" checked={showService} onChange={() => setShowService(!showService)} id="serviceCheckbox" className="form-check-input" />
-              <label htmlFor="serviceCheckbox" className="form-check-label small">Services</label>
-            </div>
-          </div>
+          <input type="checkbox" checked={showProduct} onChange={() => setShowProduct(!showProduct)} id="productCheckbox" />
+          <label htmlFor="productCheckbox" className="ms-2">Product</label>
+          <input type="checkbox" checked={showService} onChange={() => setShowService(!showService)} id="serviceCheckbox" className="ms-3" />
+          <label htmlFor="serviceCheckbox" className="ms-2">Service</label>
+        </div>
 
-          {showProduct && (
-            <>
-              {products.map((p) => (
-                <div key={p.id} className="d-flex align-items-center mb-1">
-                  <button 
-                    className="btn btn-outline-success flex-grow-1 text-start btn-sm" 
-                    onClick={() => addItem(p)}
-                    style={{ whiteSpace: 'normal', fontSize: '12px' }}
-                  >
-                    {p.name} - ${p.price}
-                  </button>
-                </div>
-              ))}
-              
-              <button 
-                className="btn btn-success w-100 btn-sm mb-2" 
-                onClick={() => handleCreateProductService('product')}
-                disabled={creatingProductService}
-              >
-                <Plus size={12} className="me-1" />
-                New Product
-              </button>
-            </>
-          )}
+        {showProduct && (
+          <>
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <h5>Products</h5>
+              {loading.products && <Loader2 size={16} className="spinner" />}
+            </div>
+            
+            {error.products && (
+              <div className="alert alert-danger py-2 mb-2">
+                <small>{error.products}</small>
+              </div>
+            )}
 
-          {showService && (
-            <>
-              {services.map((s) => (
-                <div key={s.id} className="d-flex align-items-center mb-1">
-                  <button 
-                    className="btn btn-outline-info flex-grow-1 text-start btn-sm" 
-                    onClick={() => addItem(s)}
-                    style={{ whiteSpace: 'normal', fontSize: '12px' }}
-                  >
-                    {s.name} - ${s.price}
-                  </button>
-                </div>
-              ))}
-              
-              <button 
-                className="btn btn-info w-100 btn-sm" 
-                onClick={() => handleCreateProductService('service')}
-                disabled={creatingProductService}
-              >
-                <Plus size={12} className="me-1" />
-                New Service
-              </button>
-            </>
-          )}
+            {products.map((p) => (
+              <div key={p.id} className="d-flex align-items-center mb-2">
+                <button 
+                  className="btn btn-outline-success flex-grow-1 text-start" 
+                  onClick={() => addItem(p)}
+                  style={{ whiteSpace: 'normal' }}
+                >
+                  {p.name} - ${p.price}
+                </button>
+                <button 
+                  className="btn btn-outline-danger ms-2"
+                  onClick={() => deleteProductHandler(p.id)}
+                  style={{ padding: '2px 6px' }}
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ))}
+            
+            <button 
+              className="btn btn-success w-100 mb-3" 
+              onClick={() => handleCreateProductService('product')}
+              disabled={creatingProductService}
+            >
+              {creatingProductService ? (
+                <>
+                  <Loader2 size={16} className="spinner me-1" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus size={16} className="me-1" />
+                  Create Product
+                </>
+              )}
+            </button>
+          </>
+        )}
+
+        {showService && (
+          <>
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <h5>Services</h5>
+              {loading.services && <Loader2 size={16} className="spinner" />}
+            </div>
+            
+            {error.services && (
+              <div className="alert alert-danger py-2 mb-2">
+                <small>{error.services}</small>
+              </div>
+            )}
+
+            {services.map((s) => (
+              <div key={s.id} className="d-flex align-items-center mb-2">
+                <button 
+                  className="btn btn-outline-info flex-grow-1 text-start" 
+                  onClick={() => addItem(s)}
+                  style={{ whiteSpace: 'normal' }}
+                >
+                  {s.name} - ${s.price}
+                </button>
+                <button 
+                  className="btn btn-outline-danger ms-2"
+                  onClick={() => deleteServiceHandler(s.id)}
+                  style={{ padding: '2px 6px' }}
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            ))}
+            
+            <button 
+              className="btn btn-info w-100 mb-3" 
+              onClick={() => handleCreateProductService('service')}
+              disabled={creatingProductService}
+            >
+              {creatingProductService ? (
+                <>
+                  <Loader2 size={16} className="spinner me-1" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus size={16} className="me-1" />
+                  Create Service
+                </>
+              )}
+            </button>
+          </>
+        )}
+
+        {/* Template Selection */}
+        <div className="mt-4">
+          <h5>Select Template</h5>
+          {TEMPLATES.map((t) => (
+            <button
+              key={t.id}
+              className={`btn w-100 mb-2 ${invoiceData.template.id === t.id ? "btn-primary" : "btn-outline-secondary"}`}
+              onClick={() => setInvoiceData({ ...invoiceData, template: t })}
+            >
+              {t.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Manual Logo Upload (Fallback) */}
+        <div className="mt-4">
+          <label className="form-label">Upload Logo (Manual)</label>
+          <input
+            type="file"
+            accept="image/*"
+            className="form-control"
+            onChange={(e) => setInvoiceData({ ...invoiceData, companyLogo: URL.createObjectURL(e.target.files[0]) })}
+          />
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-grow-1 p-4" style={{ maxWidth: "900px", margin: "0 auto" }}>
         
-        {/* Template Status Alert */}
-        {!invoiceData.template && (
-          <div className="alert alert-warning mb-4">
-            <div className="d-flex justify-content-between align-items-center">
-              <span>Please select a template to continue.</span>
-              <button 
-                className="btn btn-warning btn-sm"
-                onClick={() => setShowTemplateModal(true)}
-              >
-                Select Template
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Simplified Client Form */}
+        {/* Enhanced Client Form with Auto-complete */}
         <div className="row mb-4">
           <div className="col-12">
             <div className="card">
-              <div className="card-header">
-                <h6 className="card-title mb-0">Client Information</h6>
+              <div className="card-header d-flex justify-content-between align-items-center">
+                <h5 className="card-title mb-0">
+                  <UserPlus size={18} className="me-2" />
+                  Client Information
+                </h5>
+                <div className="d-flex gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-primary"
+                    onClick={fetchClients}
+                    disabled={loading.clients}
+                  >
+                    {loading.clients ? <Loader2 size={14} className="spinner" /> : <RefreshCw size={14} />}
+                  </button>
+                  <span className="badge bg-secondary">{clients.length} clients</span>
+                </div>
               </div>
               <div className="card-body">
                 {/* Client Search & Select Section */}
@@ -2927,7 +2960,7 @@ export default function ProposalGenerator() {
                         <input
                           type="text"
                           className="form-control"
-                          placeholder="Search clients..."
+                          placeholder="Search clients by name, email, or phone..."
                           value={clientSearch}
                           onChange={(e) => handleClientSearch(e.target.value)}
                           onFocus={() => setShowClientDropdown(true)}
@@ -2938,7 +2971,7 @@ export default function ProposalGenerator() {
                       {showClientDropdown && filteredClients.length > 0 && (
                         <div 
                           className="position-absolute top-100 start-0 end-0 bg-white border mt-1 rounded shadow-lg z-3"
-                          style={{ maxHeight: '150px', overflow: 'auto' }}
+                          style={{ maxHeight: '200px', overflow: 'auto' }}
                         >
                           {filteredClients.map(client => (
                             <div
@@ -2947,29 +2980,41 @@ export default function ProposalGenerator() {
                               style={{ cursor: 'pointer' }}
                               onClick={() => handleClientSelect(client)}
                             >
-                              <div className="fw-bold small">{client.name}</div>
+                              <div className="fw-bold">{client.name}</div>
                               <small className="text-muted d-block">
-                                {client.email}
+                                {client.email} {client.phone && `• ${client.phone}`}
                               </small>
+                              {client.contact_person && (
+                                <small className="text-muted">Contact: {client.contact_person}</small>
+                              )}
                             </div>
                           ))}
                         </div>
                       )}
+                      
+                      {loading.clients && (
+                        <div className="position-absolute top-50 end-0 translate-middle-y me-2">
+                          <Loader2 size={16} className="spinner" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="form-text">
+                      Start typing to search through {clients.length} clients
                     </div>
                   </div>
                   
-                  <div className="col-md-4 d-flex align-items-end gap-1">
+                  <div className="col-md-4 d-flex align-items-end gap-2">
                     <button
                       type="button"
-                      className="btn btn-success flex-fill btn-sm"
+                      className="btn btn-success flex-fill"
                       onClick={createClientFromCurrentData}
                       disabled={loading.creatingClient || !invoiceData.clientName || !invoiceData.clientEmail}
                     >
-                      {loading.creatingClient ? <Loader2 size={12} className="spinner" /> : 'Save Client'}
+                      {loading.creatingClient ? <Loader2 size={14} className="spinner" /> : 'Save as New Client'}
                     </button>
                     <button
                       type="button"
-                      className="btn btn-outline-secondary btn-sm"
+                      className="btn btn-outline-secondary"
                       onClick={clearClientSelection}
                     >
                       Clear
@@ -3023,8 +3068,32 @@ export default function ProposalGenerator() {
                       onChange={(e) => setInvoiceData({ ...invoiceData, clientAddress: e.target.value })}
                       placeholder="Street, City, Country"
                     />
+                    <div className="mt-2">
+                      <button 
+                        type="button" 
+                        className="btn btn-outline-primary btn-sm"
+                        onClick={() => setShowClientCompanyModal(true)}
+                      >
+                        📋 Add More Company Details
+                      </button>
+                      <small className="text-muted ms-2">Click to add full company information</small>
+                    </div>
                   </div>
                 </div>
+
+                {/* Client Quick Stats */}
+                {invoiceData.clientName && (
+                  <div className="row mt-3">
+                    <div className="col-12">
+                      <div className="alert alert-info py-2">
+                        <small>
+                          <strong>Ready to invoice:</strong> {invoiceData.clientName} 
+                          {invoiceData.clientEmail && ` • ${invoiceData.clientEmail}`}
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -3053,9 +3122,6 @@ export default function ProposalGenerator() {
               <tr>
                 <th>S.No</th>
                 <th>Item</th>
-                <th>Description</th>
-                <th>HSN/SAC</th>
-                <th>Part/Service Code</th>
                 <th>Qty</th>
                 <th>Price</th>
                 <th>GST %</th>
@@ -3068,70 +3134,23 @@ export default function ProposalGenerator() {
                 <tr key={index}>
                   <td style={style.tableCell}>{index + 1}</td>
                   <td style={style.tableCell}>
-                    <input 
-                      type="text" 
-                      className="form-control form-control-sm" 
-                      value={item.name} 
-                      onChange={(e) => updateItem(index, "name", e.target.value)} 
-                    />
+                    <input type="text" className="form-control" value={item.name} onChange={(e) => updateItem(index, "name", e.target.value)} />
                   </td>
                   <td style={style.tableCell}>
-                    <input 
-                      type="text" 
-                      className="form-control form-control-sm" 
-                      value={item.description || ""} 
-                      onChange={(e) => updateItem(index, "description", e.target.value)} 
-                      placeholder="Item description"
-                    />
+                    <input type="number" className="form-control" value={item.qty || ""} onChange={(e) => updateItem(index, "qty", e.target.value)} />
                   </td>
                   <td style={style.tableCell}>
-                    <input 
-                      type="text" 
-                      className="form-control form-control-sm" 
-                      value={item.hsn_sac || ""} 
-                      onChange={(e) => updateItem(index, "hsn_sac", e.target.value)} 
-                      placeholder="HSN/SAC code"
-                    />
+                    <input type="number" className="form-control" value={item.price || ""} onChange={(e) => updateItem(index, "price", e.target.value)} />
                   </td>
                   <td style={style.tableCell}>
-                    <input 
-                      type="text" 
-                      className="form-control form-control-sm" 
-                      value={item.part_service_code || ""} 
-                      onChange={(e) => updateItem(index, "part_service_code", e.target.value)} 
-                      placeholder="Part/Service code"
-                    />
-                  </td>
-                  <td style={style.tableCell}>
-                    <input 
-                      type="number" 
-                      className="form-control form-control-sm" 
-                      value={item.qty || ""} 
-                      onChange={(e) => updateItem(index, "qty", e.target.value)} 
-                    />
-                  </td>
-                  <td style={style.tableCell}>
-                    <input 
-                      type="number" 
-                      className="form-control form-control-sm" 
-                      value={item.price || ""} 
-                      onChange={(e) => updateItem(index, "price", e.target.value)} 
-                    />
-                  </td>
-                  <td style={style.tableCell}>
-                    <input 
-                      type="number" 
-                      className="form-control form-control-sm" 
-                      value={item.gst || 0} 
-                      onChange={(e) => updateItem(index, "gst", e.target.value)} 
-                    />
+                    <input type="number" className="form-control" value={item.gst || 0} onChange={(e) => updateItem(index, "gst", e.target.value)} />
                   </td>
                   <td style={style.tableCell}>
                     ${((item.qty || 0) * (item.price || 0) * (1 + (item.gst || 0) / 100)).toFixed(2)}
                   </td>
                   <td>
                     <button type="button" className="btn btn-sm btn-danger" onClick={() => removeItem(index)}>
-                      <Trash2 size={12} />
+                      <Trash2 size={14} />
                     </button>
                   </td>
                 </tr>
@@ -3145,7 +3164,7 @@ export default function ProposalGenerator() {
           <label className="form-label">Notes</label>
           <textarea
             className="form-control"
-            rows="2"
+            rows="3"
             value={invoiceData.notes}
             onChange={(e) => setInvoiceData({ ...invoiceData, notes: e.target.value })}
             placeholder="Additional notes or terms and conditions..."
@@ -3158,16 +3177,16 @@ export default function ProposalGenerator() {
             <button 
               className="btn btn-success"
               onClick={saveProposalHandler}
-              disabled={loading.savingProposal || invoiceData.items.length === 0 || !invoiceData.template}
+              disabled={loading.savingProposal || invoiceData.items.length === 0}
             >
               {loading.savingProposal ? (
                 <>
-                  <Loader2 size={14} className="spinner me-2" />
+                  <Loader2 size={16} className="spinner me-2" />
                   {currentProposalId ? 'Updating...' : 'Saving...'}
                 </>
               ) : (
                 <>
-                  <Save size={14} className="me-2" />
+                  <Save size={16} className="me-2" />
                   {currentProposalId ? 'Update Proposal' : 'Save Proposal'}
                 </>
               )}
@@ -3180,34 +3199,39 @@ export default function ProposalGenerator() {
                 fetchProposals();
               }}
             >
-              <List size={14} className="me-2" />
+              <List size={16} className="me-2" />
               My Proposals
+            </button>
+            
+            <button 
+              className="btn btn-outline-secondary"
+              onClick={createNewProposal}
+            >
+              <FileText size={16} className="me-2" />
+              New Proposal
             </button>
 
             <button 
               className="btn btn-info"
               onClick={printProposal}
-              disabled={invoiceData.items.length === 0 || !invoiceData.template}
+              disabled={invoiceData.items.length === 0}
             >
-              <Printer size={14} className="me-2" />
+              <Printer size={16} className="me-2" />
               Print
             </button>
             
-            <button 
-              className="btn btn-primary" 
-              onClick={downloadInvoice}
-              disabled={!invoiceData.template}
-            >
-              Download PDF
-            </button>
-
-            <button 
-              className="btn btn-warning"
-              onClick={() => setShowTemplateModal(true)}
-            >
-              Change Template
+            <button className="btn btn-primary" onClick={downloadInvoice}>
+              📄 Download PDF
             </button>
           </div>
+          
+          {currentProposalId && (
+            <div className="mt-2">
+              <small className="text-muted">
+                Editing: Proposal #{currentProposalId}
+              </small>
+            </div>
+          )}
         </div>
 
         {/* Default Template Preview */}
@@ -3218,8 +3242,7 @@ export default function ProposalGenerator() {
               width: "500px",
               minHeight: "700px",
               margin: "30px auto",
-              backgroundImage: invoiceData.template ? `url(${invoiceData.template.imageUrl || `/proposal-templates/${invoiceData.template.file}`})` : 'none',
-              backgroundColor: invoiceData.template ? 'transparent' : '#f8f9fa',
+              backgroundImage: `url(/proposal-templates/${invoiceData.template.file})`,
               backgroundSize: "cover",
               backgroundRepeat: "no-repeat",
               padding: "20px",
@@ -3231,9 +3254,7 @@ export default function ProposalGenerator() {
             }}>
               {invoiceData.companyLogo && <img src={invoiceData.companyLogo} alt="Logo" style={{ maxHeight: 60 }} />}
               <h3 style={style.header}>{invoiceData.companyName}</h3>
-              <p style={{ textAlign: "center", marginTop: 50 }}>
-                {invoiceData.template ? 'Your proposal preview will appear here' : 'Please select a template first'}
-              </p>
+              <p style={{ textAlign: "center", marginTop: 50 }}>Your proposal preview will appear here</p>
             </div>
 
             <div className="explanation-page" style={{
@@ -3241,8 +3262,7 @@ export default function ProposalGenerator() {
               width: "500px",
               minHeight: "700px",
               margin: "30px auto",
-              backgroundImage: invoiceData.template ? `url(${invoiceData.template.imageUrl || `/proposal-templates/${invoiceData.template.file}`})` : 'none',
-              backgroundColor: invoiceData.template ? 'transparent' : '#f8f9fa',
+              backgroundImage: `url(/proposal-templates/${invoiceData.template.file})`,
               backgroundSize: "cover",
               backgroundRepeat: "no-repeat",
               padding: "20px",
@@ -3253,9 +3273,7 @@ export default function ProposalGenerator() {
               textAlign: style.container.textAlign,
             }}>
               <h3 style={style.header}>Product & Service Explanations</h3>
-              <p style={{ textAlign: "center", color: "#888", marginTop: 50 }}>
-                {invoiceData.template ? 'No items added yet' : 'Please select a template first'}
-              </p>
+              <p style={{ textAlign: "center", color: "#888", marginTop: 50 }}>No items added yet</p>
             </div>
           </>
         )}
@@ -3271,8 +3289,7 @@ export default function ProposalGenerator() {
               width: "500px",
               minHeight: "700px",
               margin: "30px auto",
-              backgroundImage: invoiceData.template ? `url(${invoiceData.template.imageUrl || `/proposal-templates/${invoiceData.template.file}`})` : 'none',
-              backgroundColor: invoiceData.template ? 'transparent' : '#f8f9fa',
+              backgroundImage: `url(/proposal-templates/${invoiceData.template.file})`,
               backgroundSize: "cover",
               backgroundRepeat: "no-repeat",
               padding: "20px",
@@ -3284,6 +3301,8 @@ export default function ProposalGenerator() {
               position: "relative",
             }}>
 
+            
+              
               {/* COMPANY HEADER & CLIENT INFO - Show only on FIRST page */}
               {isFirstPage && (
                 <>
@@ -3322,9 +3341,8 @@ export default function ProposalGenerator() {
                     <tr style={style.tableHeader}>
                       <th style={{ padding: 8, border: "1px solid #ccc" }}>S.No</th>
                       <th style={{ padding: 8, border: "1px solid #ccc" }}>Item</th>
-                      <th style={{ padding: 8, border: "1px solid #ccc" }}>HSN/SAC</th>
-                      <th style={{ padding: 8, border: "1px solid #ccc" }}>Part/Service Code</th>
                       <th style={{ padding: 8, border: "1px solid #ccc" }}>Qty</th>
+                      <th style={{ padding: 8, border: "1px solid #ccc" }}>Price</th>
                       <th style={{ padding: 8, border: "1px solid #ccc" }}>GST</th>
                       <th style={{ padding: 8, border: "1px solid #ccc" }}>Total</th>
                     </tr>
@@ -3336,9 +3354,8 @@ export default function ProposalGenerator() {
                         <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? "#fff" : "#f5f5f5", ...style.tableCell }}>
                           <td style={{ padding: 8, border: "1px solid #ccc" }}>{globalIndex + 1}</td>
                           <td style={{ padding: 8, border: "1px solid #ccc" }}>{item.name}</td>
-                          <td style={{ padding: 8, border: "1px solid #ccc" }}>{item.hsn_sac || "-"}</td>
-                          <td style={{ padding: 8, border: "1px solid #ccc" }}>{item.part_service_code || "-"}</td>
                           <td style={{ padding: 8, border: "1px solid #ccc", textAlign: "center" }}>{item.qty}</td>
+                          <td style={{ padding: 8, border: "1px solid #ccc", textAlign: "right" }}>${(item.price || 0).toFixed(2)}</td>
                           <td style={{ padding: 8, border: "1px solid #ccc", textAlign: "right" }}>{item.gst || 0}%</td>
                           <td style={{ padding: 8, border: "1px solid #ccc", textAlign: "right" }}>${((item.qty || 0) * (item.price || 0) * (1 + (item.gst || 0) / 100)).toFixed(2)}</td>
                         </tr>
@@ -3379,6 +3396,7 @@ export default function ProposalGenerator() {
                     )}
                     <div style={{ textAlign: "center" }}>
                       <p style={style.footer}>Thank you for your business!</p>
+                      <p style={style.footer}>{invoiceData.companyName} | {invoiceData.companyPhone} | {invoiceData.companyEmail}</p>
                     </div>
                   </div>
                 )}
@@ -3394,8 +3412,7 @@ export default function ProposalGenerator() {
             width: "500px",
             minHeight: "700px",
             margin: "30px auto",
-            backgroundImage: invoiceData.template ? `url(${invoiceData.template.imageUrl || `/proposal-templates/${invoiceData.template.file}`})` : 'none',
-            backgroundColor: invoiceData.template ? 'transparent' : '#f8f9fa',
+            backgroundImage: `url(/proposal-templates/${invoiceData.template.file})`,
             backgroundSize: "cover",
             backgroundRepeat: "no-repeat",
             padding: "20px",
@@ -3431,18 +3448,6 @@ export default function ProposalGenerator() {
           onClose={() => setShowCompanySettings(false)}
           loading={loading.updatingCompany}
           onLogoUpload={handleLogoUpload}
-        />
-      )}
-
-      {/* Template Selection Modal */}
-      {showTemplateModal && (
-        <TemplateSelectionModal
-          show={showTemplateModal}
-          onClose={() => setShowTemplateModal(false)}
-          templates={templates}
-          onSelectTemplate={handleTemplateSelect}
-          currentTemplate={invoiceData.template}
-          loading={loading.templates}
         />
       )}
 

@@ -1,4 +1,3 @@
-# invoices/serializers.py
 from rest_framework import serializers
 from .models import Invoice, InvoiceItem
 from proposal.models import Proposal, ProposalItem
@@ -13,7 +12,7 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
         model = InvoiceItem
         fields = [
             'id', 'description', 'item_type', 'quantity', 'price', 
-            'gst_rate', 'total', 'unit'
+            'gst_rate', 'total', 'unit', 'hsn_sac', 'part_service_code'  # ✅ ADDED HSN/SAC AND PART/SERVICE CODE
         ]
         read_only_fields = ['total']
 
@@ -47,19 +46,46 @@ class InvoiceSerializer(serializers.ModelSerializer):
         invoice = Invoice.objects.using(db_alias).create(**validated_data)
         
         for item_data in items_data:
+            # ✅ CREATE INVOICE ITEMS WITH HSN/SAC AND PART/SERVICE CODE
             InvoiceItem.objects.using(db_alias).create(invoice=invoice, **item_data)
         
         return invoice
 
     def update(self, instance, validated_data):
-        # Don't update items here - handle in view
         items_data = validated_data.pop('items', None)
+        db_alias = self.context.get('db_alias', 'default')
         
         # Update invoice fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         
-        instance.save(using=self.context.get('db_alias', 'default'))
+        instance.save(using=db_alias)
+        
+        # ✅ UPDATE INVOICE ITEMS WITH HSN/SAC AND PART/SERVICE CODE
+        if items_data is not None:
+            # Get existing item IDs
+            existing_item_ids = set(instance.items.values_list('id', flat=True))
+            updated_item_ids = set()
+            
+            # Update or create items
+            for item_data in items_data:
+                item_id = item_data.get('id')
+                if item_id and instance.items.filter(id=item_id).exists():
+                    # Update existing item
+                    item = instance.items.get(id=item_id)
+                    for attr, value in item_data.items():
+                        setattr(item, attr, value)
+                    item.save(using=db_alias)
+                    updated_item_ids.add(item_id)
+                else:
+                    # Create new item
+                    InvoiceItem.objects.using(db_alias).create(invoice=instance, **item_data)
+            
+            # Delete items that weren't included in the update
+            items_to_delete = existing_item_ids - updated_item_ids
+            if items_to_delete:
+                instance.items.filter(id__in=items_to_delete).delete()
+        
         return instance
 
 class InvoiceListSerializer(serializers.ModelSerializer):
@@ -73,4 +99,3 @@ class InvoiceListSerializer(serializers.ModelSerializer):
             'issue_date', 'due_date', 'grand_total', 'amount_paid', 'balance_due',
             'status', 'template_used', 'items_count', 'created_at', 'proposal_title'
         ]
-

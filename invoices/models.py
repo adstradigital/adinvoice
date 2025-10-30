@@ -98,6 +98,10 @@ class InvoiceItem(models.Model):
     gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=18)
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     unit = models.CharField(max_length=20, default='pc')
+    
+    # ✅ ADDED HSN/SAC AND PART/SERVICE CODE FIELDS
+    hsn_sac = models.CharField(max_length=50, blank=True, verbose_name="HSN/SAC Code")
+    part_service_code = models.CharField(max_length=50, blank=True, verbose_name="Part/Service Code")
 
     class Meta:
         ordering = ['id']
@@ -111,4 +115,3 @@ class InvoiceItem(models.Model):
 
     def __str__(self):
         return f"{self.description} - {self.invoice.invoice_number}"
-
