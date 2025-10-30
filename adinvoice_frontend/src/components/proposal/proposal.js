@@ -2746,7 +2746,7 @@ export default function ProposalGenerator() {
         </div>
 
         {/* Company Section */}
-        <div className="mb-4">
+        {/* <div className="mb-4">
           <div className="d-flex justify-content-between align-items-center mb-2">
             <h6>Company</h6>
             {loading.company && <Loader2 size={14} className="spinner" />}
@@ -2777,7 +2777,7 @@ export default function ProposalGenerator() {
               </div>
             </div>
           )}
-        </div>
+        </div> */}
 
         {/* Proposal Controls */}
         <div className="mb-4">
@@ -3034,7 +3034,8 @@ export default function ProposalGenerator() {
         <div className="row mb-3">
           <div className="col-md-4">
             <label className="form-label">Proposal Number</label>
-            <input type="text" className="form-control" value={invoiceData.invoiceNumber} onChange={(e) => setInvoiceData({ ...invoiceData, invoiceNumber: e.target.value })} />
+            <input type="text" className="form-control" value={invoiceData.invoiceNumber} onChange={(e) => setInvoiceData({ ...invoiceData, invoiceNumber: e.target.value })}  readOnly/>
+            
           </div>
           <div className="col-md-4">
             <label className="form-label">Date</label>

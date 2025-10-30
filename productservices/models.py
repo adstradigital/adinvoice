@@ -35,7 +35,7 @@ class ProductService(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     # optional fields
-    hsn_code = models.CharField(max_length=100, blank=True, null=True, unique=True)
+    hsn_code = models.CharField("HSN Code", max_length=100, blank=True, null=True, unique=True)
     stock_quantity = models.PositiveIntegerField(default=0, null=True, blank=True)  # for products
     delivery_available = models.BooleanField(default=False)  # for services/products
 

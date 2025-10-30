@@ -9,7 +9,6 @@ class ProductServiceImageSerializer(serializers.ModelSerializer):
         fields = ["id", "image", "uploaded_at"]
 
 
-
 class ProductServiceSerializer(serializers.ModelSerializer):
     images = ProductServiceImageSerializer(many=True, read_only=True)
     category = serializers.PrimaryKeyRelatedField(
@@ -31,15 +30,16 @@ class ProductServiceSerializer(serializers.ModelSerializer):
         db_alias = kwargs.get("context", {}).get("db_alias", "default")
         super().__init__(*args, **kwargs)
         if db_alias:
-            dd = Category.objects.using(db_alias).all()
-            print([i for i in dd])
             self.fields["category"].queryset = Category.objects.using(db_alias).all()
+
+    def validate_hsn_code(self, value):
+        # ✅ Fix duplicate empty string issue
+        return value or None
 
     def create(self, validated_data):
         db_alias = self.context.get("db_alias", "default")
-        # ✅ Just save in tenant DB; no FK to admin user
         return ProductService.objects.using(db_alias).create(**validated_data)
-    
+
     def update(self, instance, validated_data):
         db_alias = self.context.get("db_alias", "default")
         for attr, value in validated_data.items():
@@ -47,8 +47,6 @@ class ProductServiceSerializer(serializers.ModelSerializer):
         instance.save(using=db_alias)
         return instance
 
-
-    
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
